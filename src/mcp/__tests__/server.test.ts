@@ -1,5 +1,5 @@
 import { jest, expect } from "@jest/globals";
-import { McpServer } from "../mcp-server.js";
+import { McpServer } from "../server.js";
 import { DlxToolGenerator } from "../../tools/index.js";
 
 // Mock the SDK module

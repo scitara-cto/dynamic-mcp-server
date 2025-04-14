@@ -1,7 +1,6 @@
 import { jest, expect } from "@jest/globals";
-import { McpServer } from "./server.js";
-import { DlxToolGenerator } from "../tools/index.js";
-import { config } from "../config/index.js";
+import { McpServer } from "../mcp-server.js";
+import { DlxToolGenerator } from "../../tools/index.js";
 
 // Mock the SDK module
 jest.mock("@modelcontextprotocol/sdk/server/mcp.js", () => {
@@ -40,13 +39,6 @@ describe("McpServer", () => {
 
     mcpServer = new McpServer();
     await mcpServer.initialize();
-
-    console.log("Created McpServer instance:", mcpServer);
-    console.log("Server property:", mcpServer["server"]);
-    console.log(
-      "Server _server property:",
-      (mcpServer["server"] as any)._server,
-    );
   });
 
   afterEach(() => {
@@ -79,7 +71,6 @@ describe("McpServer", () => {
   describe("getServer", () => {
     it("should return the underlying server instance", () => {
       const server = mcpServer.getServer();
-      console.log("getServer() returned:", server);
       expect(server).toBeDefined();
       expect(server).toBeInstanceOf(Object);
       expect(server).toHaveProperty("_requestHandlers");

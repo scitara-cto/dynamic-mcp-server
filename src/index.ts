@@ -1,7 +1,8 @@
 import { DlxAuthService } from "./services/DlxAuthService.js";
 import { config } from "./config/index.js";
 import { McpServer } from "./mcp/server.js";
-import { HttpServer } from "./http/server.js";
+import { HttpServer } from "./http/mcp-server.js";
+import { AuthServer } from "./http/auth-server.js";
 import { createAuthMiddleware } from "./http/middleware/auth.js";
 import logger from "./utils/logger.js";
 
@@ -22,11 +23,15 @@ await mcpServer.initialize();
 // Create authentication middleware
 const authMiddleware = createAuthMiddleware(authService);
 
-// Create and start HTTP server
+// Create and start Auth server
+const authServer = new AuthServer();
+authServer.start();
+
+// Create and start MCP server
 const httpServer = new HttpServer(mcpServer.getServer(), authMiddleware);
 httpServer.start();
 
 // Log application startup
 logger.info(`Starting ${config.server.name} v${config.server.version}`);
-logger.debug(`Environment: ${process.env.NODE_ENV || "development"}`);
-logger.debug(`Log level: ${config.logging.level}`);
+logger.info(`Auth server running on port ${config.auth.port}`);
+logger.info(`MCP server running on port ${config.server.port}`);

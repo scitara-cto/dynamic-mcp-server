@@ -3,11 +3,6 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { config } from "../config/index.js";
 import logger from "../utils/logger.js";
-import {
-  handleProtectedResourceMetadata,
-  handleAuthorizationServerMetadata,
-} from "./discovery.js";
-import axios from "axios";
 
 // Store active transports
 const transports: { [sessionId: string]: SSEServerTransport } = {};
@@ -25,60 +20,6 @@ export class HttpServer {
   }
 
   private setupRoutes(): void {
-    // OAuth discovery endpoints (no auth required)
-    this.app.get(
-      "/.well-known/oauth-protected-resource",
-      handleProtectedResourceMetadata,
-    );
-    this.app.get(
-      "/.well-known/oauth-authorization-server",
-      handleAuthorizationServerMetadata,
-    );
-
-    // OAuth callback endpoint
-    const handleCallback: RequestHandler = async (req, res) => {
-      const { code, state } = req.query;
-
-      if (state !== "random-state-value") {
-        res.status(400).send("Invalid state parameter");
-        return;
-      }
-
-      try {
-        const tokenUrl = `${config.auth.authServerUrl}/realms/${config.auth.realm}/protocol/openid-connect/token`;
-        const formData = new URLSearchParams();
-        formData.append("grant_type", "authorization_code");
-        formData.append("client_id", config.auth.clientId);
-        formData.append("client_secret", config.auth.clientSecret);
-        formData.append("code", code as string);
-        formData.append("redirect_uri", config.auth.redirectUri);
-
-        const response = await axios.post(tokenUrl, formData, {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-        });
-
-        const { access_token, refresh_token } = response.data;
-
-        // You can store the tokens in a secure way, such as in a database or a secure cookie
-        // For this example, we'll just send them back to the client
-        res.send(`
-          <h1>Authorization Successful!</h1>
-          <p>Access Token: ${access_token}</p>
-          <p>Refresh Token: ${refresh_token}</p>
-        `);
-      } catch (error: any) {
-        console.error(
-          "Error exchanging code for token:",
-          error.response?.data || error.message,
-        );
-        res.status(500).send("Error exchanging code for token");
-      }
-    };
-
-    this.app.get("/callback", handleCallback);
-
     // Apply authentication middleware to MCP endpoints
     this.app.use("/sse", this.authMiddleware);
     this.app.use("/messages", this.authMiddleware);
@@ -147,13 +88,13 @@ export class HttpServer {
   }
 
   public start(): void {
-    logger.info(`Starting HTTP server on port ${config.server.port}...`);
+    logger.info(`Starting MCP server on port ${config.server.port}...`);
     try {
       this.app.listen(config.server.port, () => {
         logger.info(`MCP server started on port ${config.server.port}`);
       });
     } catch (error) {
-      logger.error(`Failed to start HTTP server: ${error}`);
+      logger.error(`Failed to start MCP server: ${error}`);
     }
   }
 }

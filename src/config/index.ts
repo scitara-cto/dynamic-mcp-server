@@ -11,6 +11,7 @@ export interface Config {
     version: string;
   };
   auth: {
+    port: number;
     authServerUrl: string;
     realm: string;
     clientId: string;
@@ -39,11 +40,12 @@ function createConfig(): Config {
 
   return {
     server: {
-      port: parseInt(process.env.PORT || "3000", 10),
+      port: parseInt(process.env.MCP_PORT || "4001", 10),
       name: "dlx-mcp-server",
       version: "1.0.0",
     },
     auth: {
+      port: parseInt(process.env.AUTH_PORT || "4000", 10),
       authServerUrl,
       realm,
       clientId: process.env.KEYCLOAK_CLIENT_ID || "",
@@ -52,7 +54,7 @@ function createConfig(): Config {
       tokenUrl: `${authServerUrl}/realms/${realm}/protocol/openid-connect/token`,
       scopes: ["openid", "profile", "email"],
       redirectUri:
-        process.env.KEYCLOAK_REDIRECT_URI || "http://localhost:3000/callback",
+        process.env.KEYCLOAK_REDIRECT_URI || "http://localhost:4000/callback",
     },
     logging: {
       level: process.env.LOG_LEVEL || "info",

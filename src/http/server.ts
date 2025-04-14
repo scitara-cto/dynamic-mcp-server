@@ -3,6 +3,10 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { config } from "../config/index.js";
 import logger from "../utils/logger.js";
+import {
+  handleProtectedResourceMetadata,
+  handleAuthorizationServerMetadata,
+} from "./discovery.js";
 
 // Store active transports
 const transports: { [sessionId: string]: SSEServerTransport } = {};
@@ -20,6 +24,16 @@ export class HttpServer {
   }
 
   private setupRoutes(): void {
+    // OAuth discovery endpoints (no auth required)
+    this.app.get(
+      "/.well-known/oauth-protected-resource",
+      handleProtectedResourceMetadata,
+    );
+    this.app.get(
+      "/.well-known/oauth-authorization-server",
+      handleAuthorizationServerMetadata,
+    );
+
     // Apply authentication middleware to MCP endpoints
     this.app.use("/sse", this.authMiddleware);
     this.app.use("/messages", this.authMiddleware);

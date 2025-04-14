@@ -1,4 +1,6 @@
 import axios from "axios";
+import { config } from "../config/index.js";
+import logger from "../utils/logger.js";
 
 interface DlxAuthConfig {
   authServerUrl: string;
@@ -13,6 +15,7 @@ interface DlxUserInfo {
   name: string;
   preferred_username: string;
   scope: string[];
+  aud?: string[];
 }
 
 export class DlxAuthService {
@@ -33,9 +36,21 @@ export class DlxAuthService {
         },
       );
 
-      return response.data as DlxUserInfo;
+      const userInfo = response.data as DlxUserInfo;
+
+      // Validate the token audience
+      if (userInfo.aud && !userInfo.aud.includes(config.auth.clientId)) {
+        logger.warn(
+          `Token audience validation failed. Expected: ${
+            config.auth.clientId
+          }, Got: ${userInfo.aud.join(", ")}`,
+        );
+        return null;
+      }
+
+      return userInfo;
     } catch (error) {
-      console.error("Error verifying token:", error);
+      logger.error("Error verifying token:", error);
       return null;
     }
   }
@@ -60,7 +75,7 @@ export class DlxAuthService {
 
       return response.data.access_token;
     } catch (error) {
-      console.error("Error getting token:", error);
+      logger.error("Error getting token:", error);
       return null;
     }
   }

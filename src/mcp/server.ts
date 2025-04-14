@@ -38,7 +38,11 @@ export class McpServer {
     }
   }
 
+  /**
+   * Get the underlying server instance
+   * @returns The Server instance from the SDK
+   */
   public getServer(): Server {
-    return (this.server as any)._server;
+    return this.server.server;
   }
 }

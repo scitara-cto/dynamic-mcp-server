@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "dlx-mcp-server": {
+      "command": "node",
+      "args": [
+        "dist/index.js"
+      ]
+    }
+  }
+}

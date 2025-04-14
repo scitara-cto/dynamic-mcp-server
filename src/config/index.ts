@@ -18,6 +18,7 @@ export interface Config {
     authorizationUrl: string;
     tokenUrl: string;
     scopes: string[];
+    redirectUri: string;
   };
   logging: {
     level: string;
@@ -50,6 +51,8 @@ function createConfig(): Config {
       authorizationUrl: `${authServerUrl}/realms/${realm}/protocol/openid-connect/auth`,
       tokenUrl: `${authServerUrl}/realms/${realm}/protocol/openid-connect/token`,
       scopes: ["openid", "profile", "email"],
+      redirectUri:
+        process.env.KEYCLOAK_REDIRECT_URI || "http://localhost:3000/callback",
     },
     logging: {
       level: process.env.LOG_LEVEL || "info",

@@ -57,25 +57,63 @@ export class DlxAuthService {
 
   async getToken(username: string, password: string): Promise<string | null> {
     try {
-      const response = await axios.post(
-        `${this.config.authServerUrl}/realms/${this.config.realm}/protocol/openid-connect/token`,
-        new URLSearchParams({
-          grant_type: "password",
-          client_id: this.config.clientId,
-          client_secret: this.config.clientSecret,
-          username,
-          password,
-        }),
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
+      const tokenUrl = `${this.config.authServerUrl}/realms/${this.config.realm}/protocol/openid-connect/token`;
+
+      // Log the request details
+      logger.debug(`Making token request to: ${tokenUrl}`);
+      logger.debug(`Client ID: ${this.config.clientId}`);
+      logger.debug(`Username: ${username}`);
+
+      // Create the request body
+      const formData = new URLSearchParams();
+      formData.append("grant_type", "password");
+      formData.append("client_id", this.config.clientId);
+      formData.append("client_secret", this.config.clientSecret);
+      formData.append("username", username);
+      formData.append("password", password);
+
+      logger.debug(`Request body: ${formData.toString()}`);
+
+      // Make the request
+      const response = await axios.post(tokenUrl, formData, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-      );
+        validateStatus: (status) => true, // Don't throw on any status
+      });
+
+      // Log the response
+      logger.debug(`Response status: ${response.status}`);
+      logger.debug(`Response headers: ${JSON.stringify(response.headers)}`);
+      logger.debug(`Response data: ${JSON.stringify(response.data)}`);
+
+      if (response.status !== 200) {
+        logger.error(`Token request failed with status ${response.status}`);
+        logger.error(`Error response: ${JSON.stringify(response.data)}`);
+        return null;
+      }
 
       return response.data.access_token;
-    } catch (error) {
-      logger.error("Error getting token:", error);
+    } catch (error: any) {
+      if (error.response) {
+        logger.error(
+          `Token request failed with status: ${error.response.status}`,
+        );
+        logger.error(`Error response: ${JSON.stringify(error.response.data)}`);
+        logger.error(
+          `Error response headers: ${JSON.stringify(error.response.headers)}`,
+        );
+      } else if (error.request) {
+        logger.error(
+          `No response received. Request details: ${JSON.stringify({
+            method: error.request.method,
+            path: error.request.path,
+            headers: error.request.headers,
+          })}`,
+        );
+      } else {
+        logger.error(`Error setting up request: ${error.message}`);
+      }
       return null;
     }
   }

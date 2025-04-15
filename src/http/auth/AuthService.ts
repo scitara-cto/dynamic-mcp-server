@@ -1,6 +1,6 @@
 import axios from "axios";
-import { config } from "../config/index.js";
-import logger from "../utils/logger.js";
+import { config } from "../../config/index.js";
+import logger from "../../utils/logger.js";
 
 interface DlxAuthConfig {
   authServerUrl: string;
@@ -18,7 +18,7 @@ interface DlxUserInfo {
   aud?: string[];
 }
 
-export class DlxAuthService {
+export class AuthService {
   private config: DlxAuthConfig;
 
   constructor(config: DlxAuthConfig) {

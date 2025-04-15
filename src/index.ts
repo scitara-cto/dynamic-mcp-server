@@ -1,13 +1,13 @@
-import { DlxAuthService } from "./services/DlxAuthService.js";
+import { AuthService } from "./http/auth/AuthService.js";
 import { config } from "./config/index.js";
 import { McpServer } from "./mcp/server.js";
-import { HttpServer } from "./http/mcp-server.js";
-import { AuthServer } from "./http/auth-server.js";
-import { createAuthMiddleware } from "./http/middleware/auth.js";
+import { HttpServer } from "./http/mcp/mcp-server.js";
+import { AuthServer } from "./http/auth/auth-server.js";
+import { createAuthMiddleware } from "./http/mcp/middleware/auth.js";
 import logger from "./utils/logger.js";
 
 // Initialize DLX Auth service
-const authService = new DlxAuthService({
+const authService = new AuthService({
   authServerUrl: config.auth.authServerUrl,
   realm: config.auth.realm,
   clientId: config.auth.clientId,

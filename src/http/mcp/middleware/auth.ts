@@ -1,10 +1,8 @@
 import { RequestHandler } from "express";
-import { DlxAuthService } from "../../services/DlxAuthService.js";
-import logger from "../../utils/logger.js";
+import { AuthService } from "../../auth/AuthService.js";
+import logger from "../../../utils/logger.js";
 
-export function createAuthMiddleware(
-  authService: DlxAuthService,
-): RequestHandler {
+export function createAuthMiddleware(authService: AuthService): RequestHandler {
   return async (req, res, next) => {
     try {
       const authHeader = req.headers.authorization;

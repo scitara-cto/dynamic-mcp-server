@@ -1,4 +1,4 @@
-import { DlxAuthService } from "../services/DlxAuthService.js";
+import { AuthService } from "../http/auth/AuthService.js";
 import { config } from "../config/index.js";
 import dotenv from "dotenv";
 import logger from "../utils/logger.js";
@@ -10,7 +10,7 @@ dotenv.config();
 logger.level = "debug";
 
 async function main() {
-  const authService = new DlxAuthService({
+  const authService = new AuthService({
     authServerUrl: config.auth.authServerUrl,
     realm: config.auth.realm,
     clientId: config.auth.clientId,

@@ -1,8 +1,8 @@
 import express, { Request, Response, RequestHandler } from "express";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { config } from "../config/index.js";
-import logger from "../utils/logger.js";
+import { config } from "../../config/index.js";
+import logger from "../../utils/logger.js";
 
 // Store active transports
 const transports: { [sessionId: string]: SSEServerTransport } = {};

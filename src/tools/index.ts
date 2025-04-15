@@ -8,6 +8,7 @@ import logger from "../utils/logger.js";
 export class DlxToolGenerator {
   private server: McpServer;
   private registeredTools: Map<string, any> = new Map();
+  private toolGroups: any[][] = [];
 
   /**
    * Create a new DlxToolGenerator
@@ -15,6 +16,24 @@ export class DlxToolGenerator {
    */
   constructor(server: McpServer) {
     this.server = server;
+    this.initializeToolGroups();
+  }
+
+  /**
+   * Initialize all tool groups
+   * This method should be updated as new tool groups are added
+   */
+  private initializeToolGroups(): void {
+    // Add each tool group to the array
+    this.toolGroups.push(orchestrationTools);
+  }
+
+  /**
+   * Get all tools from all tool groups
+   * @returns A flat array of all tools
+   */
+  private getAllTools(): any[] {
+    return this.toolGroups.flat();
   }
 
   /**
@@ -24,10 +43,13 @@ export class DlxToolGenerator {
   async registerAllTools(): Promise<number> {
     logger.info("Starting to register all tools...");
     try {
+      const allTools = this.getAllTools();
       logger.info(
-        `Found ${orchestrationTools.length} orchestration tools to register`,
+        `Found ${allTools.length} tools across ${this.toolGroups.length} tool groups to register`,
       );
-      this.registerTools(orchestrationTools);
+
+      this.registerTools(allTools);
+
       logger.info(
         `Successfully registered ${this.registeredTools.size} DLX tools`,
       );

@@ -8,6 +8,9 @@ A Model Context Protocol (MCP) server for the DLX application that provides tool
 - HTTP with SSE transport for robust communication
 - Tools for interacting with the DLX application
 - Debug endpoints for troubleshooting
+- TypeScript support
+- Comprehensive logging system
+- Test suite with Jest
 
 ## Prerequisites
 
@@ -36,13 +39,23 @@ A Model Context Protocol (MCP) server for the DLX application that provides tool
    cp .env.example .env
    ```
 
-4. Update the `.env` file with your Keycloak configuration:
+4. Update the `.env` file with your configuration:
+
    ```bash
+   # Server Configuration
+   MCP_PORT=4001
+   AUTH_PORT=4000
+
+   # Keycloak Configuration
    KEYCLOAK_AUTH_SERVER_URL=https://your-keycloak-server
    KEYCLOAK_REALM=your-realm
    KEYCLOAK_CLIENT_ID=your-client-id
    KEYCLOAK_CLIENT_SECRET=your-client-secret
-   PORT=3000
+   KEYCLOAK_REDIRECT_URI=http://localhost:4000/callback
+
+   # Logging Configuration
+   LOG_LEVEL=info
+   LOG_FILE_PATH=logs
    ```
 
 ## Development
@@ -53,7 +66,7 @@ To run the server in development mode:
 npm run dev
 ```
 
-This will start the server on the port specified in your `.env` file (default: 3000).
+This will start the server on the ports specified in your `.env` file (default: MCP_PORT=4001, AUTH_PORT=4000).
 
 ## Building and Running
 
@@ -63,6 +76,30 @@ To build and run the server:
 npm run build
 npm start
 ```
+
+## Testing
+
+The project includes a test suite using Jest. To run tests:
+
+```bash
+npm test
+```
+
+For watch mode during development:
+
+```bash
+npm run test:watch
+```
+
+## Authentication Utilities
+
+The project includes several utility scripts for working with Keycloak authentication:
+
+- `npm run get-token` - Get an authentication token
+- `npm run check-realm` - Check realm configuration
+- `npm run get-client-token` - Get a client token
+- `npm run get-auth-url` - Get the authentication URL
+- `npm run get-token-with-code` - Get a token using an authorization code
 
 ## Connecting with Cursor
 
@@ -93,14 +130,19 @@ The server uses OAuth2 authentication with Keycloak. To authenticate:
 1. Obtain a token from your Keycloak server
 2. Include the token in the Authorization header: `Authorization: Bearer <token>`
 
+## Logging
+
+The server uses Winston for logging. Logs are stored in the `logs` directory by default. The log level can be configured in the `.env` file using the `LOG_LEVEL` variable.
+
 ## Troubleshooting
 
-If you encounter issues with the SSE connection:
+If you encounter issues:
 
-1. Check the server logs for any errors
+1. Check the server logs in the `logs` directory
 2. Visit the `/sessions` endpoint to see active sessions
 3. Ensure your Keycloak configuration is correct
 4. Check that the client has the necessary scopes
+5. Verify that both MCP_PORT and AUTH_PORT are available and correctly configured
 
 ## License
 

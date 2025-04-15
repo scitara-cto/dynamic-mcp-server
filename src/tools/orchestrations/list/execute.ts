@@ -1,4 +1,5 @@
 import { DlxService } from "../../../services/DlxService.js";
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 
 // Define the input type based on our schema
 interface ListOrchestrationsInput {
@@ -7,7 +8,15 @@ interface ListOrchestrationsInput {
   offset?: number;
 }
 
-export default async function execute(input: ListOrchestrationsInput) {
+// Define the context type to access the auth info
+interface ToolContext {
+  authInfo?: AuthInfo;
+}
+
+export default async function execute(
+  input: ListOrchestrationsInput,
+  context?: ToolContext,
+) {
   const dlxService = new DlxService();
 
   const params: Record<string, any> = {};
@@ -16,12 +25,18 @@ export default async function execute(input: ListOrchestrationsInput) {
     params.nameContains = input.nameContains;
   }
 
-  if (input.limit) {
+  if (typeof input.limit !== "undefined") {
     params.limit = input.limit;
   }
 
-  if (input.offset) {
+  if (typeof input.offset !== "undefined") {
     params.offset = input.offset;
+  }
+
+  // Extract token from authInfo if available
+  let token: string | undefined;
+  if (context?.authInfo?.token) {
+    token = context.authInfo.token;
   }
 
   try {
@@ -29,6 +44,7 @@ export default async function execute(input: ListOrchestrationsInput) {
       method: "GET",
       path: "/orchestrations",
       params,
+      token,
     });
 
     // Return in MCP tool response format

@@ -3,6 +3,7 @@ export interface DlxApiCallParams {
   path: string;
   params?: Record<string, unknown>;
   data?: unknown;
+  token?: string;
 }
 
 interface FetchError extends Error {
@@ -23,7 +24,7 @@ export class DlxService {
 
   private buildUrl(path: string, params?: Record<string, unknown>): string {
     const url = new URL(`${this.baseUrl}${path}`);
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -31,7 +32,7 @@ export class DlxService {
         }
       });
     }
-    
+
     return url.toString();
   }
 
@@ -40,42 +41,55 @@ export class DlxService {
     path,
     params,
     data,
+    token,
   }: DlxApiCallParams): Promise<unknown> {
     try {
       const url = this.buildUrl(path, params);
-      
+
       const options: RequestInit = {
         method,
         headers: {
           "Content-Type": "application/json",
         },
       };
-      
+
+      if (token) {
+        options.headers = {
+          ...options.headers,
+          Authorization: `Bearer ${token}`,
+        };
+      }
+
       if (data !== undefined) {
         options.body = JSON.stringify(data);
       }
-      
+
       const response = await fetch(url, options);
-      
+
       // Check if the response is ok (status in the range 200-299)
       if (!response.ok) {
         const responseData = await response.json().catch(() => null);
-        const error = new Error(`DLX API Error (${response.status})`) as FetchError;
+        const error = new Error(
+          `DLX API Error (${response.status})`,
+        ) as FetchError;
         error.status = response.status;
         error.responseData = responseData;
         throw error;
       }
-      
+
       // For empty responses or 204 No Content
-      if (response.status === 204 || response.headers.get("content-length") === "0") {
+      if (
+        response.status === 204 ||
+        response.headers.get("content-length") === "0"
+      ) {
         return null;
       }
-      
+
       // Parse JSON response
       return await response.json();
     } catch (error: unknown) {
       // Error handling
-      if (error instanceof TypeError && error.message.includes('fetch')) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
         // Network errors
         throw new Error(
           "DLX API Request Error: No response received from server",

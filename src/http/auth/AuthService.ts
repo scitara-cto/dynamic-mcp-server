@@ -2,14 +2,14 @@ import axios from "axios";
 import { config } from "../../config/index.js";
 import logger from "../../utils/logger.js";
 
-interface DlxAuthConfig {
+interface AuthConfig {
   authServerUrl: string;
   realm: string;
   clientId: string;
   clientSecret: string;
 }
 
-interface DlxUserInfo {
+interface UserInfo {
   sub: string;
   email: string;
   name: string;
@@ -19,13 +19,13 @@ interface DlxUserInfo {
 }
 
 export class AuthService {
-  private config: DlxAuthConfig;
+  private config: AuthConfig;
 
-  constructor(config: DlxAuthConfig) {
+  constructor(config: AuthConfig) {
     this.config = config;
   }
 
-  async verifyToken(token: string): Promise<DlxUserInfo | null> {
+  async verifyToken(token: string): Promise<UserInfo | null> {
     try {
       const response = await axios.get(
         `${this.config.authServerUrl}/realms/${this.config.realm}/protocol/openid-connect/userinfo`,
@@ -36,7 +36,7 @@ export class AuthService {
         },
       );
 
-      const userInfo = response.data as DlxUserInfo;
+      const userInfo = response.data as UserInfo;
 
       // Validate the token audience
       if (userInfo.aud && !userInfo.aud.includes(config.auth.clientId)) {

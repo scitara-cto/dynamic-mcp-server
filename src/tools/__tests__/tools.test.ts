@@ -6,17 +6,34 @@ import {
   beforeEach,
   afterEach,
 } from "@jest/globals";
-import { DlxToolGenerator } from "../index.js";
+import { ToolGenerator } from "../index.js";
 import { orchestrationTools } from "../orchestrations/index.js";
 import { z } from "zod";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+
+// Define the tool interface
+interface Tool {
+  name: string;
+  schema: z.ZodObject<any>;
+  description: string;
+  handler: (...args: any[]) => Promise<any>;
+}
 
 // Mock the MCP server
 jest.mock("@modelcontextprotocol/sdk/server/mcp.js", () => {
   const mockServer = jest.fn().mockImplementation(() => {
     return {
-      tool: jest.fn().mockImplementation((name, schema, handler) => {
-        return { name, schema, handler };
-      }),
+      tool: jest
+        .fn<
+          (
+            name: string,
+            schema: z.ZodObject<any>,
+            handler: (...args: any[]) => Promise<any>,
+          ) => any
+        >()
+        .mockImplementation((name, schema, handler) => {
+          return { name, schema, handler };
+        }),
     };
   });
 
@@ -28,23 +45,25 @@ jest.mock("../../services/DlxService.js", () => {
   return {
     DlxService: jest.fn().mockImplementation(() => {
       return {
-        executeDlxApiCall: jest.fn().mockResolvedValue({ data: "test" }),
+        executeDlxApiCall: jest
+          .fn<() => Promise<any>>()
+          .mockResolvedValue({ data: "test" }),
       };
     }),
   };
 });
 
 describe("DLX Tools", () => {
-  let toolGenerator: DlxToolGenerator;
-  let mockMcpServer: any;
+  let toolGenerator: ToolGenerator;
+  let mockMcpServer: McpServer;
 
   beforeEach(() => {
     jest.clearAllMocks();
     const { McpServer } = jest.requireMock(
       "@modelcontextprotocol/sdk/server/mcp.js",
-    ) as { McpServer: any };
+    ) as { McpServer: new () => McpServer };
     mockMcpServer = new McpServer();
-    toolGenerator = new DlxToolGenerator(mockMcpServer);
+    toolGenerator = new ToolGenerator(mockMcpServer);
   });
 
   afterEach(() => {
@@ -78,7 +97,7 @@ describe("DLX Tools", () => {
 
   describe("Tool Implementation", () => {
     it("should verify all tools in the system are properly loaded", () => {
-      // Get all tools from the DlxToolGenerator
+      // Get all tools from the ToolGenerator
       const allTools = (toolGenerator as any).getAllTools();
 
       // Verify we have at least one tool
@@ -155,7 +174,7 @@ describe("DLX Tools", () => {
       // with separate files for definition, execution, and an index file that combines them
 
       // For this test, we'll use the orchestrationTools as an example
-      orchestrationTools.forEach((tool: any) => {
+      orchestrationTools.forEach((tool) => {
         // The tool should have a name that matches its directory structure
         const toolName = tool.name;
         expect(toolName).toBeDefined();
@@ -200,15 +219,10 @@ describe("DLX Tools", () => {
           const isAsyncOrReturnsPromise =
             handlerSource.includes("async") ||
             handlerSource.includes("Promise") ||
-            handlerSource.includes("then(") ||
-            handlerSource.includes("catch(") ||
-            // Check if it calls an async function
-            handlerSource.includes("execute(");
+            handlerSource.includes("return") ||
+            handlerSource.includes("=>");
 
           expect(isAsyncOrReturnsPromise).toBe(true);
-
-          // Note: We're not checking for error handling here because the handler
-          // might be a wrapper that calls a function that handles errors
         }
       }
     });

@@ -1,12 +1,12 @@
 import { McpServer as SdkMcpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { config } from "../config/index.js";
-import { DlxToolGenerator } from "../tools/index.js";
+import { ToolGenerator } from "../tools/index.js";
 import logger from "../utils/logger.js";
 
 export class McpServer {
   private server: SdkMcpServer;
-  private toolGenerator: DlxToolGenerator;
+  private toolGenerator: ToolGenerator;
 
   constructor() {
     this.server = new SdkMcpServer({
@@ -21,7 +21,7 @@ export class McpServer {
     });
 
     // Initialize the tool generator
-    this.toolGenerator = new DlxToolGenerator(this.server);
+    this.toolGenerator = new ToolGenerator(this.server);
   }
 
   /**

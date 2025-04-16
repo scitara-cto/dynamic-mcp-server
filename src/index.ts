@@ -33,5 +33,3 @@ httpServer.start();
 
 // Log application startup
 logger.info(`Starting ${config.server.name} v${config.server.version}`);
-logger.info(`Auth server running on port ${config.auth.port}`);
-logger.info(`MCP server running on port ${config.server.port}`);

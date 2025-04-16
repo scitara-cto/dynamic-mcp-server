@@ -3,15 +3,15 @@ import { orchestrationTools } from "./orchestrations/index.js";
 import logger from "../utils/logger.js";
 
 /**
- * ToolGenerator class responsible for registering all DLX tools with an MCP server
+ * ToolGenerator class responsible for registering all tools with an MCP server
  */
-export class DlxToolGenerator {
+export class ToolGenerator {
   private server: McpServer;
   private registeredTools: Map<string, any> = new Map();
   private toolGroups: any[][] = [];
 
   /**
-   * Create a new DlxToolGenerator
+   * Create a new ToolGenerator
    * @param server The MCP server instance to register tools with
    */
   constructor(server: McpServer) {
@@ -37,26 +37,20 @@ export class DlxToolGenerator {
   }
 
   /**
-   * Register all DLX tools with the MCP server
+   * Register all tools with the MCP server
    * @returns The number of tools registered
    */
   async registerAllTools(): Promise<number> {
-    logger.info("Starting to register all tools...");
     try {
       const allTools = this.getAllTools();
-      logger.info(
-        `Found ${allTools.length} tools across ${this.toolGroups.length} tool groups to register`,
-      );
 
       this.registerTools(allTools);
 
-      logger.info(
-        `Successfully registered ${this.registeredTools.size} DLX tools`,
-      );
+      logger.info(`Successfully registered ${this.registeredTools.size} tools`);
       return this.registeredTools.size;
     } catch (error: any) {
       logger.error(
-        `Failed to register DLX tools: ${error?.message || "Unknown error"}`,
+        `Failed to register tools: ${error?.message || "Unknown error"}`,
       );
       return 0;
     }
@@ -72,11 +66,14 @@ export class DlxToolGenerator {
 
     for (const tool of tools) {
       try {
+        // Wrap the handler with the response wrapper
+        const wrappedHandler = wrapToolExecute(tool.handler);
+
         // Register the tool with the server using the SDK's tool method
         const registeredTool = this.server.tool(
           tool.name,
           tool.schema,
-          tool.handler,
+          wrappedHandler,
         );
 
         // Store the registered tool
@@ -109,4 +106,37 @@ export class DlxToolGenerator {
   getTool(name: string): any {
     return this.registeredTools.get(name);
   }
+}
+
+// Centralized response wrapper for MCP tools
+export function wrapToolExecute(execute: (...args: any[]) => Promise<any>) {
+  return async function wrapped(...handlerArgs: any[]) {
+    try {
+      const result = await execute(...handlerArgs);
+      return {
+        content: [
+          {
+            type: "text",
+            text:
+              typeof result === "string"
+                ? result
+                : JSON.stringify(result, null, 2),
+          } as { [x: string]: unknown; type: "text"; text: string },
+        ],
+        isError: false,
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          } as { [x: string]: unknown; type: "text"; text: string },
+        ],
+        isError: true,
+      };
+    }
+  };
 }

@@ -88,7 +88,6 @@ export class HttpServer {
   }
 
   public start(): void {
-    logger.info(`Starting MCP server on port ${config.server.port}...`);
     try {
       this.app.listen(config.server.port, () => {
         logger.info(`MCP server started on port ${config.server.port}`);

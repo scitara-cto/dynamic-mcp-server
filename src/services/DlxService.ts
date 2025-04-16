@@ -1,9 +1,14 @@
+import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+
+export interface ToolContext {
+  authInfo?: AuthInfo;
+}
+
 export interface DlxApiCallParams {
   method: string;
   path: string;
   params?: Record<string, unknown>;
   data?: unknown;
-  token?: string;
 }
 
 interface FetchError extends Error {
@@ -36,13 +41,15 @@ export class DlxService {
     return url.toString();
   }
 
-  async executeDlxApiCall({
-    method,
-    path,
-    params,
-    data,
-    token,
-  }: DlxApiCallParams): Promise<unknown> {
+  async executeDlxApiCall(
+    { method, path, params, data }: DlxApiCallParams,
+    context?: ToolContext,
+  ): Promise<unknown> {
+    // Extract token from context
+    const token = context?.authInfo?.token;
+    if (!token) {
+      throw new Error("Token is required for DLX API call");
+    }
     try {
       const url = this.buildUrl(path, params);
 
@@ -50,15 +57,9 @@ export class DlxService {
         method,
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
       };
-
-      if (token) {
-        options.headers = {
-          ...options.headers,
-          Authorization: `Bearer ${token}`,
-        };
-      }
 
       if (data !== undefined) {
         options.body = JSON.stringify(data);
@@ -86,7 +87,8 @@ export class DlxService {
       }
 
       // Parse JSON response
-      return await response.json();
+      const json = await response.json();
+      return json.data;
     } catch (error: unknown) {
       // Error handling
       if (error instanceof TypeError && error.message.includes("fetch")) {

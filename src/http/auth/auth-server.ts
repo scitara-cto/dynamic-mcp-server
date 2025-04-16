@@ -78,7 +78,6 @@ export class AuthServer {
 
   public start(): void {
     const authPort = config.auth.port || 3000;
-    logger.info(`Starting Auth server on port ${authPort}...`);
     try {
       this.app.listen(authPort, () => {
         logger.info(`Auth server started on port ${authPort}`);

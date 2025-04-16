@@ -19,5 +19,5 @@ export default {
   name: "dlx_orchestrations_list",
   schema, // Export the schema for use with server.tool()
   description: "List available DLX orchestrations with optional filtering",
-  handler: (input: any, context: any) => execute(input, context),
+  handler: execute,
 };

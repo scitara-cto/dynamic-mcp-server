@@ -1,6 +1,6 @@
 import { jest, expect } from "@jest/globals";
 import { McpServer } from "../server.js";
-import { DlxToolGenerator } from "../../tools/index.js";
+import { ToolGenerator } from "../../tools/index.js";
 
 // Mock the SDK module
 jest.mock("@modelcontextprotocol/sdk/server/mcp.js", () => {
@@ -31,10 +31,7 @@ describe("McpServer", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    toolGeneratorSpy = jest.spyOn(
-      DlxToolGenerator.prototype,
-      "registerAllTools",
-    );
+    toolGeneratorSpy = jest.spyOn(ToolGenerator.prototype, "registerAllTools");
     toolGeneratorSpy.mockResolvedValue(2);
 
     mcpServer = new McpServer();

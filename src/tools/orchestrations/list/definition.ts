@@ -16,6 +16,6 @@ export type ListOrchestrationsInput = z.infer<typeof listOrchestrationsSchema>;
 
 export default {
   name: "dlx_orchestrations_list",
-  description: "List all orchestrations in DLX",
+  description: "List all DLX orchestrations",
   schema: listOrchestrationsSchema,
 };

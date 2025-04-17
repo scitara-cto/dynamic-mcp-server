@@ -1,22 +1,27 @@
-import { McpServer as SdkMcpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { config } from "../config/index.js";
 import { ToolGenerator } from "../tools/index.js";
 import logger from "../utils/logger.js";
 
 export class McpServer {
-  private server: SdkMcpServer;
+  private server: Server;
   private toolGenerator: ToolGenerator;
 
   constructor() {
-    this.server = new SdkMcpServer({
+    this.server = new Server({
       name: config.server.name,
       version: config.server.version,
-      authentication: {
-        type: "oauth2",
-        authorizationUrl: config.auth.authorizationUrl,
-        tokenUrl: config.auth.tokenUrl,
-        scopes: config.auth.scopes,
+      capabilities: {
+        tools: {
+          listChanged: true,
+        },
+      },
+    });
+
+    // Register the tools capability explicitly
+    this.server.registerCapabilities({
+      tools: {
+        listChanged: true,
       },
     });
 
@@ -43,6 +48,6 @@ export class McpServer {
    * @returns The Server instance from the SDK
    */
   public getServer(): Server {
-    return this.server.server;
+    return this.server;
   }
 }

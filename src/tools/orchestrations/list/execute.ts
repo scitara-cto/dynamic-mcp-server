@@ -1,21 +1,18 @@
 import { DlxService } from "../../../services/DlxService.js";
 
-// Define the input type based on our schema
-interface ListOrchestrationsInput {
-  nameContains?: string;
-  limit?: number;
-  offset?: number;
-}
-
 export default async function execute(
-  input: ListOrchestrationsInput,
+  {
+    nameContains,
+    limit,
+    offset,
+  }: { nameContains?: string; limit?: number; offset?: number },
   context: any,
 ) {
   const dlxService = new DlxService();
   const params: Record<string, any> = {};
-  if (input.nameContains) params.nameContains = input.nameContains;
-  if (typeof input.limit !== "undefined") params.limit = input.limit;
-  if (typeof input.offset !== "undefined") params.offset = input.offset;
+  if (nameContains) params.nameContains = nameContains;
+  if (typeof limit !== "undefined") params.limit = limit;
+  if (typeof offset !== "undefined") params.offset = offset;
 
   return await dlxService.executeDlxApiCall(
     {

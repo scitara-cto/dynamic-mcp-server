@@ -9,35 +9,28 @@ import {
 import { ToolGenerator } from "../index.js";
 import { orchestrationTools } from "../orchestrations/index.js";
 import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 // Define the tool interface
 interface Tool {
   name: string;
-  schema: z.ZodObject<any>;
+  inputSchema: {
+    type: "object";
+    properties: Record<string, unknown>;
+  };
   description: string;
   handler: (...args: any[]) => Promise<any>;
 }
 
 // Mock the MCP server
-jest.mock("@modelcontextprotocol/sdk/server/mcp.js", () => {
+jest.mock("@modelcontextprotocol/sdk/server/index.js", () => {
   const mockServer = jest.fn().mockImplementation(() => {
     return {
-      tool: jest
-        .fn<
-          (
-            name: string,
-            schema: z.ZodObject<any>,
-            handler: (...args: any[]) => Promise<any>,
-          ) => any
-        >()
-        .mockImplementation((name, schema, handler) => {
-          return { name, schema, handler };
-        }),
+      setRequestHandler: jest.fn().mockImplementation(() => Promise.resolve()),
     };
   });
 
-  return { McpServer: mockServer };
+  return { Server: mockServer };
 });
 
 // Mock the DlxService
@@ -55,15 +48,15 @@ jest.mock("../../services/DlxService.js", () => {
 
 describe("DLX Tools", () => {
   let toolGenerator: ToolGenerator;
-  let mockMcpServer: McpServer;
+  let mockServer: Server;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    const { McpServer } = jest.requireMock(
-      "@modelcontextprotocol/sdk/server/mcp.js",
-    ) as { McpServer: new () => McpServer };
-    mockMcpServer = new McpServer();
-    toolGenerator = new ToolGenerator(mockMcpServer);
+    const { Server } = jest.requireMock(
+      "@modelcontextprotocol/sdk/server/index.js",
+    ) as { Server: new () => Server };
+    mockServer = new Server();
+    toolGenerator = new ToolGenerator(mockServer);
   });
 
   afterEach(() => {
@@ -78,8 +71,8 @@ describe("DLX Tools", () => {
       const expectedToolCount = orchestrationTools.length;
       expect(registeredCount).toBe(expectedToolCount);
 
-      // Verify that the tool method was called for each tool
-      expect(mockMcpServer.tool).toHaveBeenCalledTimes(expectedToolCount);
+      // Verify that setRequestHandler was called for both list and call handlers
+      expect(mockServer.setRequestHandler).toHaveBeenCalledTimes(2);
     });
 
     it("should store registered tools by name", async () => {
@@ -98,73 +91,29 @@ describe("DLX Tools", () => {
   describe("Tool Implementation", () => {
     it("should verify all tools in the system are properly loaded", () => {
       // Get all tools from the ToolGenerator
-      const allTools = (toolGenerator as any).getAllTools();
+      const toolNames = toolGenerator.getRegisteredToolNames();
 
       // Verify we have at least one tool
-      expect(allTools.length).toBeGreaterThan(0);
+      expect(toolNames.length).toBeGreaterThan(0);
 
       // Verify each tool is from a known group
-      allTools.forEach((tool: any) => {
+      toolNames.forEach((name) => {
         // Check if the tool is in one of our known tool groups
-        const isInKnownGroup = orchestrationTools.some(
-          (t) => t.name === tool.name,
-        );
+        const isInKnownGroup = orchestrationTools.some((t) => t.name === name);
         expect(isInKnownGroup).toBe(true);
       });
     });
 
-    it("should verify each tool has the required properties", () => {
+    it("should verify each tool's inputSchema has valid runtime properties", () => {
       // Iterate through all tool groups
       const allToolGroups = [orchestrationTools];
 
       allToolGroups.forEach((toolGroup) => {
         toolGroup.forEach((tool) => {
-          // Check required properties
-          expect(tool).toHaveProperty("name");
-          expect(tool).toHaveProperty("schema");
-          expect(tool).toHaveProperty("description");
-          expect(tool).toHaveProperty("handler");
-
-          // Verify name is a non-empty string
-          expect(typeof tool.name).toBe("string");
-          expect(tool.name.length).toBeGreaterThan(0);
-
-          // Verify description is a non-empty string
-          expect(typeof tool.description).toBe("string");
-          expect(tool.description.length).toBeGreaterThan(0);
-
-          // Verify schema is a valid Zod schema
-          expect(tool.schema).toBeDefined();
-
-          // Verify handler is a function
-          expect(typeof tool.handler).toBe("function");
-        });
-      });
-    });
-
-    it("should verify each tool's schema is a valid Zod schema", () => {
-      // Iterate through all tool groups
-      const allToolGroups = [orchestrationTools];
-
-      allToolGroups.forEach((toolGroup) => {
-        toolGroup.forEach((tool) => {
-          // Check if schema has Zod properties
-          const schema = tool.schema;
-
-          // Test if schema has typical Zod methods or properties
-          // This is a basic check - we're verifying the schema object has expected Zod-like properties
-          const hasZodProperties =
-            typeof schema === "object" &&
-            (Object.values(schema).some(
-              (field) =>
-                field instanceof z.ZodType ||
-                (typeof field === "object" &&
-                  field !== null &&
-                  "optional" in Object.getPrototypeOf(field)),
-            ) ||
-              schema instanceof z.ZodType);
-
-          expect(hasZodProperties).toBe(true);
+          const inputSchema = tool.inputSchema;
+          // Only check runtime aspects that TypeScript can't verify
+          expect(inputSchema.properties).toBeDefined();
+          expect(typeof inputSchema.properties).toBe("object");
         });
       });
     });
@@ -185,9 +134,9 @@ describe("DLX Tools", () => {
         expect(handler).toBeDefined();
         expect(typeof handler).toBe("function");
 
-        // The tool should have a schema that comes from a definition file
-        const schema = tool.schema;
-        expect(schema).toBeDefined();
+        // The tool should have an inputSchema that comes from a definition file
+        const inputSchema = tool.inputSchema;
+        expect(inputSchema).toBeDefined();
 
         // The tool should have a description
         const description = tool.description;
@@ -240,7 +189,9 @@ describe("DLX Tools", () => {
 
       // Verify the tool was retrieved
       expect(tool).toBeDefined();
-      expect(tool.name).toBe(toolName);
+      if (tool) {
+        expect(tool.name).toBe(toolName);
+      }
     });
 
     it("should return undefined for non-existent tool", async () => {

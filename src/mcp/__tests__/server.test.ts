@@ -5,18 +5,7 @@ import { ToolGenerator } from "../../tools/index.js";
 // Mock the SDK module
 jest.mock("@modelcontextprotocol/sdk/server/mcp.js", () => {
   const mockServer = jest.fn().mockImplementation((serverConfig: any) => {
-    const serverInstance = {
-      _serverInfo: {
-        name: serverConfig.name,
-        version: serverConfig.version,
-        authentication: serverConfig.authentication,
-      },
-      someServerProperty: "test",
-    };
-
     return {
-      server: serverInstance,
-      _serverInfo: serverInstance._serverInfo,
       tool: jest.fn(),
     };
   });
@@ -46,7 +35,6 @@ describe("McpServer", () => {
     it("should initialize with correct configuration", () => {
       expect(mcpServer).toBeDefined();
       expect(mcpServer["server"]).toBeDefined();
-      expect(mcpServer["server"].server).toBeDefined();
     });
   });
 
@@ -70,8 +58,6 @@ describe("McpServer", () => {
       const server = mcpServer.getServer();
       expect(server).toBeDefined();
       expect(server).toBeInstanceOf(Object);
-      expect(server).toHaveProperty("_requestHandlers");
-      expect(server).toHaveProperty("_notificationHandlers");
     });
   });
 });

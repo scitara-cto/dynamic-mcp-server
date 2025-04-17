@@ -1,8 +1,4 @@
-import { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
-
-export interface ToolContext {
-  authInfo?: AuthInfo;
-}
+import { SessionInfo } from "../mcp/server.js";
 
 export interface DlxApiCallParams {
   method: string;
@@ -18,40 +14,32 @@ interface FetchError extends Error {
 }
 
 export class DlxService {
-  private readonly baseUrl: string;
-
-  constructor() {
-    if (!process.env.DLX_API_URL) {
-      throw new Error("DLX_API_URL is not set");
-    }
-    this.baseUrl = process.env.DLX_API_URL;
-  }
-
-  private buildUrl(path: string, params?: Record<string, unknown>): string {
-    const url = new URL(`${this.baseUrl}${path}`);
-
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          url.searchParams.append(key, String(value));
-        }
-      });
-    }
-
-    return url.toString();
-  }
-
   async executeDlxApiCall(
     { method, path, params, data }: DlxApiCallParams,
-    context?: ToolContext,
+    sessionInfo?: SessionInfo,
   ): Promise<unknown> {
-    // Extract token from context
-    const token = context?.authInfo?.token;
+    // Extract token and DLX API URL from sessionInfo
+    const token = sessionInfo?.token;
+    const dlxApiUrl = sessionInfo?.dlxApiUrl;
+    
     if (!token) {
       throw new Error("Token is required for DLX API call");
     }
+
+    if (!dlxApiUrl) {
+      throw new Error("DLX API URL is required for DLX API call");
+    }
+
     try {
-      const url = this.buildUrl(path, params);
+      // Build URL with the DLX API URL from session info
+      const url = new URL(`${dlxApiUrl}${path}`);
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            url.searchParams.append(key, String(value));
+          }
+        });
+      }
 
       const options: RequestInit = {
         method,
@@ -65,7 +53,7 @@ export class DlxService {
         options.body = JSON.stringify(data);
       }
 
-      const response = await fetch(url, options);
+      const response = await fetch(url.toString(), options);
 
       // Check if the response is ok (status in the range 200-299)
       if (!response.ok) {

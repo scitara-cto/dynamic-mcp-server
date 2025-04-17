@@ -4,6 +4,7 @@ import { McpServer } from "./mcp/server.js";
 import { HttpServer } from "./http/mcp/mcp-server.js";
 import { AuthServer } from "./http/auth/auth-server.js";
 import { createAuthMiddleware } from "./http/mcp/middleware/auth.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import logger from "./utils/logger.js";
 
 // Initialize DLX Auth service
@@ -14,12 +15,6 @@ const authService = new AuthService({
   clientSecret: config.auth.clientSecret,
 });
 
-// Create MCP server
-const mcpServer = new McpServer();
-
-// Initialize MCP server (register tools)
-await mcpServer.initialize();
-
 // Create authentication middleware
 const authMiddleware = createAuthMiddleware(authService);
 
@@ -27,8 +22,34 @@ const authMiddleware = createAuthMiddleware(authService);
 const authServer = new AuthServer();
 authServer.start();
 
-// Create and start MCP server
-const httpServer = new HttpServer(mcpServer.getServer(), authMiddleware);
+// Create the MCP Server instance directly
+const mcpServerInstance = new Server({
+  name: config.server.name,
+  version: config.server.version,
+  capabilities: {
+    tools: {
+      listChanged: true,
+    },
+  },
+});
+
+// Register the tools capability explicitly
+mcpServerInstance.registerCapabilities({
+  tools: {
+    listChanged: true,
+  },
+});
+
+// Create MCP server
+const mcpServer = new McpServer(mcpServerInstance);
+
+// Create HTTP server with the MCP server
+const httpServer = new HttpServer(mcpServer, authMiddleware);
+
+// Initialize MCP server (register tools)
+await mcpServer.initialize();
+
+// Start HTTP server
 httpServer.start();
 
 // Log application startup

@@ -1,21 +1,25 @@
 import { jest, expect } from "@jest/globals";
 import { McpServer } from "../server.js";
 import { ToolGenerator } from "../../tools/index.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { config } from "../../config/index.js";
 
 // Mock the SDK module
-jest.mock("@modelcontextprotocol/sdk/server/mcp.js", () => {
+jest.mock("@modelcontextprotocol/sdk/server/index.js", () => {
   const mockServer = jest.fn().mockImplementation((serverConfig: any) => {
     return {
       tool: jest.fn(),
+      registerCapabilities: jest.fn(),
     };
   });
 
-  return { McpServer: mockServer };
+  return { Server: mockServer };
 });
 
 describe("McpServer", () => {
   let mcpServer: McpServer;
   let toolGeneratorSpy: any;
+  let mockServer: Server;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -23,7 +27,16 @@ describe("McpServer", () => {
     toolGeneratorSpy = jest.spyOn(ToolGenerator.prototype, "registerAllTools");
     toolGeneratorSpy.mockResolvedValue(2);
 
-    mcpServer = new McpServer();
+    mockServer = new Server({
+      name: config.server.name,
+      version: config.server.version,
+      capabilities: {
+        tools: {
+          listChanged: true,
+        },
+      },
+    });
+    mcpServer = new McpServer(mockServer);
     await mcpServer.initialize();
   });
 

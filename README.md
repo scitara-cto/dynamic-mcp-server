@@ -119,6 +119,8 @@ To connect this MCP server with Cursor, create a `.cursor/mcp.json` file with th
 ## API Endpoints
 
 - `/sse` - SSE endpoint for establishing a connection with the MCP server
+  - Query Parameters:
+    - `dlxApiUrl` - (Optional) The URL of the DLX API to use for this connection. If not provided, the default URL from the server configuration will be used.
 - `/messages` - Endpoint for handling MCP messages
 - `/sessions` - Debug endpoint to list active sessions
 - `/health` - Health check endpoint

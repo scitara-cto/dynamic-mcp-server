@@ -11,6 +11,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { z } from "zod";
+import { McpServer } from "../mcp/server.js";
 
 // Extended tool schema that includes annotations
 const ExtendedToolSchema = z
@@ -59,13 +60,16 @@ type ToolDefinition = {
 export class ToolGenerator {
   private server: Server;
   private tools: Map<string, ToolDefinition> = new Map();
+  private mcpServer: McpServer;
 
   /**
    * Create a new ToolGenerator
    * @param server The MCP server instance to register tools with
+   * @param mcpServer The McpServer instance for auth info
    */
-  constructor(server: Server) {
+  constructor(server: Server, mcpServer: McpServer) {
     this.server = server;
+    this.mcpServer = mcpServer;
     this.initializeToolGroups();
   }
 
@@ -117,8 +121,10 @@ export class ToolGenerator {
           if (!tool) {
             throw new Error(`Tool ${name} not found`);
           }
+          // Get auth info from McpServer
+          const context = this.mcpServer.getSessionInfo(extra.sessionId);
 
-          const result = await tool.handler(args);
+          const result = await tool.handler(args, context);
           return result satisfies z.infer<typeof CallToolResultSchema>;
         },
       );
@@ -153,9 +159,9 @@ export class ToolGenerator {
 
 // Centralized response wrapper for MCP tools
 export function wrapToolExecute(execute: (...args: any[]) => Promise<any>) {
-  return async function wrapped(...handlerArgs: any[]) {
+  return async function wrapped(args: any, context: any) {
     try {
-      const result = await execute(...handlerArgs);
+      const result = await execute(args, context);
       return {
         content: [
           {

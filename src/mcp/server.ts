@@ -1,37 +1,49 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { config } from "../config/index.js";
 import { ToolGenerator } from "../tools/index.js";
 import logger from "../utils/logger.js";
+
+export interface SessionInfo {
+  token: string;
+  user: any;
+  dlxApiUrl?: string;
+}
 
 export class McpServer {
   private server: Server;
   private toolGenerator: ToolGenerator;
+  private sessionInfo = new Map<string, SessionInfo>();
 
-  constructor() {
-    this.server = new Server({
-      name: config.server.name,
-      version: config.server.version,
-      capabilities: {
-        tools: {
-          listChanged: true,
-        },
-      },
-    });
+  constructor(server: Server) {
+    this.server = server;
+    this.toolGenerator = new ToolGenerator(this.server, this);
+  }
 
-    // Register the tools capability explicitly
-    this.server.registerCapabilities({
-      tools: {
-        listChanged: true,
-      },
-    });
+  /**
+   * Set auth info for a session
+   */
+  public setSessionInfo(sessionId: string, sessionInfo: SessionInfo): void {
+    this.sessionInfo.set(sessionId, sessionInfo);
+  }
 
-    // Initialize the tool generator
-    this.toolGenerator = new ToolGenerator(this.server);
+  /**
+   * Get auth info for a session
+   */
+  public getSessionInfo(
+    sessionId: string | undefined,
+  ): SessionInfo | undefined {
+    if (!sessionId) return undefined;
+    return this.sessionInfo.get(sessionId);
+  }
+
+  /**
+   * Remove auth info for a session
+   */
+  public removeSessionInfo(sessionId: string): void {
+    this.sessionInfo.delete(sessionId);
   }
 
   /**
    * Initialize the MCP server by registering all tools
-   * @returns Promise that resolves when all tools are registered
    */
   async initialize(): Promise<void> {
     try {
@@ -45,7 +57,6 @@ export class McpServer {
 
   /**
    * Get the underlying server instance
-   * @returns The Server instance from the SDK
    */
   public getServer(): Server {
     return this.server;

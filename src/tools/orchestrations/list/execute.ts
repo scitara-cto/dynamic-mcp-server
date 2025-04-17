@@ -1,12 +1,12 @@
 import { DlxService } from "../../../services/DlxService.js";
-
+import { SessionInfo } from "../../../mcp/server.js";
 export default async function execute(
   {
     nameContains,
     limit,
     offset,
   }: { nameContains?: string; limit?: number; offset?: number },
-  context: any,
+  sessionInfo: SessionInfo,
 ) {
   const dlxService = new DlxService();
   const params: Record<string, any> = {};
@@ -20,6 +20,6 @@ export default async function execute(
       path: "/orchestrations",
       params,
     },
-    context,
+    sessionInfo,
   );
 }

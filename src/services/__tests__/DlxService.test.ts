@@ -1,12 +1,6 @@
-import {
-  jest,
-  expect,
-  describe,
-  it,
-  beforeEach,
-  beforeAll,
-} from "@jest/globals";
-import { DlxService, DlxApiCallParams, ToolContext } from "../DlxService.js";
+import { jest, expect, describe, it, beforeEach } from "@jest/globals";
+import { DlxService } from "../DlxService.js";
+import { SessionInfo } from "../../mcp/server.js";
 
 // Mock the fetch function
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
@@ -15,23 +9,15 @@ global.fetch = mockFetch;
 describe("DlxService", () => {
   let dlxService: DlxService;
   const baseUrl = "https://test-api.example.com";
-  const contextWithToken: ToolContext = {
-    authInfo: { token: "test-token", clientId: "test-client", scopes: [] },
+  const contextWithToken: SessionInfo = {
+    token: "test-token",
+    user: { clientId: "test-client", scopes: [] },
+    dlxApiUrl: baseUrl,
   };
-  const contextNoToken: ToolContext = {
-    authInfo: { token: "", clientId: "test-client", scopes: [] },
-  };
-
-  beforeAll(() => {
-    process.env.DLX_API_URL = baseUrl;
-  });
 
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
-
-    // Set DLX_API_URL for every test
-    process.env.DLX_API_URL = baseUrl;
 
     // Create a new instance of DlxService
     dlxService = new DlxService();
@@ -141,19 +127,21 @@ describe("DlxService", () => {
     });
 
     it("should throw an error if token is missing", async () => {
-      const params: DlxApiCallParams = {
-        method: "GET",
-        path: "/test",
-      };
       await expect(
-        dlxService.executeDlxApiCall(params, contextNoToken),
+        dlxService.executeDlxApiCall(
+          { method: "GET", path: "/test" },
+          { token: "", user: {}, dlxApiUrl: baseUrl },
+        ),
       ).rejects.toThrow("Token is required for DLX API call");
-      await expect(dlxService.executeDlxApiCall(params, {})).rejects.toThrow(
-        "Token is required for DLX API call",
-      );
-      await expect(dlxService.executeDlxApiCall(params)).rejects.toThrow(
-        "Token is required for DLX API call",
-      );
+    });
+
+    it("should throw an error if DLX API URL is missing", async () => {
+      await expect(
+        dlxService.executeDlxApiCall(
+          { method: "GET", path: "/test" },
+          { token: "test-token", user: {} },
+        ),
+      ).rejects.toThrow("DLX API URL is required for DLX API call");
     });
 
     it("should handle empty responses correctly", async () => {

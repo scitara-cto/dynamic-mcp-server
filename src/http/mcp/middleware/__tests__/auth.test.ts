@@ -6,9 +6,27 @@ import { AuthService } from "../../../auth/AuthService.js";
 // Mock the AuthService
 jest.mock("../../../auth/AuthService.js");
 
+// Define UserInfo type
+interface UserInfo {
+  sub: string;
+  email: string;
+  name: string;
+  preferred_username: string;
+  scope: string[];
+  aud: string[];
+}
+
+// Extend Request type to include user property
+interface RequestWithUser extends Request {
+  user?: UserInfo;
+}
+
+// Define the type for verifyToken function
+type VerifyTokenFn = (token: string) => Promise<UserInfo | null>;
+
 describe("Auth Middleware", () => {
   let mockAuthService: jest.Mocked<AuthService>;
-  let mockRequest: Partial<Request>;
+  let mockRequest: Partial<RequestWithUser>;
   let mockResponse: Partial<Response>;
   let nextFunction: jest.Mock;
 
@@ -26,8 +44,8 @@ describe("Auth Middleware", () => {
 
     // Create mock response object
     mockResponse = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
+      status: jest.fn().mockReturnThis() as any,
+      json: jest.fn().mockReturnThis() as any,
     };
 
     // Create mock next function
@@ -37,7 +55,7 @@ describe("Auth Middleware", () => {
   it("should return 401 when no authorization header is present", async () => {
     const middleware = createAuthMiddleware(mockAuthService);
     await middleware(
-      mockRequest as Request,
+      mockRequest as RequestWithUser,
       mockResponse as Response,
       nextFunction,
     );
@@ -54,7 +72,7 @@ describe("Auth Middleware", () => {
 
     const middleware = createAuthMiddleware(mockAuthService);
     await middleware(
-      mockRequest as Request,
+      mockRequest as RequestWithUser,
       mockResponse as Response,
       nextFunction,
     );
@@ -68,11 +86,14 @@ describe("Auth Middleware", () => {
 
   it("should return 401 when token is invalid", async () => {
     mockRequest.headers = { authorization: "Bearer invalid-token" };
-    mockAuthService.verifyToken = jest.fn().mockResolvedValue(null);
+    // Create a properly typed mock function
+    mockAuthService.verifyToken = jest.fn(
+      async () => null,
+    ) as jest.MockedFunction<VerifyTokenFn>;
 
     const middleware = createAuthMiddleware(mockAuthService);
     await middleware(
-      mockRequest as Request,
+      mockRequest as RequestWithUser,
       mockResponse as Response,
       nextFunction,
     );
@@ -86,7 +107,7 @@ describe("Auth Middleware", () => {
   });
 
   it("should call next() and add user info to request when token is valid", async () => {
-    const mockUserInfo = {
+    const mockUserInfo: UserInfo = {
       sub: "user123",
       email: "user@example.com",
       name: "Test User",
@@ -96,11 +117,14 @@ describe("Auth Middleware", () => {
     };
 
     mockRequest.headers = { authorization: "Bearer valid-token" };
-    mockAuthService.verifyToken = jest.fn().mockResolvedValue(mockUserInfo);
+    // Create a properly typed mock function
+    mockAuthService.verifyToken = jest.fn(
+      async () => mockUserInfo,
+    ) as jest.MockedFunction<VerifyTokenFn>;
 
     const middleware = createAuthMiddleware(mockAuthService);
     await middleware(
-      mockRequest as Request,
+      mockRequest as RequestWithUser,
       mockResponse as Response,
       nextFunction,
     );
@@ -114,13 +138,14 @@ describe("Auth Middleware", () => {
 
   it("should return 401 when verifyToken throws an error", async () => {
     mockRequest.headers = { authorization: "Bearer valid-token" };
-    mockAuthService.verifyToken = jest
-      .fn()
-      .mockRejectedValue(new Error("Verification failed"));
+    // Create a properly typed mock function
+    mockAuthService.verifyToken = jest.fn(async () => {
+      throw new Error("Verification failed");
+    }) as jest.MockedFunction<VerifyTokenFn>;
 
     const middleware = createAuthMiddleware(mockAuthService);
     await middleware(
-      mockRequest as Request,
+      mockRequest as RequestWithUser,
       mockResponse as Response,
       nextFunction,
     );
@@ -138,7 +163,7 @@ describe("Auth Middleware", () => {
 
     const middleware = createAuthMiddleware(mockAuthService);
     await middleware(
-      mockRequest as Request,
+      mockRequest as RequestWithUser,
       mockResponse as Response,
       nextFunction,
     );
@@ -155,7 +180,7 @@ describe("Auth Middleware", () => {
 
     const middleware = createAuthMiddleware(mockAuthService);
     await middleware(
-      mockRequest as Request,
+      mockRequest as RequestWithUser,
       mockResponse as Response,
       nextFunction,
     );

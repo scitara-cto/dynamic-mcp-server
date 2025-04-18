@@ -11,7 +11,7 @@ import { AuthService } from "../AuthService.js";
 
 describe("AuthService", () => {
   let authService: AuthService;
-  let postSpy: jest.SpyInstance;
+  let postSpy: any; // Use any type instead of jest.SpyInstance
 
   const mockConfig = {
     authServerUrl: "https://auth.example.com",

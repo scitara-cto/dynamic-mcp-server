@@ -8,18 +8,18 @@ export default async function execute(
 ): Promise<ToolOutput> {
   const dlxService = new DlxService();
 
-  const result = await dlxService.executeDlxApiCall(
+  const response = (await dlxService.executeDlxApiCall(
     {
       method: "GET",
       path: "/orchestrations",
       params: { nameContains },
     },
     sessionInfo,
-  );
+  )) as { items: any[] };
 
   return {
-    result,
+    result: response.items,
     message:
-      "Successfully retrieved orchestrations, note that only the top 25 results are returned.  Use a more specific search to find a specific orchestration."
+      "Successfully retrieved orchestrations, note that only the top 25 results are returned.  Use a more specific search to find a specific orchestration.",
   };
 }

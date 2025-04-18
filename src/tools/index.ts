@@ -12,6 +12,7 @@ import {
 import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { z } from "zod";
 import { McpServer } from "../mcp/server.js";
+import { ToolOutput } from "./types.js";
 
 // Extended tool schema that includes annotations
 const ExtendedToolSchema = z
@@ -158,18 +159,29 @@ export class ToolGenerator {
 }
 
 // Centralized response wrapper for MCP tools
-export function wrapToolExecute(execute: (...args: any[]) => Promise<any>) {
+export function wrapToolExecute(
+  execute: (...args: any[]) => Promise<ToolOutput>,
+) {
   return async function wrapped(args: any, context: any) {
     try {
-      const result = await execute(args, context);
+      const toolOutput = await execute(args, context);
+      const response: Record<string, unknown> = {
+        result: toolOutput.result,
+      };
+
+      if (toolOutput.message) {
+        response.message = toolOutput.message;
+      }
+
+      if (toolOutput.nextSteps) {
+        response.nextSteps = toolOutput.nextSteps;
+      }
+
       return {
         content: [
           {
             type: "text",
-            text:
-              typeof result === "string"
-                ? result
-                : JSON.stringify(result, null, 2),
+            text: JSON.stringify(response, null, 2),
           } as { [x: string]: unknown; type: "text"; text: string },
         ],
         isError: false,

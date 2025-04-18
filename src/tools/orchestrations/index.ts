@@ -1,3 +1,3 @@
-import DlxListOrchestrationsTool from "./list/index.js";
+import DlxFindOrchestrationTool from "./find/index.js";
 
-export const orchestrationTools = [DlxListOrchestrationsTool];
+export const orchestrationTools = [DlxFindOrchestrationTool];

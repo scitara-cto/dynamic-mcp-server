@@ -3,12 +3,12 @@ import { inputSchema } from "./definition.js";
 
 // Export the tool configuration and handler
 export default {
-  name: "dlx_orchestrations_list",
+  name: "dlx_orchestrations_find",
   inputSchema,
-  description: "List available DLX orchestrations with optional filtering",
+  description: "Find a DLX orchestration by name",
   handler: execute,
   annotations: {
-    title: "List Orchestrations",
+    title: "Find Orchestration",
     readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,

@@ -1,7 +1,7 @@
-import { AuthService } from "../http/auth/AuthService.js";
 import { config } from "../config/index.js";
 import dotenv from "dotenv";
 import logger from "../utils/logger.js";
+import open from "open";
 
 // Load environment variables
 dotenv.config();
@@ -10,45 +10,32 @@ dotenv.config();
 logger.level = "debug";
 
 async function main() {
-  const authService = new AuthService({
-    authServerUrl: config.auth.authServerUrl,
-    realm: config.auth.realm,
-    clientId: config.auth.clientId,
-    clientSecret: config.auth.clientSecret,
+  const authUrl = `${config.auth.authServerUrl}/realms/${config.auth.realm}/protocol/openid-connect/auth`;
+
+  // Create the authorization URL parameters
+  const params = new URLSearchParams({
+    client_id: config.auth.clientId,
+    response_type: "code",
+    redirect_uri: config.auth.redirectUri,
+    scope: "openid profile email",
+    state: "random-state-value", // In a real app, this would be a random value
   });
 
-  // Replace these with your actual credentials
-  const username = process.env.KEYCLOAK_USERNAME;
-  const password = process.env.KEYCLOAK_PASSWORD;
+  const fullAuthUrl = `${authUrl}?${params.toString()}`;
 
-  if (!username || !password) {
-    console.error(
-      "Please set KEYCLOAK_USERNAME and KEYCLOAK_PASSWORD in your .env file",
-    );
-    process.exit(1);
-  }
+  console.log("Authorization URL:");
+  console.log(fullAuthUrl);
+  console.log("\nOpening browser with authorization URL...");
 
-  console.log("Attempting to get token with:");
-  console.log("Auth Server URL:", config.auth.authServerUrl);
-  console.log("Realm:", config.auth.realm);
-  console.log("Client ID:", config.auth.clientId);
-  console.log("Username:", username);
+  // Open the URL in the default browser
+  await open(fullAuthUrl);
 
-  try {
-    const token = await authService.getToken(username, password);
-    if (token) {
-      console.log("Bearer", token);
-    } else {
-      console.error("Failed to get token");
-    }
-  } catch (error: any) {
-    if (error.response) {
-      console.error("Error response data:", error.response.data);
-      console.error("Error response status:", error.response.status);
-      console.error("Error response headers:", error.response.headers);
-    }
-    console.error("Error getting token:", error);
-  }
+  console.log(
+    "\nAfter authentication, you'll be redirected to your redirect URI with a code parameter.",
+  );
+  console.log(
+    "Use that code with the get-token-with-code script to get an access token.",
+  );
 }
 
 main().catch(console.error);

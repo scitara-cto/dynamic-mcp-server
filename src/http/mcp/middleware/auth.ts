@@ -12,7 +12,15 @@ export function createAuthMiddleware(authService: AuthService): RequestHandler {
         return;
       }
 
-      const token = authHeader.split(" ")[1];
+      // Check if it's a Bearer token
+      const parts = authHeader.split(" ");
+      if (parts.length !== 2 || parts[0] !== "Bearer") {
+        logger.warn("Authentication failed: Invalid authorization scheme");
+        res.status(401).json({ error: "No token provided" });
+        return;
+      }
+
+      const token = parts[1];
       if (!token) {
         logger.warn("Authentication failed: No token provided");
         res.status(401).json({ error: "No token provided" });

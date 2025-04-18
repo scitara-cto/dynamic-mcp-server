@@ -3,6 +3,8 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { config } from "../../config/index.js";
 import logger from "../../utils/logger.js";
 import { McpServer } from "../../mcp/server.js";
+import { handleClientRegistration } from "./client-registration.js";
+import { handleOAuthMetadata } from "./oauth-metadata.js";
 
 export class HttpServer {
   private app: express.Application;
@@ -18,9 +20,21 @@ export class HttpServer {
   }
 
   private setupRoutes(): void {
+    // Parse JSON bodies
+    this.app.use(express.json());
+
     // Apply authentication middleware to MCP endpoints
     this.app.use("/sse", this.authMiddleware);
     this.app.use("/messages", this.authMiddleware);
+
+    // OAuth metadata endpoint (no auth required)
+    this.app.get(
+      "/.well-known/oauth-authorization-server",
+      handleOAuthMetadata,
+    );
+
+    // Client registration endpoint (no auth required)
+    this.app.post("/register", handleClientRegistration);
 
     // SSE endpoint
     this.app.get("/sse", async (req: Request, res: Response) => {

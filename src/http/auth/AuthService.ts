@@ -27,26 +27,37 @@ export class AuthService {
 
   async verifyToken(token: string): Promise<UserInfo | null> {
     try {
-      const response = await axios.get(
-        `${this.config.authServerUrl}/realms/${this.config.realm}/protocol/openid-connect/userinfo`,
+      // Use token introspection instead of userinfo endpoint
+      const response = await axios.post(
+        `${this.config.authServerUrl}/realms/${this.config.realm}/protocol/openid-connect/token/introspect`,
+        new URLSearchParams({
+          token: token,
+          client_id: this.config.clientId,
+          client_secret: this.config.clientSecret,
+        }),
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/x-www-form-urlencoded",
           },
         },
       );
 
-      const userInfo = response.data as UserInfo;
-
-      // Validate the token audience
-      if (userInfo.aud && !userInfo.aud.includes(config.auth.clientId)) {
-        logger.warn(
-          `Token audience validation failed. Expected: ${
-            config.auth.clientId
-          }, Got: ${userInfo.aud.join(", ")}`,
-        );
+      // Check if the token is active
+      if (!response.data.active) {
+        logger.warn("Token is not active");
         return null;
       }
+
+      // Create a basic UserInfo object from the token claims
+      // We'll use the sub claim as the user ID
+      const userInfo: UserInfo = {
+        sub: response.data.sub || "unknown",
+        email: response.data.email || "",
+        name: response.data.name || "",
+        preferred_username: response.data.preferred_username || "",
+        scope: response.data.scope ? response.data.scope.split(" ") : [],
+        aud: response.data.aud ? [response.data.aud] : [],
+      };
 
       return userInfo;
     } catch (error) {

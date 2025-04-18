@@ -36,6 +36,7 @@ export class HttpServer {
 
       // Extract DLX API URL from query parameters
       const dlxApiUrl = req.query.dlxApiUrl as string | undefined;
+      const dlxApiKey = req.query.dlxApiKey as string | undefined;
 
       // Require DLX API URL from client
       if (!dlxApiUrl) {
@@ -56,6 +57,7 @@ export class HttpServer {
         token,
         user,
         dlxApiUrl,
+        dlxApiKey,
       });
 
       // Clean up when the connection closes

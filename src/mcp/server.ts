@@ -6,6 +6,7 @@ export interface SessionInfo {
   token: string;
   user: any;
   dlxApiUrl?: string;
+  dlxApiKey?: string;
 }
 
 export class McpServer {

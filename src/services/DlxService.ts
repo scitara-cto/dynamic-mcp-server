@@ -19,13 +19,13 @@ export class DlxService {
     sessionInfo?: SessionInfo,
   ): Promise<unknown> {
     // Extract token and DLX API URL from sessionInfo
-    const token = sessionInfo?.token;
+    const token = sessionInfo?.dlxApiKey || sessionInfo?.token;
     const dlxApiUrl = sessionInfo?.dlxApiUrl;
-    
+
     if (!token) {
       throw new Error("Token is required for DLX API call");
     }
-
+    
     if (!dlxApiUrl) {
       throw new Error("DLX API URL is required for DLX API call");
     }

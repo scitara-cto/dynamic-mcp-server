@@ -75,8 +75,7 @@ export class DlxService {
       }
 
       // Parse JSON response
-      const json = await response.json();
-      return json.data;
+      return await response.json();
     } catch (error: unknown) {
       // Error handling
       if (error instanceof TypeError && error.message.includes("fetch")) {

@@ -24,8 +24,8 @@ describe("McpServer", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    toolGeneratorSpy = jest.spyOn(ToolGenerator.prototype, "registerAllTools");
-    toolGeneratorSpy.mockResolvedValue(2);
+    toolGeneratorSpy = jest.spyOn(ToolGenerator.prototype, "initialize");
+    toolGeneratorSpy.mockResolvedValue(undefined);
 
     mockServer = new Server({
       name: config.server.name,
@@ -55,7 +55,6 @@ describe("McpServer", () => {
     it("should successfully initialize and register tools", async () => {
       await mcpServer.initialize();
       expect(toolGeneratorSpy).toHaveBeenCalled();
-      expect(toolGeneratorSpy).toHaveReturnedWith(Promise.resolve(2));
     });
 
     it("should throw an error if tool registration fails", async () => {

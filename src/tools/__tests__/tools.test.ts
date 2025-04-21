@@ -24,6 +24,9 @@ jest.mock("../../mcp/server.js", () => ({
     getSessionInfo: jest
       .fn()
       .mockReturnValue({ token: "test-token", user: {} }),
+    notifyToolListChanged: jest
+      .fn()
+      .mockImplementation(() => Promise.resolve()),
   })),
 }));
 
@@ -54,12 +57,11 @@ describe("ToolGenerator", () => {
 
   describe("Tool Registration", () => {
     it("should register all tools successfully", async () => {
-      const registeredCount = await toolGenerator.registerAllTools();
+      await toolGenerator.initialize();
       const registeredTools = toolGenerator.getRegisteredToolNames();
 
       // Verify tools were registered
-      expect(registeredCount).toBeGreaterThan(0);
-      expect(registeredTools.length).toBe(registeredCount);
+      expect(registeredTools.length).toBeGreaterThan(0);
 
       // Verify that setRequestHandler was called for both list and call handlers
       expect(mockServer.setRequestHandler).toHaveBeenCalledTimes(2);
@@ -68,7 +70,7 @@ describe("ToolGenerator", () => {
 
   describe("Tool Implementation", () => {
     it("should verify all tools have required properties", async () => {
-      await toolGenerator.registerAllTools();
+      await toolGenerator.initialize();
       const registeredTools = toolGenerator.getRegisteredToolNames();
 
       // Verify that each registered tool has the required properties
@@ -87,7 +89,7 @@ describe("ToolGenerator", () => {
     });
 
     it("should verify each tool's handler has the correct structure", async () => {
-      await toolGenerator.registerAllTools();
+      await toolGenerator.initialize();
       const registeredTools = toolGenerator.getRegisteredToolNames();
 
       for (const toolName of registeredTools) {
@@ -117,7 +119,7 @@ describe("ToolGenerator", () => {
 
   describe("Tool Retrieval", () => {
     it("should retrieve a registered tool by name", async () => {
-      await toolGenerator.registerAllTools();
+      await toolGenerator.initialize();
       const registeredTools = toolGenerator.getRegisteredToolNames();
       expect(registeredTools.length).toBeGreaterThan(0);
 
@@ -131,7 +133,7 @@ describe("ToolGenerator", () => {
     });
 
     it("should return undefined for non-existent tool", async () => {
-      await toolGenerator.registerAllTools();
+      await toolGenerator.initialize();
       const tool = toolGenerator.getTool("non_existent_tool");
       expect(tool).toBeUndefined();
     });

@@ -14,6 +14,8 @@ import { z } from "zod";
 import { McpServer } from "../mcp/server.js";
 import { ToolOutput } from "./types.js";
 
+const toolList = [...orchestrationTools];
+
 // Extended tool schema that includes annotations
 const ExtendedToolSchema = z
   .object({
@@ -62,40 +64,57 @@ export class ToolGenerator {
   private server: Server;
   private tools: Map<string, ToolDefinition> = new Map();
   private mcpServer: McpServer;
+  private initialized: boolean = false;
 
-  /**
-   * Create a new ToolGenerator
-   * @param server The MCP server instance to register tools with
-   * @param mcpServer The McpServer instance for auth info
-   */
   constructor(server: Server, mcpServer: McpServer) {
     this.server = server;
     this.mcpServer = mcpServer;
-    this.initializeToolGroups();
   }
 
   /**
    * Initialize all tool groups
    * This method should be updated as new tool groups are added
    */
-  private initializeToolGroups(): void {
-    // Add each tool group to the array
-    orchestrationTools.forEach((tool) => {
-      this.tools.set(tool.name, {
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-        handler: wrapToolExecute(tool.handler),
-        annotations: (tool as any).annotations,
-      });
-    });
+  public async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
+    try {
+      // Add each tool group to the array
+      for (const tool of toolList) {
+        await this.registerTool(tool);
+      }
+
+      // Set up handlers once after all tools are registered
+      await this.setupToolHandlers();
+      this.initialized = true;
+    } catch (error) {
+      logger.error(`Failed to initialize tool groups: ${error}`);
+      throw error; // Re-throw to allow proper error handling upstream
+    }
   }
 
   /**
-   * Register all tools with the MCP server
+   * Registers a tool with the MCP server
+   * @param tool The tool definition to register
+   */
+  public async registerTool(tool: ToolDefinition): Promise<void> {
+    this.tools.set(tool.name, tool);
+    logger.info(`Registered tool: ${tool.name}`);
+
+    // If we're already initialized, we need to re-setup the handlers
+    // for dynamic tool registration
+    if (this.initialized) {
+      await this.setupToolHandlers();
+    }
+  }
+
+  /**
+   * Set up the MCP server's request handlers for tools
    * @returns The number of tools registered
    */
-  async registerAllTools(): Promise<number> {
+  async setupToolHandlers(): Promise<number> {
     try {
       // Set up the tools/list request handler
       this.server.setRequestHandler(
@@ -130,11 +149,14 @@ export class ToolGenerator {
         },
       );
 
-      logger.info(`Successfully registered ${this.tools.size} tools`);
+      // Notify clients of tool list changes after handlers are updated
+      await this.mcpServer.notifyToolListChanged();
+
+      logger.info(`Successfully set up handlers for ${this.tools.size} tools`);
       return this.tools.size;
     } catch (error: any) {
       logger.error(
-        `Failed to register tools: ${error?.message || "Unknown error"}`,
+        `Failed to set up tool handlers: ${error?.message || "Unknown error"}`,
       );
       return 0;
     }
@@ -156,48 +178,51 @@ export class ToolGenerator {
   getTool(name: string) {
     return this.tools.get(name);
   }
-}
 
-// Centralized response wrapper for MCP tools
-export function wrapToolExecute(
-  execute: (...args: any[]) => Promise<ToolOutput>,
-) {
-  return async function wrapped(args: any, context: any) {
-    try {
-      const toolOutput = await execute(args, context);
-      const response: Record<string, unknown> = {
-        result: toolOutput.result,
-      };
+  wrapToolExecute(execute: (...args: any[]) => Promise<ToolOutput>) {
+    const self = this;
+    return async function wrapped(
+      this: ToolGenerator,
+      args: any,
+      context: any,
+    ) {
+      try {
+        // Pass the ToolGenerator instance to the execute function
+        const toolOutput = await execute(args, context, self);
+        const response: Record<string, unknown> = {
+          result: toolOutput.result,
+        };
 
-      if (toolOutput.message) {
-        response.message = toolOutput.message;
+        if (toolOutput.message) {
+          response.message = toolOutput.message;
+        }
+
+        if (toolOutput.nextSteps) {
+          response.nextSteps = toolOutput.nextSteps;
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(response, null, 2),
+            } as { [x: string]: unknown; type: "text"; text: string },
+          ],
+          isError: false,
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            } as { [x: string]: unknown; type: "text"; text: string },
+          ],
+          isError: true,
+        };
       }
-
-      if (toolOutput.nextSteps) {
-        response.nextSteps = toolOutput.nextSteps;
-      }
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(response, null, 2),
-          } as { [x: string]: unknown; type: "text"; text: string },
-        ],
-        isError: false,
-      };
-    } catch (error) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          } as { [x: string]: unknown; type: "text"; text: string },
-        ],
-        isError: true,
-      };
-    }
-  };
+    };
+  }
 }

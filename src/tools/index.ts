@@ -1,5 +1,4 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { orchestrationTools } from "./orchestrations/index.js";
 import logger from "../utils/logger.js";
 import {
   ListToolsRequestSchema,
@@ -13,8 +12,8 @@ import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.j
 import { z } from "zod";
 import { McpServer } from "../mcp/server.js";
 import { ToolOutput } from "./types.js";
-
-const toolList = [...orchestrationTools];
+import { createHandler } from "./handlers/index.js";
+import { tools, StaticToolDefinition } from "./tools.js";
 
 // Extended tool schema that includes annotations
 const ExtendedToolSchema = z
@@ -45,8 +44,8 @@ const ExtendedListToolsResultSchema = ListToolsResultSchema.extend({
   tools: z.array(ExtendedToolSchema),
 });
 
-// Type for tool definitions
-type ToolDefinition = {
+// Type for tool definitions with handler function
+interface RuntimeToolDefinition {
   name: string;
   description?: string;
   inputSchema: {
@@ -55,14 +54,14 @@ type ToolDefinition = {
   };
   handler: (...args: any[]) => Promise<any>;
   annotations?: Record<string, unknown>;
-};
+}
 
 /**
  * ToolGenerator class responsible for registering all tools with an MCP server
  */
 export class ToolGenerator {
   private server: Server;
-  private tools: Map<string, ToolDefinition> = new Map();
+  private tools: Map<string, RuntimeToolDefinition> = new Map();
   private mcpServer: McpServer;
   private initialized: boolean = false;
 
@@ -72,8 +71,7 @@ export class ToolGenerator {
   }
 
   /**
-   * Initialize all tool groups
-   * This method should be updated as new tool groups are added
+   * Initialize all tools
    */
   public async initialize(): Promise<void> {
     if (this.initialized) {
@@ -81,8 +79,8 @@ export class ToolGenerator {
     }
 
     try {
-      // Add each tool group to the array
-      for (const tool of toolList) {
+      // Add each tool to the map
+      for (const tool of tools) {
         await this.registerTool(tool);
       }
 
@@ -90,7 +88,7 @@ export class ToolGenerator {
       await this.setupToolHandlers();
       this.initialized = true;
     } catch (error) {
-      logger.error(`Failed to initialize tool groups: ${error}`);
+      logger.error(`Failed to initialize tools: ${error}`);
       throw error; // Re-throw to allow proper error handling upstream
     }
   }
@@ -99,7 +97,25 @@ export class ToolGenerator {
    * Registers a tool with the MCP server
    * @param tool The tool definition to register
    */
-  public async registerTool(tool: ToolDefinition): Promise<void> {
+  public async registerTool({
+    name,
+    description,
+    inputSchema,
+    annotations,
+    handler: { type, args },
+  }: StaticToolDefinition): Promise<void> {
+    // Create a handler function based on the tool's handler type
+    const handler = createHandler(type, args);
+
+    // Create the tool definition with the handler function
+    const tool: RuntimeToolDefinition = {
+      name,
+      description,
+      inputSchema,
+      annotations,
+      handler,
+    };
+
     this.tools.set(tool.name, tool);
     logger.info(`Registered tool: ${tool.name}`);
 
@@ -177,52 +193,5 @@ export class ToolGenerator {
    */
   getTool(name: string) {
     return this.tools.get(name);
-  }
-
-  wrapToolExecute(execute: (...args: any[]) => Promise<ToolOutput>) {
-    const self = this;
-    return async function wrapped(
-      this: ToolGenerator,
-      args: any,
-      context: any,
-    ) {
-      try {
-        // Pass the ToolGenerator instance to the execute function
-        const toolOutput = await execute(args, context, self);
-        const response: Record<string, unknown> = {
-          result: toolOutput.result,
-        };
-
-        if (toolOutput.message) {
-          response.message = toolOutput.message;
-        }
-
-        if (toolOutput.nextSteps) {
-          response.nextSteps = toolOutput.nextSteps;
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response, null, 2),
-            } as { [x: string]: unknown; type: "text"; text: string },
-          ],
-          isError: false,
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: ${
-                error instanceof Error ? error.message : String(error)
-              }`,
-            } as { [x: string]: unknown; type: "text"; text: string },
-          ],
-          isError: true,
-        };
-      }
-    };
   }
 }

@@ -9,6 +9,7 @@ import {
 import { ToolGenerator } from "../index.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { McpServer } from "../../mcp/server.js";
+import { tools } from "../tools.js";
 
 // Mock both the Server and McpServer modules
 jest.mock("@modelcontextprotocol/sdk/server/index.js", () => ({
@@ -28,6 +29,18 @@ jest.mock("../../mcp/server.js", () => ({
       .fn()
       .mockImplementation(() => Promise.resolve()),
   })),
+}));
+
+// Mock the handlers module
+jest.mock("../handlers/index.js", () => ({
+  createHandler: jest.fn().mockImplementation((type, config) => {
+    return async (args: any, context: any) => {
+      return {
+        result: { success: true, type, config },
+        message: "Test handler executed",
+      };
+    };
+  }),
 }));
 
 describe("ToolGenerator", () => {
@@ -61,7 +74,7 @@ describe("ToolGenerator", () => {
       const registeredTools = toolGenerator.getRegisteredToolNames();
 
       // Verify tools were registered
-      expect(registeredTools.length).toBeGreaterThan(0);
+      expect(registeredTools.length).toBe(tools.length);
 
       // Verify that setRequestHandler was called for both list and call handlers
       expect(mockServer.setRequestHandler).toHaveBeenCalledTimes(2);

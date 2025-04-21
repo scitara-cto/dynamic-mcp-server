@@ -10,3 +10,14 @@ export interface ToolOutput<T = any> {
   /** Suggested next steps for the user */
   nextSteps?: string[];
 }
+
+/**
+ * Represents the MCP server's expected output format
+ */
+export interface McpToolResponse {
+  content: Array<{
+    type: "text";
+    text: string;
+  }>;
+  isError: boolean;
+}

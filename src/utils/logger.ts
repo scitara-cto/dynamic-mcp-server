@@ -26,9 +26,18 @@ winston.addColors(colors);
 const format = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
   winston.format.colorize({ all: true }),
-  winston.format.printf(
-    (info) => `${info.timestamp} ${info.level}: ${info.message}`,
-  ),
+  winston.format.printf((info) => {
+    let output = `${info.timestamp} ${info.level}: ${info.message}`;
+
+    if (info.args) {
+      output += ` ${JSON.stringify(info.args)}`;
+    }
+    if (info.error) {
+      output += ` error: ${JSON.stringify(info.error)}`;
+    }
+
+    return output;
+  }),
 );
 
 // Define which transports to use based on environment
@@ -50,7 +59,7 @@ if (process.env.NODE_ENV === "production") {
 
 // Create the logger
 const logger = winston.createLogger({
-  level: process.env.NODE_ENV === "development" ? "debug" : "info",
+  level: config.logging.level, // Use the log level from config
   levels,
   format,
   transports,

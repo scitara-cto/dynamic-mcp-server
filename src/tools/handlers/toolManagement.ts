@@ -86,24 +86,20 @@ export async function toolManagementHandler(
       }
 
       case "list": {
-        const tools = toolGenerator.getRegisteredToolNames();
-
-        // Filter tools by name if nameContains is provided
-        let filteredTools = tools;
-        if (args.nameContains) {
-          filteredTools = tools.filter((name) =>
-            name.toLowerCase().includes(args.nameContains.toLowerCase()),
-          );
-        }
+        const nameContains = args.nameContains?.toLowerCase() || "";
+        const tools = Array.from(toolGenerator.getRegisteredToolNames());
+        const filtered = nameContains
+          ? tools.filter((name) => name.toLowerCase().includes(nameContains))
+          : tools;
 
         return {
           result: {
-            tools: filteredTools,
-            total: filteredTools.length,
-            filtered: args.nameContains ? true : false,
+            tools: filtered,
+            total: filtered.length,
+            filtered: !!nameContains,
           },
-          message: `Found ${filteredTools.length} tools${
-            args.nameContains ? ` matching "${args.nameContains}"` : ""
+          message: `Found ${filtered.length} tools${
+            nameContains ? ` matching "${nameContains}"` : ""
           }`,
         };
       }

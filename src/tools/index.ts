@@ -151,16 +151,31 @@ export class ToolGenerator {
         CallToolRequestSchema,
         async (request: CallToolRequest, extra: RequestHandlerExtra) => {
           const { name, arguments: args } = request.params;
-          const tool = this.tools.get(name);
+          logger.info(`Tool execution requested for tool: ${name}`, { args });
 
+          const tool = this.tools.get(name);
           if (!tool) {
+            logger.error(`Tool ${name} not found`);
             throw new Error(`Tool ${name} not found`);
           }
+
           // Get auth info from McpServer
           const context = this.mcpServer.getSessionInfo(extra.sessionId);
+          if (!context) {
+            logger.error(
+              `No session context found for session ${extra.sessionId}`,
+            );
+            throw new Error(
+              `No session context found for session ${extra.sessionId}`,
+            );
+          }
 
-          const result = await tool.handler(args, context);
-          return result satisfies z.infer<typeof CallToolResultSchema>;
+          try {
+            return tool.handler(args, context);
+          } catch (error) {
+            logger.error(`Tool ${name} execution failed`, { error });
+            throw error;
+          }
         },
       );
 

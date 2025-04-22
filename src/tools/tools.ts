@@ -88,7 +88,7 @@ export const tools: ToolDefinition[] = [
     inputSchema: {
       type: "object",
       properties: {
-        nameContains: { type: "string", description: "Filter by name" },
+        name: { type: "string", description: "Filter by name" },
       },
     },
     annotations: {
@@ -103,7 +103,8 @@ export const tools: ToolDefinition[] = [
       args: {
         action: "api-call",
         path: "/connections",
-        params: ["nameContains"],
+        method: "GET",
+        params: ["name"],
       },
     },
   },

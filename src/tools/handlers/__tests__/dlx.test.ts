@@ -32,7 +32,7 @@ describe("dlxHandler", () => {
     jest.resetAllMocks();
 
     // Setup mock implementation for executeDlxApiCall
-    mockExecuteDlxApiCall.mockResolvedValue({ data: "test" });
+    mockExecuteDlxApiCall.mockResolvedValue("test");
 
     // Mock the prototype method
     MockedDlxService.prototype.executeDlxApiCall = mockExecuteDlxApiCall;
@@ -55,7 +55,7 @@ describe("dlxHandler", () => {
       contextWithToken,
     );
     expect(result).toEqual({
-      result: { data: "test" },
+      result: "test",
       message: "Operation completed successfully",
     });
   });
@@ -77,7 +77,7 @@ describe("dlxHandler", () => {
       contextWithToken,
     );
     expect(result).toEqual({
-      result: { data: "test" },
+      result: "test",
       message: "Operation completed successfully",
     });
   });
@@ -116,7 +116,7 @@ describe("dlxHandler", () => {
       contextWithToken,
     );
     expect(result).toEqual({
-      result: { data: "test" },
+      result: "test",
       message: "Operation completed successfully",
     });
   });
@@ -143,7 +143,7 @@ describe("dlxHandler", () => {
       contextWithToken,
     );
     expect(result).toEqual({
-      result: { data: "test" },
+      result: "test",
       message: "Operation completed successfully",
     });
   });
@@ -180,7 +180,7 @@ describe("dlxHandler", () => {
       contextWithToken,
     );
     expect(result).toEqual({
-      result: { data: "test" },
+      result: "test",
       message: "Operation completed successfully",
     });
   });
@@ -217,7 +217,7 @@ describe("dlxHandler", () => {
       contextWithToken,
     );
     expect(result).toEqual({
-      result: { data: "test" },
+      result: "test",
       message: "Operation completed successfully",
     });
   });

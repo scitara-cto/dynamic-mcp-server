@@ -28,10 +28,6 @@ interface Connector {
   actions: Record<string, ConnectorAction>;
 }
 
-interface ApiResponse<T> {
-  data: T;
-}
-
 /**
  * Handles the "use-connection" action for the DLX handler
  * This action creates tools for each action that a connection can execute
@@ -60,26 +56,23 @@ export async function handleUseConnectionAction(
     const dlxService = new DlxService();
 
     // Fetch connection details
-    const connectionResponse = (await dlxService.executeDlxApiCall(
+    const connection = (await dlxService.executeDlxApiCall(
       {
         method: "GET",
         path: `/connections/${connectionId}`,
       },
       context,
-    )) as ApiResponse<Connection>;
-
-    const connection = connectionResponse.data;
+    )) as Connection;
 
     // Fetch connector details
-    const connectorResponse = (await dlxService.executeDlxApiCall(
+    const connector = (await dlxService.executeDlxApiCall(
       {
         method: "GET",
         path: `/connectors/${connection.connector.id}`,
       },
       context,
-    )) as ApiResponse<Connector>;
+    )) as Connector;
 
-    const connector = connectorResponse.data;
     const createdTools: string[] = [];
 
     // Create tools for each published action
@@ -98,7 +91,14 @@ export async function handleUseConnectionAction(
         description: toolDescription,
         inputSchema: {
           type: "object" as const,
-          properties: actionDef.optionsSchema.properties || {},
+          properties: {
+            options: {
+              type: "object" as const,
+              properties: actionDef.optionsSchema.properties || {},
+              required: actionDef.optionsSchema.required || [],
+            },
+          },
+          required: ["options"],
         },
         annotations: {
           title: actionDef.title || actionName,
@@ -113,7 +113,7 @@ export async function handleUseConnectionAction(
             action: "api-call",
             path: `/connections/${connectionId}/actions/${actionName}`,
             method: "POST",
-            body: "options",
+            body: ["options"],
           },
         },
       };

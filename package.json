@@ -16,6 +16,8 @@
     "dev": "tsc --noEmit && node --loader ts-node/esm src/index.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "typecheck": "tsc --noEmit --skipLibCheck",
     "check-realm": "tsc --noEmit && node --loader ts-node/esm src/scripts/check-realm.ts",
     "cleanup": "./src/scripts/cleanup_mcp_remote.sh",
     "get-token": "tsc --noEmit && node --loader ts-node/esm src/scripts/get-token.ts"

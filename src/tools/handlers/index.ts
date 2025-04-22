@@ -1,4 +1,5 @@
 import { dlxHandler } from "./dlx.js";
+import { toolManagementHandler } from "./toolManagement.js";
 import { SessionInfo } from "../../mcp/server.js";
 import { ToolOutput, McpToolResponse } from "../types.js";
 import logger from "../../utils/logger.js";
@@ -46,6 +47,32 @@ export function createHandler(handlerType: string, handlerConfig: any) {
       ): Promise<McpToolResponse> => {
         try {
           const result = await dlxHandler(args, context, handlerConfig);
+          return formatToolOutput(result);
+        } catch (error) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              },
+            ],
+            isError: true,
+          };
+        }
+      };
+    case "tools":
+      return async (
+        args: Record<string, any>,
+        context: SessionInfo,
+      ): Promise<McpToolResponse> => {
+        try {
+          const result = await toolManagementHandler(
+            args,
+            context,
+            handlerConfig,
+          );
           return formatToolOutput(result);
         } catch (error) {
           return {

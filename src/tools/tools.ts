@@ -1,4 +1,4 @@
-export interface StaticToolDefinition {
+export interface ToolDefinition {
   name: string;
   description?: string;
   inputSchema: {
@@ -16,16 +16,12 @@ export interface StaticToolDefinition {
   handler: {
     type: string;
     args: {
-      path: string;
-      method: string;
-      params?: string[];
-      body?: string | Record<string, any>;
       [key: string]: any;
     };
   };
 }
 
-export const tools: StaticToolDefinition[] = [
+export const tools: ToolDefinition[] = [
   {
     name: "list-orchestrations",
     description: "List all orchestrations",
@@ -69,7 +65,7 @@ export const tools: StaticToolDefinition[] = [
       },
     },
     annotations: {
-      title: "Find Orchestration",
+      title: "Trigger Orchestration",
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
@@ -81,6 +77,65 @@ export const tools: StaticToolDefinition[] = [
         path: "/orchestrations/{orchestrationId}/trigger",
         method: "POST",
         body: ["data"],
+      },
+    },
+  },
+  {
+    name: "list-tools",
+    description: "List all tools",
+    inputSchema: {
+      type: "object",
+      properties: {
+        nameContains: {
+          type: "string",
+          description: "Filter tools by name (case-insensitive)",
+        },
+      },
+    },
+    annotations: {
+      title: "List Tools",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: {
+      type: "tools",
+      args: {
+        action: "list",
+      },
+    },
+  },
+  {
+    name: "add-tool",
+    description: "Add a tool",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "The name of the tool" },
+        description: {
+          type: "string",
+          description: "The description of the tool",
+        },
+        inputSchema: {
+          type: "object",
+          description: "The input schema of the tool",
+        },
+        handler: { type: "object", description: "The handler of the tool" },
+      },
+    },
+    annotations: {
+      title: "Add Tool",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: {
+      type: "tools",
+      args: {
+        action: "add",
+        tool: ["name", "description", "inputSchema", "handler"],
       },
     },
   },

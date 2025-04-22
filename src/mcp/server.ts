@@ -7,11 +7,12 @@ export interface SessionInfo {
   user: any;
   dlxApiUrl?: string;
   dlxApiKey?: string;
+  mcpServer?: McpServer;
 }
 
 export class McpServer {
   private server: Server;
-  private toolGenerator: ToolGenerator;
+  public toolGenerator: ToolGenerator;
   private sessionInfo = new Map<string, SessionInfo>();
 
   constructor(server: Server) {
@@ -23,6 +24,7 @@ export class McpServer {
    * Set auth info for a session
    */
   public setSessionInfo(sessionId: string, sessionInfo: SessionInfo): void {
+    sessionInfo.mcpServer = this;
     this.sessionInfo.set(sessionId, sessionInfo);
   }
 
@@ -33,7 +35,14 @@ export class McpServer {
     sessionId: string | undefined,
   ): SessionInfo | undefined {
     if (!sessionId) return undefined;
-    return this.sessionInfo.get(sessionId);
+    const sessionInfo = this.sessionInfo.get(sessionId);
+
+    // Set the mcpServer in the context if it exists
+    if (sessionInfo) {
+      sessionInfo.mcpServer = this;
+    }
+
+    return sessionInfo;
   }
 
   /**

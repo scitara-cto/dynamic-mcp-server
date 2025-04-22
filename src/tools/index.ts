@@ -13,7 +13,7 @@ import { z } from "zod";
 import { McpServer } from "../mcp/server.js";
 import { ToolOutput } from "./types.js";
 import { createHandler } from "./handlers/index.js";
-import { tools, StaticToolDefinition } from "./tools.js";
+import { tools, ToolDefinition } from "./tools.js";
 
 // Extended tool schema that includes annotations
 const ExtendedToolSchema = z
@@ -103,7 +103,7 @@ export class ToolGenerator {
     inputSchema,
     annotations,
     handler: { type, args },
-  }: StaticToolDefinition): Promise<void> {
+  }: ToolDefinition): Promise<void> {
     // Create a handler function based on the tool's handler type
     const handler = createHandler(type, args);
 
@@ -193,5 +193,26 @@ export class ToolGenerator {
    */
   getTool(name: string) {
     return this.tools.get(name);
+  }
+
+  /**
+   * Remove a tool by name
+   * @param name The name of the tool to remove
+   * @returns True if the tool was removed, false if it didn't exist
+   */
+  async removeTool(name: string): Promise<boolean> {
+    const exists = this.tools.has(name);
+    if (exists) {
+      this.tools.delete(name);
+
+      // If we're already initialized, we need to re-setup the handlers
+      // for dynamic tool removal
+      if (this.initialized) {
+        await this.setupToolHandlers();
+      }
+
+      logger.info(`Removed tool: ${name}`);
+    }
+    return exists;
   }
 }

@@ -41,6 +41,7 @@ export const tools: ToolDefinition[] = [
     handler: {
       type: "dlx",
       args: {
+        action: "api-call",
         path: "/orchestrations",
         method: "GET",
         params: ["nameContains"],
@@ -74,9 +75,63 @@ export const tools: ToolDefinition[] = [
     handler: {
       type: "dlx",
       args: {
+        action: "api-call",
         path: "/orchestrations/{orchestrationId}/trigger",
         method: "POST",
         body: ["data"],
+      },
+    },
+  },
+  {
+    name: "list-connections",
+    description: "List all connections",
+    inputSchema: {
+      type: "object",
+      properties: {
+        nameContains: { type: "string", description: "Filter by name" },
+      },
+    },
+    annotations: {
+      title: "List Connections",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: {
+      type: "dlx",
+      args: {
+        action: "api-call",
+        path: "/connections",
+        params: ["nameContains"],
+      },
+    },
+  },
+  {
+    name: "use-connection",
+    description:
+      "Create tools for a specific connection based on its capabilities",
+    inputSchema: {
+      type: "object",
+      properties: {
+        connectionId: {
+          type: "string",
+          description:
+            "The ID of the connection to use.  Use the list-connections tool to find the connection id if you only know the name.",
+        },
+      },
+    },
+    annotations: {
+      title: "Use Connection",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: {
+      type: "dlx",
+      args: {
+        action: "use-connection",
       },
     },
   },
@@ -100,7 +155,7 @@ export const tools: ToolDefinition[] = [
       openWorldHint: true,
     },
     handler: {
-      type: "tools",
+      type: "tool-management",
       args: {
         action: "list",
       },
@@ -132,7 +187,7 @@ export const tools: ToolDefinition[] = [
       openWorldHint: true,
     },
     handler: {
-      type: "tools",
+      type: "tool-management",
       args: {
         action: "add",
         tool: ["name", "description", "inputSchema", "handler"],

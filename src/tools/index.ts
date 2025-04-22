@@ -11,7 +11,6 @@ import {
 import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { z } from "zod";
 import { McpServer } from "../mcp/server.js";
-import { ToolOutput } from "./types.js";
 import { createHandler } from "./handlers/index.js";
 import { tools, ToolDefinition } from "./tools.js";
 

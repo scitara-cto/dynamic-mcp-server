@@ -1,4 +1,4 @@
-import { dlxHandler } from "./dlx.js";
+import { dlxHandler } from "./dlx/index.js";
 import { toolManagementHandler } from "./toolManagement.js";
 import { SessionInfo } from "../../mcp/server.js";
 import { ToolOutput, McpToolResponse } from "../types.js";
@@ -62,7 +62,7 @@ export function createHandler(handlerType: string, handlerConfig: any) {
           };
         }
       };
-    case "tools":
+    case "tool-management":
       return async (
         args: Record<string, any>,
         context: SessionInfo,

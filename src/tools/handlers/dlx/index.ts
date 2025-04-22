@@ -3,6 +3,7 @@ import { ToolOutput } from "../../types.js";
 import logger from "../../../utils/logger.js";
 import { handleApiCallAction } from "./apiCallAction.js";
 import { handleUseConnectionAction } from "./useConnectionAction.js";
+import { handleUseOrchestrationAction } from "./useOrchestrationAction.js";
 
 /**
  * DLX handler for executing various actions with the DLX service
@@ -21,6 +22,8 @@ export async function dlxHandler(
     params?: string[];
     body?: string | string[] | Record<string, any>;
     connectionId?: string;
+    orchestrationId?: string;
+    dataSchema?: Record<string, any>;
   },
 ): Promise<ToolOutput> {
   try {
@@ -46,6 +49,12 @@ export async function dlxHandler(
       case "use-connection":
         return await handleUseConnectionAction(args, context, {
           connectionId: handlerConfig.connectionId,
+        });
+
+      case "use-orchestration":
+        return await handleUseOrchestrationAction(args, context, {
+          orchestrationId: handlerConfig.orchestrationId,
+          dataSchema: handlerConfig.dataSchema,
         });
 
       default:

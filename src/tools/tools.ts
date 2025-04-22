@@ -49,36 +49,35 @@ export const tools: ToolDefinition[] = [
     },
   },
   {
-    name: "trigger-orchestration",
-    description: "Trigger an orchestration",
+    name: "use-orchestration",
+    description: "Create a tool for triggering a specific orchestration",
     inputSchema: {
       type: "object",
       properties: {
         orchestrationId: {
           type: "string",
           description:
-            "The ID of the orchestration to trigger.  Use the list-orchestrations tool to find the ID.",
+            "The ID of the orchestration to create a tool for. Use the list-orchestrations tool to find the ID",
         },
-        data: {
+        dataSchema: {
           type: "object",
-          description: "The data to trigger the orchestration with",
+          description:
+            "The schema for the data to trigger the orchestration with.  This should be a JSON schema object that can be found in the orchestration description.  If the orchestration does not have a data schema, you can use an empty object.",
         },
       },
     },
     annotations: {
-      title: "Trigger Orchestration",
+      title: "Use Orchestration",
       readOnlyHint: false,
-      destructiveHint: true,
+      destructiveHint: false,
       idempotentHint: true,
       openWorldHint: true,
     },
     handler: {
       type: "dlx",
       args: {
-        action: "api-call",
-        path: "/orchestrations/{orchestrationId}/trigger",
-        method: "POST",
-        body: ["data"],
+        action: "use-orchestration",
+        dataSchema: "dataSchema",
       },
     },
   },

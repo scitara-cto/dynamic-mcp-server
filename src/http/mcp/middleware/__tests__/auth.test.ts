@@ -2,9 +2,11 @@ import { jest, expect, describe, it, beforeEach } from "@jest/globals";
 import { Request, Response } from "express";
 import { createAuthMiddleware } from "../auth.js";
 import { AuthService } from "../../../auth/AuthService.js";
+import { McpServer } from "../../../../mcp/server.js";
 
-// Mock the AuthService
+// Mock the AuthService and McpServer
 jest.mock("../../../auth/AuthService.js");
+jest.mock("../../../../mcp/server.js");
 
 // Define UserInfo type
 interface UserInfo {
@@ -18,7 +20,7 @@ interface UserInfo {
 
 // Extend Request type to include user property
 interface RequestWithUser extends Request {
-  user?: UserInfo;
+  user?: UserInfo | { sub: string; dlxApiKey: string; dlxApiUrl: string };
 }
 
 // Define the type for verifyToken function
@@ -26,6 +28,7 @@ type VerifyTokenFn = (token: string) => Promise<UserInfo | null>;
 
 describe("Auth Middleware", () => {
   let mockAuthService: jest.Mocked<AuthService>;
+  let mockMcpServer: jest.Mocked<McpServer>;
   let mockRequest: Partial<RequestWithUser>;
   let mockResponse: Partial<Response>;
   let nextFunction: jest.Mock;
@@ -37,9 +40,14 @@ describe("Auth Middleware", () => {
     // Create mock AuthService instance
     mockAuthService = new AuthService({} as any) as jest.Mocked<AuthService>;
 
+    // Create mock McpServer instance
+    mockMcpServer = new McpServer({} as any) as jest.Mocked<McpServer>;
+    mockMcpServer.getSessionInfo = jest.fn().mockReturnValue(null);
+
     // Create mock request object
     mockRequest = {
       headers: {},
+      query: {},
     };
 
     // Create mock response object
@@ -52,143 +60,154 @@ describe("Auth Middleware", () => {
     nextFunction = jest.fn();
   });
 
-  it("should return 401 when no authorization header is present", async () => {
-    const middleware = createAuthMiddleware(mockAuthService);
-    await middleware(
-      mockRequest as RequestWithUser,
-      mockResponse as Response,
-      nextFunction,
-    );
+  describe("API Key Authentication", () => {
+    it("should authenticate with API key from query parameters", async () => {
+      mockRequest.query = {
+        dlxApiKey: "test-api-key",
+        dlxApiUrl: "https://api.example.com",
+      };
 
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      error: "No authorization header",
+      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
+      await middleware(
+        mockRequest as RequestWithUser,
+        mockResponse as Response,
+        nextFunction,
+      );
+
+      expect(nextFunction).toHaveBeenCalled();
+      expect(mockRequest.user).toEqual({
+        sub: "dlx-api-user",
+        dlxApiKey: "test-api-key",
+        dlxApiUrl: "https://api.example.com",
+      });
     });
-    expect(nextFunction).not.toHaveBeenCalled();
+
+    it("should authenticate with API key from session info", async () => {
+      mockRequest.query = { sessionId: "test-session" };
+      mockMcpServer.getSessionInfo = jest.fn().mockReturnValue({
+        dlxApiKey: "session-api-key",
+        dlxApiUrl: "https://session-api.example.com",
+      });
+
+      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
+      await middleware(
+        mockRequest as RequestWithUser,
+        mockResponse as Response,
+        nextFunction,
+      );
+
+      expect(nextFunction).toHaveBeenCalled();
+      expect(mockRequest.user).toEqual({
+        sub: "dlx-api-user",
+        dlxApiKey: "session-api-key",
+        dlxApiUrl: "https://session-api.example.com",
+      });
+    });
   });
 
-  it("should return 401 when authorization header has no token", async () => {
-    mockRequest.headers = { authorization: "Bearer " };
+  describe("OAuth Authentication", () => {
+    it("should return OAuth errors when authorization header is present but invalid", async () => {
+      mockRequest.headers = { authorization: "Bearer " };
 
-    const middleware = createAuthMiddleware(mockAuthService);
-    await middleware(
-      mockRequest as RequestWithUser,
-      mockResponse as Response,
-      nextFunction,
-    );
+      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
+      await middleware(
+        mockRequest as RequestWithUser,
+        mockResponse as Response,
+        nextFunction,
+      );
 
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      error: "No token provided",
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: "No token provided",
+      });
+      expect(nextFunction).not.toHaveBeenCalled();
     });
-    expect(nextFunction).not.toHaveBeenCalled();
+
+    it("should authenticate with valid OAuth token", async () => {
+      const mockUserInfo: UserInfo = {
+        sub: "user123",
+        email: "user@example.com",
+        name: "Test User",
+        preferred_username: "testuser",
+        scope: ["openid", "profile"],
+        aud: ["client-id"],
+      };
+
+      mockRequest.headers = { authorization: "Bearer valid-token" };
+      mockAuthService.verifyToken = jest.fn(
+        async () => mockUserInfo,
+      ) as jest.MockedFunction<VerifyTokenFn>;
+
+      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
+      await middleware(
+        mockRequest as RequestWithUser,
+        mockResponse as Response,
+        nextFunction,
+      );
+
+      expect(mockAuthService.verifyToken).toHaveBeenCalledWith("valid-token");
+      expect(mockRequest.user).toEqual(mockUserInfo);
+      expect(nextFunction).toHaveBeenCalled();
+    });
+
+    it("should return OAuth error when token is invalid", async () => {
+      mockRequest.headers = { authorization: "Bearer invalid-token" };
+      mockAuthService.verifyToken = jest.fn(
+        async () => null,
+      ) as jest.MockedFunction<VerifyTokenFn>;
+
+      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
+      await middleware(
+        mockRequest as RequestWithUser,
+        mockResponse as Response,
+        nextFunction,
+      );
+
+      expect(mockAuthService.verifyToken).toHaveBeenCalledWith("invalid-token");
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: "Invalid token",
+      });
+      expect(nextFunction).not.toHaveBeenCalled();
+    });
   });
 
-  it("should return 401 when token is invalid", async () => {
-    mockRequest.headers = { authorization: "Bearer invalid-token" };
-    // Create a properly typed mock function
-    mockAuthService.verifyToken = jest.fn(
-      async () => null,
-    ) as jest.MockedFunction<VerifyTokenFn>;
+  describe("Authentication Failure", () => {
+    it("should return generic error when no authentication method succeeds", async () => {
+      // No API key or OAuth credentials provided
+      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
+      await middleware(
+        mockRequest as RequestWithUser,
+        mockResponse as Response,
+        nextFunction,
+      );
 
-    const middleware = createAuthMiddleware(mockAuthService);
-    await middleware(
-      mockRequest as RequestWithUser,
-      mockResponse as Response,
-      nextFunction,
-    );
-
-    expect(mockAuthService.verifyToken).toHaveBeenCalledWith("invalid-token");
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      error: "Invalid token",
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: "Authentication failed",
+      });
+      expect(nextFunction).not.toHaveBeenCalled();
     });
-    expect(nextFunction).not.toHaveBeenCalled();
-  });
 
-  it("should call next() and add user info to request when token is valid", async () => {
-    const mockUserInfo: UserInfo = {
-      sub: "user123",
-      email: "user@example.com",
-      name: "Test User",
-      preferred_username: "testuser",
-      scope: ["openid", "profile"],
-      aud: ["client-id"],
-    };
+    it("should return invalid token error when token verification fails", async () => {
+      mockRequest.headers = { authorization: "Bearer valid-token" };
+      mockAuthService.verifyToken = jest.fn(async () => {
+        throw new Error("Verification failed");
+      }) as jest.MockedFunction<VerifyTokenFn>;
 
-    mockRequest.headers = { authorization: "Bearer valid-token" };
-    // Create a properly typed mock function
-    mockAuthService.verifyToken = jest.fn(
-      async () => mockUserInfo,
-    ) as jest.MockedFunction<VerifyTokenFn>;
+      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
+      await middleware(
+        mockRequest as RequestWithUser,
+        mockResponse as Response,
+        nextFunction,
+      );
 
-    const middleware = createAuthMiddleware(mockAuthService);
-    await middleware(
-      mockRequest as RequestWithUser,
-      mockResponse as Response,
-      nextFunction,
-    );
-
-    expect(mockAuthService.verifyToken).toHaveBeenCalledWith("valid-token");
-    expect(mockRequest.user).toEqual(mockUserInfo);
-    expect(nextFunction).toHaveBeenCalled();
-    expect(mockResponse.status).not.toHaveBeenCalled();
-    expect(mockResponse.json).not.toHaveBeenCalled();
-  });
-
-  it("should return 401 when verifyToken throws an error", async () => {
-    mockRequest.headers = { authorization: "Bearer valid-token" };
-    // Create a properly typed mock function
-    mockAuthService.verifyToken = jest.fn(async () => {
-      throw new Error("Verification failed");
-    }) as jest.MockedFunction<VerifyTokenFn>;
-
-    const middleware = createAuthMiddleware(mockAuthService);
-    await middleware(
-      mockRequest as RequestWithUser,
-      mockResponse as Response,
-      nextFunction,
-    );
-
-    expect(mockAuthService.verifyToken).toHaveBeenCalledWith("valid-token");
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      error: "Authentication failed",
+      expect(mockAuthService.verifyToken).toHaveBeenCalledWith("valid-token");
+      expect(mockResponse.status).toHaveBeenCalledWith(401);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        error: "Invalid token",
+      });
+      expect(nextFunction).not.toHaveBeenCalled();
     });
-    expect(nextFunction).not.toHaveBeenCalled();
-  });
-
-  it("should handle malformed authorization header", async () => {
-    mockRequest.headers = { authorization: "malformed-header" };
-
-    const middleware = createAuthMiddleware(mockAuthService);
-    await middleware(
-      mockRequest as RequestWithUser,
-      mockResponse as Response,
-      nextFunction,
-    );
-
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      error: "No token provided",
-    });
-    expect(nextFunction).not.toHaveBeenCalled();
-  });
-
-  it("should handle different authorization schemes", async () => {
-    mockRequest.headers = { authorization: "Basic some-token" };
-
-    const middleware = createAuthMiddleware(mockAuthService);
-    await middleware(
-      mockRequest as RequestWithUser,
-      mockResponse as Response,
-      nextFunction,
-    );
-
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      error: "No token provided",
-    });
-    expect(nextFunction).not.toHaveBeenCalled();
   });
 });

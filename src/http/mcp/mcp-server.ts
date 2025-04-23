@@ -5,18 +5,76 @@ import logger from "../../utils/logger.js";
 import { McpServer } from "../../mcp/server.js";
 import { handleClientRegistration } from "./client-registration.js";
 import { handleOAuthMetadata } from "./oauth-metadata.js";
+import { DlxService } from "../../services/DlxService.js";
 
 export class HttpServer {
   private app: express.Application;
   private mcpServer: McpServer;
   private authMiddleware: RequestHandler;
   private transports: { [sessionId: string]: SSEServerTransport } = {};
+  private dlxService: DlxService;
 
-  constructor(mcpServer: McpServer, authMiddleware: RequestHandler) {
+  constructor(
+    mcpServer: McpServer,
+    authMiddleware: RequestHandler,
+    dlxService: DlxService,
+  ) {
     this.app = express();
     this.mcpServer = mcpServer;
     this.authMiddleware = authMiddleware;
+    this.dlxService = dlxService;
     this.setupRoutes();
+  }
+
+  private async validateOAuthToken(
+    req: Request,
+  ): Promise<{ valid: boolean; user: any; token: string }> {
+    const authHeader = req.headers.authorization as string | undefined;
+    const token = authHeader?.split(" ")[1] || "";
+    const user = (req as any).user; // Already validated by middleware
+
+    return {
+      valid: !!token && !!user, // We know it's valid if we have both since middleware validated
+      user,
+      token,
+    };
+  }
+
+  private async validateDlxApiKey(
+    dlxApiUrl: string | undefined,
+    dlxApiKey: string | undefined,
+  ): Promise<{ valid: boolean; error?: string }> {
+    if (!dlxApiUrl) {
+      return { valid: false, error: "DLX API URL is required" };
+    }
+
+    if (!dlxApiKey) {
+      return { valid: false, error: "DLX API key is required" };
+    }
+
+    try {
+      const response = await this.dlxService.executeDlxApiCall(
+        {
+          method: "GET",
+          path: "/users",
+          params: {},
+        },
+        {
+          token: dlxApiKey,
+          user: null,
+          dlxApiUrl,
+          dlxApiKey,
+        },
+      );
+
+      return {
+        valid: !!response,
+        error: !response ? "Invalid DLX API key" : undefined,
+      };
+    } catch (error) {
+      logger.error("Failed to validate DLX API key:", error);
+      return { valid: false, error: "Failed to validate DLX API key" };
+    }
   }
 
   private setupRoutes(): void {
@@ -38,25 +96,64 @@ export class HttpServer {
 
     // SSE endpoint
     this.app.get("/sse", async (req: Request, res: Response) => {
+      // Debug logging
+      logger.debug(`SSE endpoint called`);
+      logger.debug(`Query parameters: ${JSON.stringify(req.query)}`);
+      logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
+      logger.debug(`User object: ${JSON.stringify((req as any).user)}`);
+
       // Set headers for SSE
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      // Extract auth info from request
-      const authHeader = req.headers.authorization as string | undefined;
-      const token = authHeader?.split(" ")[1] || "";
-      const user = (req as any).user;
-
-      // Extract DLX API URL from query parameters
+      // Extract DLX API credentials
       const dlxApiUrl = req.query.dlxApiUrl as string | undefined;
       const dlxApiKey = req.query.dlxApiKey as string | undefined;
 
-      // Require DLX API URL from client
-      if (!dlxApiUrl) {
-        logger.error("DLX API URL not provided by client");
-        res.status(400).send("DLX API URL is required");
-        return;
+      logger.debug(`DLX API Key present: ${!!dlxApiKey}`);
+      logger.debug(`DLX API URL present: ${!!dlxApiUrl}`);
+
+      let sessionInfo: {
+        token: string;
+        user: any;
+        dlxApiUrl?: string;
+        dlxApiKey?: string;
+      };
+
+      // If DLX API credentials are provided, validate them
+      if (dlxApiUrl && dlxApiKey) {
+        logger.debug(`Validating DLX API credentials`);
+        const dlxResult = await this.validateDlxApiKey(dlxApiUrl, dlxApiKey);
+        if (!dlxResult.valid) {
+          logger.debug(`DLX API validation failed: ${dlxResult.error}`);
+          res.status(401).send(dlxResult.error);
+          return;
+        }
+
+        // Use the mock user created by the auth middleware
+        sessionInfo = {
+          token: dlxApiKey,
+          user: (req as any).user,
+          dlxApiUrl,
+          dlxApiKey,
+        };
+        logger.debug(`Using DLX API authentication`);
+      } else {
+        // Otherwise validate OAuth token
+        logger.debug(`Validating OAuth token`);
+        const oauthResult = await this.validateOAuthToken(req);
+        if (!oauthResult.valid) {
+          logger.debug(`OAuth validation failed`);
+          res.status(401).send("Invalid OAuth token");
+          return;
+        }
+
+        sessionInfo = {
+          token: oauthResult.token,
+          user: oauthResult.user,
+        };
+        logger.debug(`Using OAuth authentication`);
       }
 
       // Create a new SSE transport
@@ -67,12 +164,7 @@ export class HttpServer {
       this.transports[transport.sessionId] = transport;
 
       // Store auth info in McpServer
-      this.mcpServer.setSessionInfo(transport.sessionId, {
-        token,
-        user,
-        dlxApiUrl,
-        dlxApiKey,
-      });
+      this.mcpServer.setSessionInfo(transport.sessionId, sessionInfo);
 
       // Clean up when the connection closes
       res.on("close", () => {

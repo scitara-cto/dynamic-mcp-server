@@ -171,7 +171,13 @@ export class ToolGenerator {
           }
 
           try {
-            return tool.handler(args, context);
+            const response = await tool.handler(args, context);
+            logger.info(
+              `Tool ${name} execution successful, response: { ${Object.keys(
+                response,
+              ).join(", ")} }, size: ${JSON.stringify(response).length}`,
+            );
+            return response;
           } catch (error) {
             logger.error(`Tool ${name} execution failed`, { error });
             throw error;

@@ -95,7 +95,11 @@ export class HttpServer {
     // Message endpoint for handling MCP messages
     this.app.post("/messages", async (req: Request, res: Response) => {
       const sessionId = req.query.sessionId as string;
-      logger.info(`Received message for session: ${sessionId}`);
+      logger.info(
+        `Message for session: ${sessionId}, ${
+          req?.body?.method || "no method provided"
+        }`,
+      );
 
       const transport = this.transports[sessionId];
       if (transport) {

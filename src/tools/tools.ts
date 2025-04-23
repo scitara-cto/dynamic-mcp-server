@@ -29,6 +29,12 @@ export const tools: ToolDefinition[] = [
       type: "object",
       properties: {
         name: { type: "string", description: "Filter by name" },
+        limit: {
+          type: "number",
+          description: "Limit the number of results",
+          default: 3,
+          maximum: 10,
+        },
       },
     },
     annotations: {
@@ -45,6 +51,8 @@ export const tools: ToolDefinition[] = [
         path: "/orchestrations",
         method: "GET",
         params: ["name"],
+        successMessage:
+          "Orchestrations found (note: there may be more, these are the first few that match the name provided)",
       },
     },
   },
@@ -104,6 +112,8 @@ export const tools: ToolDefinition[] = [
         path: "/connections",
         method: "GET",
         params: ["name"],
+        successMessage:
+          "Connections found (note: there may be more, these are the first few that match the name provided)",
       },
     },
   },

@@ -92,6 +92,6 @@ export async function handleApiCallAction(
 
   return {
     result: response,
-    message: "Operation completed successfully",
+    message: args.successMessage || "Operation completed successfully",
   };
 }

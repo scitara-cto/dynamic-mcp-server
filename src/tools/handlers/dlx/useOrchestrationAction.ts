@@ -84,10 +84,8 @@ export async function handleUseOrchestrationAction(
       handler: {
         type: "dlx",
         args: {
-          action: "api-call",
-          path: `/orchestrations/${orchestrationId}/trigger`,
-          method: "POST",
-          body: ["data"],
+          action: "trigger-orchestration",
+          orchestrationId: orchestrationId,
         },
       },
     };

@@ -28,7 +28,7 @@ export const tools: ToolDefinition[] = [
     inputSchema: {
       type: "object",
       properties: {
-        nameContains: { type: "string", description: "Filter by name" },
+        name: { type: "string", description: "Filter by name" },
       },
     },
     annotations: {
@@ -44,7 +44,7 @@ export const tools: ToolDefinition[] = [
         action: "api-call",
         path: "/orchestrations",
         method: "GET",
-        params: ["nameContains"],
+        params: ["name"],
       },
     },
   },

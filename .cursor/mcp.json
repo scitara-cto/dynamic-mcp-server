@@ -1,10 +1,7 @@
 {
   "mcpServers": {
-    "dlx-mcp-server": {
-      "command": "node",
-      "args": [
-        "dist/index.js"
-      ]
+    "dlx": {
+      "url": "http://localhost:4001/sse?dlxApiUrl=https://api-dev-geoff.us.scitara.dev&dlxApiKey=63878e301dda71cf33fed868"
     }
   }
 }

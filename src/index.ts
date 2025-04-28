@@ -50,6 +50,11 @@ const dlxService = new DlxService();
 // Create HTTP server with the MCP server
 const httpServer = new HttpServer(mcpServer, authMiddleware, dlxService);
 
+// Subscribe to tool list changes and notify clients
+mcpServer.on("toolsChanged", () => {
+  httpServer.notifyToolListChanged();
+});
+
 // Initialize MCP server (register tools)
 await mcpServer.initialize();
 

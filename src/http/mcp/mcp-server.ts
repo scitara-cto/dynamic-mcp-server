@@ -229,4 +229,22 @@ export class HttpServer {
       logger.error(`Failed to start MCP server: ${error}`);
     }
   }
+
+  public async notifyToolListChanged(): Promise<void> {
+    for (const sessionId in this.transports) {
+      const transport = this.transports[sessionId];
+      try {
+        await transport.send({
+          jsonrpc: "2.0",
+          method: "notifications/tools/list_changed",
+          params: {},
+        });
+        logger.info(`Notified client ${sessionId} of tool changes`);
+      } catch (error) {
+        logger.warn(
+          `Failed to notify client ${sessionId} of tool changes: ${error}`,
+        );
+      }
+    }
+  }
 }

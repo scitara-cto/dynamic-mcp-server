@@ -186,7 +186,7 @@ export class ToolGenerator {
       );
 
       // Notify clients of tool list changes after handlers are updated
-      await this.mcpServer.notifyToolListChanged();
+      this.mcpServer.emit("toolsChanged");
 
       logger.info(`Successfully set up handlers for ${this.tools.size} tools`);
       return this.tools.size;

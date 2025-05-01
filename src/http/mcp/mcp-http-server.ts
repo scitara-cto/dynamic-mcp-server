@@ -7,7 +7,7 @@ import { handleClientRegistration } from "./client-registration.js";
 import { handleOAuthMetadata } from "./oauth-metadata.js";
 import { DlxService } from "../../services/DlxService.js";
 
-export class HttpServer {
+export class McpHttpServer {
   private app: express.Application;
   private mcpServer: McpServer;
   private authMiddleware: RequestHandler;

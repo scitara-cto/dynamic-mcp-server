@@ -7,7 +7,7 @@ import {
 } from "./discovery.js";
 import axios from "axios";
 
-export class AuthServer {
+export class AuthHttpServer {
   private app: express.Application;
 
   constructor() {

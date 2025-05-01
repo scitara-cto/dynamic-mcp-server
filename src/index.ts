@@ -1,8 +1,8 @@
 import { AuthService } from "./http/auth/AuthService.js";
 import { config } from "./config/index.js";
 import { McpServer } from "./mcp/server.js";
-import { HttpServer } from "./http/mcp/mcp-server.js";
-import { AuthServer } from "./http/auth/auth-server.js";
+import { McpHttpServer } from "./http/mcp/mcp-http-server.js";
+import { AuthHttpServer } from "./http/auth/auth-http-server.js";
 import { createAuthMiddleware } from "./http/mcp/middleware/auth.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { DlxService } from "./services/DlxService.js";
@@ -41,25 +41,25 @@ const mcpServer = new McpServer(mcpServerInstance);
 const authMiddleware = createAuthMiddleware(authService, mcpServer);
 
 // Create and start Auth server
-const authServer = new AuthServer();
-authServer.start();
+const authHttpServer = new AuthHttpServer();
+authHttpServer.start();
 
 // Create DLX service
 const dlxService = new DlxService();
 
 // Create HTTP server with the MCP server
-const httpServer = new HttpServer(mcpServer, authMiddleware, dlxService);
+const mcpHttpServer = new McpHttpServer(mcpServer, authMiddleware, dlxService);
 
 // Subscribe to tool list changes and notify clients
 mcpServer.on("toolsChanged", () => {
-  httpServer.notifyToolListChanged();
+  mcpHttpServer.notifyToolListChanged();
 });
 
 // Initialize MCP server (register tools)
 await mcpServer.initialize();
 
 // Start HTTP server
-httpServer.start();
+mcpHttpServer.start();
 
 // Log application startup
 logger.info(`Starting ${config.server.name} v${config.server.version}`);

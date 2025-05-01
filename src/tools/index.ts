@@ -4,7 +4,6 @@ import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
   ListToolsResultSchema,
-  CallToolResultSchema,
   ListToolsRequest,
   CallToolRequest,
 } from "@modelcontextprotocol/sdk/types.js";

@@ -1,5 +1,5 @@
 import { SessionInfo } from "../../../mcp/server.js";
-import { ToolOutput } from "../../types.js";
+import { ToolOutput } from "../index.js";
 import logger from "../../../utils/logger.js";
 import { handleApiCallAction } from "./apiCallAction.js";
 import { handleUseConnectionAction } from "./useConnectionAction.js";

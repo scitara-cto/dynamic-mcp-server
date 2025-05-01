@@ -1,35 +1,39 @@
 import { dlxHandler } from "./dlx/index.js";
 import { toolManagementHandler } from "./toolManagement.js";
 import { SessionInfo } from "../../mcp/server.js";
-import { ToolOutput, McpToolResponse } from "../types.js";
+import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import logger from "../../utils/logger.js";
+
+/**
+ * Represents the standard output format for all tools
+ * @template T The type of the result data
+ */
+export interface ToolOutput<T = any> {
+  /** The actual data returned by the tool */
+  result: T;
+  /** A message describing the operation result */
+  message?: string;
+  /** Suggested next steps for the user */
+  nextSteps?: string[];
+}
 
 /**
  * Formats the tool output to match MCP server expectations
  * @param toolOutput The raw tool output
  * @returns Formatted output that matches MCP server expectations
  */
-function formatToolOutput(toolOutput: ToolOutput): McpToolResponse {
-  const response: Record<string, unknown> = {
-    result: toolOutput.result,
-  };
-
-  if (toolOutput.message) {
-    response.message = toolOutput.message;
-  }
-
-  if (toolOutput.nextSteps) {
-    response.nextSteps = toolOutput.nextSteps;
-  }
-
+function formatToolOutput(toolOutput: ToolOutput): CallToolResult {
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify(response, null, 2),
+        text: JSON.stringify({
+          result: toolOutput.result,
+          message: toolOutput.message,
+          nextSteps: toolOutput.nextSteps,
+        }),
       },
     ],
-    isError: false,
   };
 }
 
@@ -38,14 +42,17 @@ function formatToolOutput(toolOutput: ToolOutput): McpToolResponse {
  * @param error The error that occurred
  * @returns Formatted error response
  */
-function createErrorResponse(error: unknown): McpToolResponse {
+function createErrorResponse(error: unknown): CallToolResult {
   return {
     content: [
       {
         type: "text",
-        text: `Error: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        text: JSON.stringify({
+          result: null,
+          message: `Error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        }),
       },
     ],
     isError: true,
@@ -69,7 +76,7 @@ function wrapHandler(
   return async (
     args: Record<string, any>,
     context: SessionInfo,
-  ): Promise<McpToolResponse> => {
+  ): Promise<CallToolResult> => {
     try {
       const result = await handler(args, context, config);
       return formatToolOutput(result);

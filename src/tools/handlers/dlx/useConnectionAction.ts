@@ -1,5 +1,5 @@
 import { SessionInfo } from "../../../mcp/server.js";
-import { ToolOutput } from "../index.js";
+import type { ToolOutput } from "../../index.js";
 import { DlxService } from "../../../services/DlxService.js";
 import logger from "../../../utils/logger.js";
 

@@ -1,7 +1,7 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals";
-import { handleDeleteToolAction } from "../toolManagement/deleteToolAction.js";
-import { handleListToolsAction } from "../toolManagement/listToolsAction.js";
-import { toolManagementHandler } from "../toolManagement/index.js";
+import { handleDeleteToolAction } from "../tool-management/deleteToolAction.js";
+import { handleListToolsAction } from "../tool-management/listToolsAction.js";
+import { toolManagementHandler } from "../tool-management/index.js";
 
 describe("toolManagement action handlers", () => {
   let mockContext: any;

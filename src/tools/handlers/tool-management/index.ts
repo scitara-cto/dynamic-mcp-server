@@ -1,6 +1,6 @@
 import { SessionInfo } from "../../../mcp/server.js";
 import logger from "../../../utils/logger.js";
-import { ToolOutput } from "../index.js";
+import { ToolOutput } from "../../index.js";
 import { handleDeleteToolAction } from "./deleteToolAction.js";
 import { handleListToolsAction } from "./listToolsAction.js";
 import { tools } from "./tools.js";

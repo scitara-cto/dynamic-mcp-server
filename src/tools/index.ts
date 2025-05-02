@@ -10,11 +10,43 @@ import {
 import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { z } from "zod";
 import { McpServer } from "../mcp/server.js";
-import { handlerFactory, handlerTools } from "./handlers/index.js";
-import { ToolDefinition } from "./tools.js";
+import { discoverHandlers } from "./handlers/index.js";
 
-// Combine all handler-provided tools
-const tools: ToolDefinition[] = Object.values(handlerTools).flat();
+/**
+ * Represents the standard output format for all tools
+ * @template T The type of the result data
+ */
+export interface ToolOutput<T = any> {
+  /** The actual data returned by the tool */
+  result: T;
+  /** A message describing the operation result */
+  message?: string;
+  /** Suggested next steps for the user */
+  nextSteps?: string[];
+}
+
+export interface ToolDefinition {
+  name: string;
+  description?: string;
+  inputSchema: {
+    type: "object";
+    properties?: Record<string, unknown>;
+  };
+  annotations?: {
+    title?: string;
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+    [key: string]: unknown;
+  };
+  handler: {
+    type: string;
+    config: {
+      [key: string]: any;
+    };
+  };
+}
 
 // Extended tool schema that includes annotations
 const ExtendedToolSchema = z
@@ -62,8 +94,10 @@ interface RuntimeToolDefinition {
  */
 export class ToolGenerator {
   private server: Server;
-  private tools: Map<string, RuntimeToolDefinition> = new Map();
   private mcpServer: McpServer;
+  private handlerFactory: Record<string, (config: any) => any> = {};
+  private discoveredTools: ToolDefinition[] = [];
+  private tools: Map<string, RuntimeToolDefinition> = new Map();
   private initialized: boolean = false;
 
   constructor(server: Server, mcpServer: McpServer) {
@@ -72,7 +106,7 @@ export class ToolGenerator {
   }
 
   /**
-   * Initialize all tools
+   * Initialize all tools (discovers handlers and tools)
    */
   public async initialize(): Promise<void> {
     if (this.initialized) {
@@ -80,13 +114,22 @@ export class ToolGenerator {
     }
 
     try {
+      const { handlerFactory, tools } = await discoverHandlers();
+      this.handlerFactory = handlerFactory;
+      this.discoveredTools = tools;
+
+      if (this.discoveredTools.length === 0) {
+        throw new Error(
+          "No tools discovered. Ensure handlers export tools correctly.",
+        );
+      }
       // Add each tool to the map
-      for (const tool of tools) {
+      for (const tool of this.discoveredTools) {
         await this.registerTool(tool);
       }
 
       // Set up handlers once after all tools are registered
-      await this.setupToolHandlers();
+      await this.setupToolRequestHandlers();
       this.initialized = true;
     } catch (error) {
       logger.error(`Failed to initialize tools: ${error}`);
@@ -106,7 +149,7 @@ export class ToolGenerator {
     handler: { type, config },
   }: ToolDefinition): Promise<void> {
     // Use the handlerFactory to get a wrapped handler for this tool
-    const factory = handlerFactory[type as keyof typeof handlerFactory];
+    const factory = this.handlerFactory[type];
     if (!factory) {
       throw new Error(`Unknown handler type: ${type}`);
     }
@@ -127,7 +170,7 @@ export class ToolGenerator {
     // If we're already initialized, we need to re-setup the handlers
     // for dynamic tool registration
     if (this.initialized) {
-      await this.setupToolHandlers();
+      await this.setupToolRequestHandlers();
     }
   }
 
@@ -135,7 +178,7 @@ export class ToolGenerator {
    * Set up the MCP server's request handlers for tools
    * @returns The number of tools registered
    */
-  async setupToolHandlers(): Promise<number> {
+  async setupToolRequestHandlers(): Promise<number> {
     try {
       // Set up the tools/list request handler
       this.server.setRequestHandler(
@@ -234,7 +277,7 @@ export class ToolGenerator {
       // If we're already initialized, we need to re-setup the handlers
       // for dynamic tool removal
       if (this.initialized) {
-        await this.setupToolHandlers();
+        await this.setupToolRequestHandlers();
       }
 
       logger.info(`Removed tool: ${name}`);
@@ -242,5 +285,3 @@ export class ToolGenerator {
     return exists;
   }
 }
-
-export { tools };

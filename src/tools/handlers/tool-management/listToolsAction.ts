@@ -1,5 +1,5 @@
 import { SessionInfo } from "../../../mcp/server.js";
-import { ToolOutput } from "../index.js";
+import { ToolOutput } from "../../index.js";
 
 export async function handleListToolsAction(
   args: Record<string, any>,

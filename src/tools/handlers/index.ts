@@ -1,20 +1,10 @@
-import dlx from "./dlx/index.js";
-import toolManagement from "./toolManagement/index.js";
-import { SessionInfo } from "../../mcp/server.js";
-import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-
-/**
- * Represents the standard output format for all tools
- * @template T The type of the result data
- */
-export interface ToolOutput<T = any> {
-  /** The actual data returned by the tool */
-  result: T;
-  /** A message describing the operation result */
-  message?: string;
-  /** Suggested next steps for the user */
-  nextSteps?: string[];
-}
+import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
+import type { ToolOutput } from "../index.js";
+import type { SessionInfo } from "../../mcp/server.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Formats the tool output to match MCP server expectations
@@ -37,33 +27,22 @@ function formatToolOutput(toolOutput: ToolOutput): CallToolResult {
 }
 
 /**
- * Creates an error response for the MCP server
- * @param error The error that occurred
- * @returns Formatted error response
+ * Creates a CallToolResult error response for MCP
  */
 function createErrorResponse(error: unknown): CallToolResult {
   return {
     content: [
       {
         type: "text",
-        text: JSON.stringify({
-          result: null,
-          message: `Error: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        }),
+        text: `Error: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       },
     ],
     isError: true,
   };
 }
 
-/**
- * Wraps a handler function to handle formatting and error handling
- * @param handler The handler function to wrap
- * @param config The handler configuration
- * @returns A wrapped handler that returns a properly formatted MCP response
- */
 function wrapHandler(
   handler: (
     args: Record<string, any>,
@@ -85,13 +64,27 @@ function wrapHandler(
   };
 }
 
-export const handlerFactory = {
-  "dlx": (config: any) => wrapHandler(dlx.handler, config),
-  "tool-management": (config: any) =>
-    wrapHandler(toolManagement.handler, config),
-};
+export async function discoverHandlers() {
+  const handlersDir = path.resolve(__dirname);
+  const handlerFactory: Record<string, (config: any) => any> = {};
+  const allTools: any[] = [];
 
-export const handlerTools = {
-  "dlx": dlx.tools,
-  "tool-management": toolManagement.tools,
-};
+  const entries = await fs.readdir(handlersDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      let mod;
+      try {
+        mod = await import(path.join(handlersDir, entry.name, "index.js"));
+      } catch (e) {
+        mod = await import(path.join(handlersDir, entry.name, "index.ts"));
+      }
+      const handlerObj = mod.default || mod;
+      if (handlerObj.handler && handlerObj.tools) {
+        handlerFactory[entry.name] = (config: any) =>
+          wrapHandler(handlerObj.handler, config);
+        allTools.push(...handlerObj.tools);
+      }
+    }
+  }
+  return { handlerFactory, tools: allTools };
+}

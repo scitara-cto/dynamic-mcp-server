@@ -9,7 +9,7 @@ import {
 import { ToolGenerator } from "../index.js";
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { McpServer } from "../../mcp/server.js";
-import { tools } from "../tools.js";
+import { tools } from "../index.js";
 
 // Mock both the Server and McpServer modules
 jest.mock("@modelcontextprotocol/sdk/server/index.js", () => ({

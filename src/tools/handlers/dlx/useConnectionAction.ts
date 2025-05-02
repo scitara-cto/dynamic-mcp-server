@@ -109,7 +109,7 @@ export async function handleUseConnectionAction(
         },
         handler: {
           type: "dlx",
-          args: {
+          config: {
             action: "api-call",
             path: `/connections/${connectionId}/actions/${actionName}`,
             method: "POST",

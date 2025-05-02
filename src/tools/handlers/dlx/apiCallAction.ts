@@ -18,8 +18,14 @@ export async function handleApiCallAction(
     method: string;
     params?: string[];
     body?: string | string[] | Record<string, any>;
+    successMessage?: string;
   },
 ): Promise<ToolOutput> {
+  if (!handlerConfig.path || !handlerConfig.method) {
+    throw new Error(
+      "Missing required properties for api-call action: path and method",
+    );
+  }
   const dlxService = new DlxService();
 
   // Prepare the API call parameters
@@ -92,6 +98,6 @@ export async function handleApiCallAction(
 
   return {
     result: response,
-    message: args.successMessage || "Operation completed successfully",
+    message: handlerConfig.successMessage || "Operation completed successfully",
   };
 }

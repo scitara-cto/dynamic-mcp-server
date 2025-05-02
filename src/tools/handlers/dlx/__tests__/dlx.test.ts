@@ -1,14 +1,14 @@
 import { jest, expect, describe, it, beforeEach } from "@jest/globals";
-import { dlxHandler } from "../dlx";
-import { DlxService } from "../../../services/DlxService";
-import { SessionInfo } from "../../../mcp/server";
+import { dlxHandler } from "..";
+import { DlxService } from "../../../../services/DlxService";
+import { SessionInfo } from "../../../../mcp/server";
 
 // Mock the DlxService
-jest.mock("../../../services/DlxService");
+jest.mock("../../../../services/DlxService");
 const MockedDlxService = DlxService as jest.MockedClass<typeof DlxService>;
 
 // Mock the logger
-jest.mock("../../../utils/logger.js", () => ({
+jest.mock("../../../../utils/logger.js", () => ({
   __esModule: true,
   default: {
     debug: jest.fn(),
@@ -41,6 +41,7 @@ describe("dlxHandler", () => {
   it("should execute a simple GET request with no parameters", async () => {
     const args = {};
     const handlerConfig = {
+      action: "api-call",
       path: "/test",
       method: "GET",
     };
@@ -63,6 +64,7 @@ describe("dlxHandler", () => {
   it("should handle path parameters correctly", async () => {
     const args = { id: "123" };
     const handlerConfig = {
+      action: "api-call",
       path: "/test/{id}",
       method: "GET",
     };
@@ -85,6 +87,7 @@ describe("dlxHandler", () => {
   it("should throw an error if a required path parameter is missing", async () => {
     const args = {};
     const handlerConfig = {
+      action: "api-call",
       path: "/test/{id}",
       method: "GET",
     };
@@ -97,6 +100,7 @@ describe("dlxHandler", () => {
   it("should handle query parameters correctly", async () => {
     const args = { param1: "value1", param2: 123 };
     const handlerConfig = {
+      action: "api-call",
       path: "/test",
       method: "GET",
       params: ["param1", "param2"],
@@ -124,6 +128,7 @@ describe("dlxHandler", () => {
   it("should handle body as an array of fields correctly", async () => {
     const args = { name: "John", age: 30 };
     const handlerConfig = {
+      action: "api-call",
       path: "/test",
       method: "POST",
       body: ["name", "age"],
@@ -151,6 +156,7 @@ describe("dlxHandler", () => {
   it("should throw an error if a required body field is missing", async () => {
     const args = { name: "John" };
     const handlerConfig = {
+      action: "api-call",
       path: "/test",
       method: "POST",
       body: ["name", "age"],
@@ -164,6 +170,7 @@ describe("dlxHandler", () => {
   it("should handle body as a string reference correctly", async () => {
     const args = { userData: { name: "John", age: 30 } };
     const handlerConfig = {
+      action: "api-call",
       path: "/test",
       method: "POST",
       body: "userData",
@@ -188,6 +195,7 @@ describe("dlxHandler", () => {
   it("should throw an error if a required body reference is missing", async () => {
     const args = {};
     const handlerConfig = {
+      action: "api-call",
       path: "/test",
       method: "POST",
       body: "userData",
@@ -201,6 +209,7 @@ describe("dlxHandler", () => {
   it("should handle body as an object correctly", async () => {
     const args = {};
     const handlerConfig = {
+      action: "api-call",
       path: "/test",
       method: "POST",
       body: { name: "John", age: 30 },
@@ -228,6 +237,7 @@ describe("dlxHandler", () => {
 
     const args = {};
     const handlerConfig = {
+      action: "api-call",
       path: "/test",
       method: "GET",
     };

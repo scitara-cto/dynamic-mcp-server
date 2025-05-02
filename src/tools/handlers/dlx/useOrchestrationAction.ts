@@ -60,7 +60,7 @@ export async function handleUseOrchestrationAction(
       throw new Error(`Orchestration with ID ${orchestrationId} not found`);
     }
 
-    // Create a tool definition for triggering this orchestration
+    // Create a tool definition for triggering this orchestration using the api-call action
     const toolDefinition: ToolDefinition = {
       name: `trigger-${orchestrationResponse.name
         .toLowerCase()
@@ -71,7 +71,12 @@ export async function handleUseOrchestrationAction(
       inputSchema: {
         type: "object",
         properties: {
-          data: dataSchema,
+          data: {
+            type: "object",
+            properties: {
+              data: dataSchema,
+            },
+          },
         },
       },
       annotations: {
@@ -83,9 +88,12 @@ export async function handleUseOrchestrationAction(
       },
       handler: {
         type: "dlx",
-        args: {
-          action: "trigger-orchestration",
-          orchestrationId: orchestrationId,
+        config: {
+          action: "api-call",
+          method: "POST",
+          path: `/orchestrations/${orchestrationId}/trigger`,
+          body: "data",
+          successMessage: `Triggered orchestration: ${orchestrationResponse.name}`,
         },
       },
     };

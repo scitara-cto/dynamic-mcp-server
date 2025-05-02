@@ -10,8 +10,11 @@ import {
 import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { z } from "zod";
 import { McpServer } from "../mcp/server.js";
-import { createHandler } from "./handlers/index.js";
-import { tools, ToolDefinition } from "./tools.js";
+import { handlerFactory, handlerTools } from "./handlers/index.js";
+import { ToolDefinition } from "./tools.js";
+
+// Combine all handler-provided tools
+const tools: ToolDefinition[] = Object.values(handlerTools).flat();
 
 // Extended tool schema that includes annotations
 const ExtendedToolSchema = z
@@ -100,10 +103,14 @@ export class ToolGenerator {
     description,
     inputSchema,
     annotations,
-    handler: { type, args },
+    handler: { type, config },
   }: ToolDefinition): Promise<void> {
-    // Create a handler function based on the tool's handler type
-    const handler = createHandler(type, args);
+    // Use the handlerFactory to get a wrapped handler for this tool
+    const factory = handlerFactory[type as keyof typeof handlerFactory];
+    if (!factory) {
+      throw new Error(`Unknown handler type: ${type}`);
+    }
+    const handler = factory(config);
 
     // Create the tool definition with the handler function
     const tool: RuntimeToolDefinition = {
@@ -235,3 +242,5 @@ export class ToolGenerator {
     return exists;
   }
 }
+
+export { tools };

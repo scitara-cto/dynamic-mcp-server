@@ -1,8 +1,7 @@
-import { dlxHandler } from "./dlx/index.js";
-import { toolManagementHandler } from "./toolManagement.js";
+import dlx from "./dlx/index.js";
+import toolManagement from "./toolManagement/index.js";
 import { SessionInfo } from "../../mcp/server.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import logger from "../../utils/logger.js";
 
 /**
  * Represents the standard output format for all tools
@@ -86,19 +85,13 @@ function wrapHandler(
   };
 }
 
-/**
- * Handler factory that creates the appropriate handler based on the tool's handler type
- * @param handlerType The type of handler to create
- * @returns A function that executes the handler with the given arguments and context
- */
-export function createHandler(handlerType: string, handlerConfig: any) {
-  switch (handlerType) {
-    case "dlx":
-      return wrapHandler(dlxHandler, handlerConfig);
-    case "tool-management":
-      return wrapHandler(toolManagementHandler, handlerConfig);
-    default:
-      logger.error(`Unknown handler type: ${handlerType}`);
-      throw new Error(`Unknown handler type: ${handlerType}`);
-  }
-}
+export const handlerFactory = {
+  "dlx": (config: any) => wrapHandler(dlx.handler, config),
+  "tool-management": (config: any) =>
+    wrapHandler(toolManagement.handler, config),
+};
+
+export const handlerTools = {
+  "dlx": dlx.tools,
+  "tool-management": toolManagement.tools,
+};

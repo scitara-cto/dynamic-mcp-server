@@ -1,6 +1,6 @@
 import { SessionInfo } from "../../../mcp/server.js";
 import type { ToolOutput } from "../../index.js";
-import { DlxService } from "../../../services/DlxService.js";
+import { DlxService } from "./DlxService.js";
 import logger from "../../../utils/logger.js";
 
 interface Connection {

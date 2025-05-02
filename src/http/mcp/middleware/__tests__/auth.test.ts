@@ -1,11 +1,11 @@
 import { jest, expect, describe, it, beforeEach } from "@jest/globals";
 import { Request, Response } from "express";
 import { createAuthMiddleware } from "../auth.js";
-import { AuthService } from "../../../auth/AuthService.js";
+import { AuthService } from "../AuthService.js";
 import { McpServer } from "../../../../mcp/server.js";
 
 // Mock the AuthService and McpServer
-jest.mock("../../../auth/AuthService.js");
+jest.mock("../AuthService.js");
 jest.mock("../../../../mcp/server.js");
 
 // Define UserInfo type
@@ -15,12 +15,13 @@ interface UserInfo {
   name: string;
   preferred_username: string;
   scope: string[];
-  aud: string[];
+  aud?: string[];
+  [key: string]: any;
 }
 
 // Extend Request type to include user property
 interface RequestWithUser extends Request {
-  user?: UserInfo | { sub: string; dlxApiKey: string; dlxApiUrl: string };
+  user?: UserInfo;
 }
 
 // Define the type for verifyToken function
@@ -42,7 +43,6 @@ describe("Auth Middleware", () => {
 
     // Create mock McpServer instance
     mockMcpServer = new McpServer({} as any) as jest.Mocked<McpServer>;
-    mockMcpServer.getSessionInfo = jest.fn().mockReturnValue(null);
 
     // Create mock request object
     mockRequest = {
@@ -58,51 +58,6 @@ describe("Auth Middleware", () => {
 
     // Create mock next function
     nextFunction = jest.fn();
-  });
-
-  describe("API Key Authentication", () => {
-    it("should authenticate with API key from query parameters", async () => {
-      mockRequest.query = {
-        dlxApiKey: "test-api-key",
-        dlxApiUrl: "https://api.example.com",
-      };
-
-      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
-      await middleware(
-        mockRequest as RequestWithUser,
-        mockResponse as Response,
-        nextFunction,
-      );
-
-      expect(nextFunction).toHaveBeenCalled();
-      expect(mockRequest.user).toEqual({
-        sub: "dlx-api-user",
-        dlxApiKey: "test-api-key",
-        dlxApiUrl: "https://api.example.com",
-      });
-    });
-
-    it("should authenticate with API key from session info", async () => {
-      mockRequest.query = { sessionId: "test-session" };
-      mockMcpServer.getSessionInfo = jest.fn().mockReturnValue({
-        dlxApiKey: "session-api-key",
-        dlxApiUrl: "https://session-api.example.com",
-      });
-
-      const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
-      await middleware(
-        mockRequest as RequestWithUser,
-        mockResponse as Response,
-        nextFunction,
-      );
-
-      expect(nextFunction).toHaveBeenCalled();
-      expect(mockRequest.user).toEqual({
-        sub: "dlx-api-user",
-        dlxApiKey: "session-api-key",
-        dlxApiUrl: "https://session-api.example.com",
-      });
-    });
   });
 
   describe("OAuth Authentication", () => {
@@ -184,16 +139,14 @@ describe("Auth Middleware", () => {
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith({
-        error: "Authentication failed",
+        error: "No authorization header",
       });
       expect(nextFunction).not.toHaveBeenCalled();
     });
 
     it("should return invalid token error when token verification fails", async () => {
       mockRequest.headers = { authorization: "Bearer valid-token" };
-      mockAuthService.verifyToken = jest.fn(async () => {
-        throw new Error("Verification failed");
-      }) as jest.MockedFunction<VerifyTokenFn>;
+      mockAuthService.verifyToken = jest.fn(async () => null);
 
       const middleware = createAuthMiddleware(mockAuthService, mockMcpServer);
       await middleware(

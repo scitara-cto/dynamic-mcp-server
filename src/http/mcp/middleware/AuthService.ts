@@ -1,5 +1,5 @@
 import axios from "axios";
-import logger from "../../utils/logger.js";
+import logger from "../../../utils/logger.js";
 
 interface AuthConfig {
   authServerUrl: string;
@@ -15,6 +15,7 @@ interface UserInfo {
   preferred_username: string;
   scope: string[];
   aud?: string[];
+  [key: string]: any; // Allow any additional claims from the token
 }
 
 export class AuthService {
@@ -47,8 +48,7 @@ export class AuthService {
         return null;
       }
 
-      // Create a basic UserInfo object from the token claims
-      // We'll use the sub claim as the user ID
+      // Create a UserInfo object with all claims from the token
       const userInfo: UserInfo = {
         sub: response.data.sub || "unknown",
         email: response.data.email || "",
@@ -56,6 +56,7 @@ export class AuthService {
         preferred_username: response.data.preferred_username || "",
         scope: response.data.scope ? response.data.scope.split(" ") : [],
         aud: response.data.aud ? [response.data.aud] : [],
+        ...response.data, // Include all other claims from the token
       };
 
       return userInfo;

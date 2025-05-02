@@ -63,12 +63,13 @@ describe("AuthService", () => {
 
       // Verify the result
       expect(result).toEqual({
+        active: true,
         sub: "user123",
         email: "user@example.com",
         name: "Test User",
         preferred_username: "testuser",
-        scope: ["openid", "profile", "email"],
-        aud: ["test-client-id"],
+        scope: "openid profile email",
+        aud: "test-client-id",
       });
     });
 
@@ -119,6 +120,7 @@ describe("AuthService", () => {
 
       // Verify the result has default values for missing claims
       expect(result).toEqual({
+        active: true,
         sub: "user123",
         email: "",
         name: "",

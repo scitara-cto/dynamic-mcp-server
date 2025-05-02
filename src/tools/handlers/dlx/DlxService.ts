@@ -1,4 +1,4 @@
-import { SessionInfo } from "../mcp/server.js";
+import { SessionInfo } from "../../../mcp/server.js";
 
 export interface DlxApiCallParams {
   method: string;
@@ -18,14 +18,16 @@ export class DlxService {
     { method, path, params, data }: DlxApiCallParams,
     sessionInfo?: SessionInfo,
   ): Promise<unknown> {
-    // Extract token and DLX API URL from sessionInfo
-    const token = sessionInfo?.dlxApiKey || sessionInfo?.token;
-    const dlxApiUrl = sessionInfo?.dlxApiUrl;
+    // Extract token and DLX API URL from sessionInfo or user info
+    const token =
+      sessionInfo?.user?.dlx_api_key ||
+      sessionInfo?.token;
+    const dlxApiUrl = sessionInfo?.user?.dlx_api_url;
 
     if (!token) {
       throw new Error("Token is required for DLX API call");
     }
-    
+
     if (!dlxApiUrl) {
       throw new Error("DLX API URL is required for DLX API call");
     }

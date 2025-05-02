@@ -1,4 +1,4 @@
-import { DlxService } from "../../../services/DlxService.js";
+import { DlxService } from "./DlxService.js";
 import { SessionInfo } from "../../../mcp/server.js";
 import logger from "../../../utils/logger.js";
 import { ToolOutput } from "../../index.js";

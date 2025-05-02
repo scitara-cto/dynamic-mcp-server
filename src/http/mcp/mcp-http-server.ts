@@ -5,24 +5,17 @@ import logger from "../../utils/logger.js";
 import { McpServer } from "../../mcp/server.js";
 import { handleClientRegistration } from "./client-registration.js";
 import { handleOAuthMetadata } from "./oauth-metadata.js";
-import { DlxService } from "../../services/DlxService.js";
 
 export class McpHttpServer {
   private app: express.Application;
   private mcpServer: McpServer;
   private authMiddleware: RequestHandler;
   private transports: { [sessionId: string]: SSEServerTransport } = {};
-  private dlxService: DlxService;
 
-  constructor(
-    mcpServer: McpServer,
-    authMiddleware: RequestHandler,
-    dlxService: DlxService,
-  ) {
+  constructor(mcpServer: McpServer, authMiddleware: RequestHandler) {
     this.app = express();
     this.mcpServer = mcpServer;
     this.authMiddleware = authMiddleware;
-    this.dlxService = dlxService;
     this.setupRoutes();
   }
 
@@ -38,43 +31,6 @@ export class McpHttpServer {
       user,
       token,
     };
-  }
-
-  private async validateDlxApiKey(
-    dlxApiUrl: string | undefined,
-    dlxApiKey: string | undefined,
-  ): Promise<{ valid: boolean; error?: string }> {
-    if (!dlxApiUrl) {
-      return { valid: false, error: "DLX API URL is required" };
-    }
-
-    if (!dlxApiKey) {
-      return { valid: false, error: "DLX API key is required" };
-    }
-
-    try {
-      const response = await this.dlxService.executeDlxApiCall(
-        {
-          method: "GET",
-          path: "/users",
-          params: {},
-        },
-        {
-          token: dlxApiKey,
-          user: null,
-          dlxApiUrl,
-          dlxApiKey,
-        },
-      );
-
-      return {
-        valid: !!response,
-        error: !response ? "Invalid DLX API key" : undefined,
-      };
-    } catch (error) {
-      logger.error("Failed to validate DLX API key:", error);
-      return { valid: false, error: "Failed to validate DLX API key" };
-    }
   }
 
   private setupRoutes(): void {
@@ -107,54 +63,22 @@ export class McpHttpServer {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      // Extract DLX API credentials
-      const dlxApiUrl = req.query.dlxApiUrl as string | undefined;
-      const dlxApiKey = req.query.dlxApiKey as string | undefined;
-
-      logger.debug(`DLX API Key present: ${!!dlxApiKey}`);
-      logger.debug(`DLX API URL present: ${!!dlxApiUrl}`);
-
-      let sessionInfo: {
-        token: string;
-        user: any;
-        dlxApiUrl?: string;
-        dlxApiKey?: string;
-      };
-
-      // If DLX API credentials are provided, validate them
-      if (dlxApiUrl && dlxApiKey) {
-        logger.debug(`Validating DLX API credentials`);
-        const dlxResult = await this.validateDlxApiKey(dlxApiUrl, dlxApiKey);
-        if (!dlxResult.valid) {
-          logger.debug(`DLX API validation failed: ${dlxResult.error}`);
-          res.status(401).send(dlxResult.error);
-          return;
-        }
-
-        // Use the mock user created by the auth middleware
-        sessionInfo = {
-          token: dlxApiKey,
-          user: (req as any).user,
-          dlxApiUrl,
-          dlxApiKey,
-        };
-        logger.debug(`Using DLX API authentication`);
-      } else {
-        // Otherwise validate OAuth token
-        logger.debug(`Validating OAuth token`);
-        const oauthResult = await this.validateOAuthToken(req);
-        if (!oauthResult.valid) {
-          logger.debug(`OAuth validation failed`);
-          res.status(401).send("Invalid OAuth token");
-          return;
-        }
-
-        sessionInfo = {
-          token: oauthResult.token,
-          user: oauthResult.user,
-        };
-        logger.debug(`Using OAuth authentication`);
+      // Only use OAuth authentication
+      logger.debug(`Validating OAuth token`);
+      const oauthResult = await this.validateOAuthToken(req);
+      if (!oauthResult.valid) {
+        logger.debug(`OAuth validation failed`);
+        res.status(401).send("Invalid OAuth token");
+        return;
       }
+
+      // Inject the entire query object into sessionInfo
+      const sessionInfo = {
+        token: oauthResult.token,
+        user: oauthResult.user,
+        query: req.query,
+      };
+      logger.debug(`Using OAuth authentication`);
 
       // Create a new SSE transport
       const transport = new SSEServerTransport("/messages", res);

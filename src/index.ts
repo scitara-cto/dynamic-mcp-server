@@ -1,11 +1,10 @@
-import { AuthService } from "./http/auth/AuthService.js";
+import { AuthService } from "./http/mcp/middleware/AuthService.js";
 import { config } from "./config/index.js";
 import { McpServer } from "./mcp/server.js";
 import { McpHttpServer } from "./http/mcp/mcp-http-server.js";
 import { AuthHttpServer } from "./http/auth/auth-http-server.js";
 import { createAuthMiddleware } from "./http/mcp/middleware/auth.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { DlxService } from "./services/DlxService.js";
 import logger from "./utils/logger.js";
 
 // Initialize DLX Auth service
@@ -38,17 +37,14 @@ mcpServerInstance.registerCapabilities({
 const mcpServer = new McpServer(mcpServerInstance);
 
 // Create authentication middleware
-const authMiddleware = createAuthMiddleware(authService, mcpServer);
+const authMiddleware = createAuthMiddleware(authService);
 
 // Create and start Auth server
 const authHttpServer = new AuthHttpServer();
 authHttpServer.start();
 
-// Create DLX service
-const dlxService = new DlxService();
-
 // Create HTTP server with the MCP server
-const mcpHttpServer = new McpHttpServer(mcpServer, authMiddleware, dlxService);
+const mcpHttpServer = new McpHttpServer(mcpServer, authMiddleware);
 
 // Subscribe to tool list changes and notify clients
 mcpServer.on("toolsChanged", () => {

@@ -1,6 +1,6 @@
 import { jest, expect, describe, it, beforeEach } from "@jest/globals";
 import { DlxService } from "../DlxService.js";
-import { SessionInfo } from "../../mcp/server.js";
+import { SessionInfo } from "../../../../mcp/server.js";
 
 // Mock the fetch function
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
@@ -11,8 +11,12 @@ describe("DlxService", () => {
   const baseUrl = "https://test-api.example.com";
   const contextWithToken: SessionInfo = {
     token: "test-token",
-    user: { clientId: "test-client", scopes: [] },
-    dlxApiUrl: baseUrl,
+    user: {
+      clientId: "test-client",
+      scopes: [],
+      dlx_api_key: "test-api-key",
+      dlx_api_url: baseUrl,
+    },
   };
 
   beforeEach(() => {
@@ -50,6 +54,34 @@ describe("DlxService", () => {
   });
 
   describe("executeDlxApiCall", () => {
+    it("should use DLX API key and URL from user info when available", async () => {
+      const contextWithUserInfo: SessionInfo = {
+        user: {
+          clientId: "test-client",
+          scopes: [],
+          dlx_api_key: "user-api-key",
+          dlx_api_url: "https://user-api.example.com",
+        },
+      };
+
+      await dlxService.executeDlxApiCall(
+        {
+          method: "GET",
+          path: "/test",
+        },
+        contextWithUserInfo,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://user-api.example.com/test",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: "Bearer user-api-key",
+          }),
+        }),
+      );
+    });
+
     it("should make a request with the correct URL and method", async () => {
       await dlxService.executeDlxApiCall(
         {
@@ -108,12 +140,23 @@ describe("DlxService", () => {
     });
 
     it("should include the Authorization header with Bearer token when provided", async () => {
+      // Create a context without dlx_api_key to test token fallback
+      const contextWithoutApiKey: SessionInfo = {
+        token: "test-token",
+        user: {
+          clientId: "test-client",
+          scopes: [],
+          dlx_api_url: baseUrl,
+        },
+        dlxApiUrl: baseUrl,
+      };
+
       await dlxService.executeDlxApiCall(
         {
           method: "GET",
           path: "/test",
         },
-        contextWithToken,
+        contextWithoutApiKey,
       );
 
       expect(mockFetch).toHaveBeenCalledWith(

@@ -6,8 +6,7 @@ import { EventEmitter } from "events";
 export interface SessionInfo {
   token: string;
   user: any;
-  dlxApiUrl?: string;
-  dlxApiKey?: string;
+  query?: Record<string, any>;
   mcpServer?: McpServer;
 }
 

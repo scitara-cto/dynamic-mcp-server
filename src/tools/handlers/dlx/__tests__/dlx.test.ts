@@ -1,10 +1,10 @@
 import { jest, expect, describe, it, beforeEach } from "@jest/globals";
 import { dlxHandler } from "..";
-import { DlxService } from "../../../../services/DlxService";
-import { SessionInfo } from "../../../../mcp/server";
+import { SessionInfo } from "../../../../mcp/server.js";
+import { DlxService } from "../DlxService.js";
 
 // Mock the DlxService
-jest.mock("../../../../services/DlxService");
+jest.mock("../DlxService.js");
 const MockedDlxService = DlxService as jest.MockedClass<typeof DlxService>;
 
 // Mock the logger

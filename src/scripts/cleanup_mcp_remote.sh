@@ -13,11 +13,6 @@ else
   echo "All mcp-remote processes have been shut down."
 fi
 
-# Clean up any active mcp-auth connections
-if [ -d "~/.mcp-auth" ]; then
-  echo "Removing the ~/.mcp-auth directory."
-  rm -rf ~/.mcp-auth
-  echo "Cleanup complete."
-else
-  echo "No ~/.mcp-auth directory found."
-fi
+echo "Removing the ~/.mcp-auth directory."
+rm -rf ~/.mcp-auth
+echo "Cleanup complete."

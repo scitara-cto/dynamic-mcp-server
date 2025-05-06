@@ -3,7 +3,7 @@ import logger from "../utils/logger.js";
 import { ToolGenerator } from "./ToolGenerator.js";
 import { ToolDefinition } from "./types.js";
 import { EventEmitter } from "events";
-import { AuthService } from "../http/mcp/middleware/AuthService.js";
+import { AuthService, UserInfo } from "../http/mcp/middleware/AuthService.js";
 import { McpHttpServer } from "../http/mcp/mcp-http-server.js";
 import { AuthHttpServer } from "../http/auth/auth-http-server.js";
 import { createAuthMiddleware } from "../http/mcp/middleware/auth.js";
@@ -12,7 +12,7 @@ import { ToolManagementHandler } from "../toolManagementHandler/index.js";
 
 export interface SessionInfo {
   sessionId: string;
-  user: any; // This will contain the UserInfo including toolsAvailable
+  user: UserInfo;
   query?: Record<string, any>;
   mcpServer?: DynamicMcpServer;
 }

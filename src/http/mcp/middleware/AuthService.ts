@@ -8,7 +8,7 @@ interface AuthConfig {
   clientSecret: string;
 }
 
-interface UserInfo {
+export interface UserInfo {
   active: boolean;
   sub: string;
   email: string;

@@ -328,6 +328,75 @@ const myHandler = async (args: any, context: any): Promise<HandlerOutput> => {
 };
 ```
 
+#### SessionInfo
+
+The `SessionInfo` interface provides context information for tool handlers:
+
+```typescript
+interface SessionInfo {
+  sessionId: string; // Unique identifier for the session
+  user: {
+    active: boolean; // Whether the user's session is active
+    sub: string; // Subject identifier (user ID)
+    email: string; // User's email address
+    name: string; // User's full name
+    preferred_username: string; // User's preferred username
+    scope: string[]; // OAuth scopes granted to the user
+    aud: string[]; // OAuth audience values
+    toolsAvailable?: string[]; // List of tools available to the user
+    toolsHidden?: string[]; // List of tools hidden from the user
+    [key: string]: any; // Additional claims from the authentication token
+  };
+  query?: Record<string, any>; // Optional query parameters from the request
+  mcpServer?: DynamicMcpServer; // Reference to the MCP server instance
+}
+```
+
+When implementing a handler, you can access user information through the `context` parameter:
+
+```typescript
+const myHandler = async (
+  args: any,
+  context: SessionInfo,
+): Promise<HandlerOutput> => {
+  const userId = context.user.sub;
+  const availableTools = context.user.toolsAvailable;
+  // ... use the session and user information ...
+};
+```
+
+#### UserInfo
+
+The `UserInfo` interface contains user authentication and authorization information:
+
+```typescript
+interface UserInfo {
+  active: boolean; // Whether the user's session is active
+  sub: string; // Subject identifier (user ID)
+  email: string; // User's email address
+  name: string; // User's full name
+  preferred_username: string; // User's preferred username
+  scope: string[]; // OAuth scopes granted to the user
+  aud: string[]; // OAuth audience values
+  toolsAvailable?: string[]; // List of tools available to the user
+  toolsHidden?: string[]; // List of tools hidden from the user
+  [key: string]: any; // Additional claims from the authentication token
+}
+```
+
+When implementing a handler, you can access user information through the `context` parameter:
+
+```typescript
+const myHandler = async (
+  args: any,
+  context: SessionInfo,
+): Promise<HandlerOutput> => {
+  const userId = context.user.sub;
+  const availableTools = context.user.toolsAvailable;
+  // ... use the session and user information ...
+};
+```
+
 ## Tool Access Control
 
 The framework supports fine-grained control over which tools are available to users through Keycloak attributes. This is implemented using two attributes:

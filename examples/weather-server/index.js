@@ -1,4 +1,6 @@
-import { DynamicMcpServer } from "../../dist/index.js";
+import { DynamicMcpServer, logger } from "../../dist/index.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 // Web Service Handler
 const webServiceHandler = {
@@ -141,14 +143,17 @@ server.registerHandler(webServiceHandler);
 // No need to manually register the weather tool; it's handled by the handler registration.
 server.toolGenerator.registerTool(weatherTool);
 
+// Check if OPENWEATHER_API_KEY is set
+if (!process.env.OPENWEATHER_API_KEY) {
+  logger.info(
+    "Note: You need to set the OPENWEATHER_API_KEY environment variable to use the weather tool. Get an API key from https://openweathermap.org/",
+  );
+  process.exit(1);
+}
+logger.info("OPENWEATHER_API_KEY is set");
+
 // Start the server
 server.start().then(() => {
-  console.log("Weather MCP Server started");
-  console.log("Available at http://localhost:3000");
-  console.log(
-    "\nNote: You need to set the OPENWEATHER_API_KEY environment variable",
-  );
-  console.log(
-    "to use the weather tool. Get an API key from https://openweathermap.org/",
-  );
+  logger.info("Weather MCP Server started");
+  logger.info("Available at http://localhost:3000");
 });

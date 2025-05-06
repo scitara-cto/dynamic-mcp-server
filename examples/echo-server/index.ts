@@ -1,4 +1,4 @@
-import { DynamicMcpServer } from "../../src/index.js";
+import { DynamicMcpServer, logger } from "../../src/index.js";
 
 const echoHandler = {
   name: "echo",
@@ -49,9 +49,9 @@ server.registerHandler(echoHandler);
 server
   .start()
   .then(() => {
-    console.log("Echo MCP Server started with echo handler");
-    console.log("Available at http://localhost:3000");
+    logger.info("Echo MCP Server started with echo handler");
+    logger.info("Available at http://localhost:3000");
   })
   .catch((error) => {
-    console.error("Failed to start MCP server:", error);
+    logger.error("Failed to start MCP server:", error);
   });

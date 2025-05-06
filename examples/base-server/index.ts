@@ -1,4 +1,4 @@
-import { DynamicMcpServer } from "../../src/index.js";
+import { DynamicMcpServer, logger } from "../../src/index.js";
 
 // Create a new MCP server instance with core functionality
 const server = new DynamicMcpServer({
@@ -10,11 +10,11 @@ const server = new DynamicMcpServer({
 server
   .start()
   .then(() => {
-    console.log("Base MCP Server started with tool management");
-    console.log(
+    logger.info("Base MCP Server started with tool management");
+    logger.info(
       `Available at http://localhost:${process.env.MCP_PORT || "4001"}`,
     );
   })
   .catch((error) => {
-    console.error("Failed to start MCP server:", error);
+    logger.error("Failed to start MCP server:", error);
   });

@@ -11,7 +11,9 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
     "types": ["jest", "node"],
-    "sourceMap": true
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true
   },
   "ts-node": {
     "esm": true,

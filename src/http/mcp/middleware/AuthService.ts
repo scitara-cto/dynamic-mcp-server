@@ -9,12 +9,15 @@ interface AuthConfig {
 }
 
 interface UserInfo {
+  active: boolean;
   sub: string;
   email: string;
   name: string;
   preferred_username: string;
   scope: string[];
-  aud?: string[];
+  aud: string[];
+  toolsAvailable?: string[];
+  toolsHidden?: string[];
   [key: string]: any; // Allow any additional claims from the token
 }
 
@@ -48,15 +51,31 @@ export class AuthService {
         return null;
       }
 
-      // Create a UserInfo object with all claims from the token
+      // Create a UserInfo object with default values for missing claims
       const userInfo: UserInfo = {
-        sub: response.data.sub || "unknown",
+        active: response.data.active,
+        sub: response.data.sub || "",
         email: response.data.email || "",
         name: response.data.name || "",
         preferred_username: response.data.preferred_username || "",
         scope: response.data.scope ? response.data.scope.split(" ") : [],
-        aud: response.data.aud ? [response.data.aud] : [],
-        ...response.data, // Include all other claims from the token
+        aud: response.data.aud
+          ? Array.isArray(response.data.aud)
+            ? response.data.aud
+            : [response.data.aud]
+          : [],
+        toolsAvailable: response.data.toolsAvailable
+          ? Array.isArray(response.data.toolsAvailable)
+            ? response.data.toolsAvailable
+            : response.data.toolsAvailable
+                .split(",")
+                .map((t: string) => t.trim())
+          : undefined,
+        toolsHidden: response.data.toolsHidden
+          ? Array.isArray(response.data.toolsHidden)
+            ? response.data.toolsHidden
+            : response.data.toolsHidden.split(",").map((t: string) => t.trim())
+          : undefined,
       };
 
       return userInfo;
@@ -70,11 +89,6 @@ export class AuthService {
     try {
       const tokenUrl = `${this.config.authServerUrl}/realms/${this.config.realm}/protocol/openid-connect/token`;
 
-      // Log the request details
-      logger.debug(`Making token request to: ${tokenUrl}`);
-      logger.debug(`Client ID: ${this.config.clientId}`);
-      logger.debug(`Username: ${username}`);
-
       // Create the request body
       const formData = new URLSearchParams();
       formData.append("grant_type", "password");
@@ -83,8 +97,6 @@ export class AuthService {
       formData.append("username", username);
       formData.append("password", password);
 
-      logger.debug(`Request body: ${formData.toString()}`);
-
       // Make the request
       const response = await axios.post(tokenUrl, formData, {
         headers: {
@@ -92,11 +104,6 @@ export class AuthService {
         },
         validateStatus: (status) => true, // Don't throw on any status
       });
-
-      // Log the response
-      logger.debug(`Response status: ${response.status}`);
-      logger.debug(`Response headers: ${JSON.stringify(response.headers)}`);
-      logger.debug(`Response data: ${JSON.stringify(response.data)}`);
 
       if (response.status !== 200) {
         logger.error(`Token request failed with status ${response.status}`);

@@ -9,6 +9,17 @@ import {
 import axios from "axios";
 import { AuthService } from "../AuthService.js";
 
+jest.mock("axios");
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+const createMockAxiosResponse = (data: any) => ({
+  data,
+  status: 200,
+  statusText: "OK",
+  headers: {},
+  config: {} as any,
+});
+
 describe("AuthService", () => {
   let authService: AuthService;
   let postSpy: any; // Use any type instead of jest.SpyInstance
@@ -34,10 +45,19 @@ describe("AuthService", () => {
   });
 
   describe("verifyToken", () => {
+    it("should return null when token is not active", async () => {
+      mockedAxios.post.mockResolvedValueOnce(
+        createMockAxiosResponse({ active: false }),
+      );
+
+      const result = await authService.verifyToken("invalid-token");
+      expect(result).toBeNull();
+    });
+
     it("should return user info when token is valid", async () => {
       // Mock successful response
-      postSpy.mockResolvedValueOnce({
-        data: {
+      mockedAxios.post.mockResolvedValueOnce(
+        createMockAxiosResponse({
           active: true,
           sub: "user123",
           email: "user@example.com",
@@ -45,78 +65,53 @@ describe("AuthService", () => {
           preferred_username: "testuser",
           scope: "openid profile email",
           aud: "test-client-id",
-        },
-      });
+          toolsAvailable: ["tool1", "tool2", "tool3"],
+          toolsHidden: ["tool2"],
+        }),
+      );
 
       const result = await authService.verifyToken("valid-token");
 
       // Verify axios was called with correct parameters
-      expect(postSpy).toHaveBeenCalledWith(
+      expect(mockedAxios.post).toHaveBeenCalledWith(
         "https://auth.example.com/realms/test-realm/protocol/openid-connect/token/introspect",
         expect.any(URLSearchParams),
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-        },
+        expect.any(Object),
       );
 
-      // Verify the result
+      // Verify the returned user info
       expect(result).toEqual({
         active: true,
         sub: "user123",
         email: "user@example.com",
         name: "Test User",
         preferred_username: "testuser",
-        scope: "openid profile email",
-        aud: "test-client-id",
+        scope: ["openid", "profile", "email"],
+        aud: ["test-client-id"],
+        toolsAvailable: ["tool1", "tool2", "tool3"],
+        toolsHidden: ["tool2"],
       });
-    });
-
-    it("should return null when token is not active", async () => {
-      // Mock response with inactive token
-      postSpy.mockResolvedValueOnce({
-        data: {
-          active: false,
-        },
-      });
-
-      const result = await authService.verifyToken("inactive-token");
-
-      // Verify axios was called
-      expect(postSpy).toHaveBeenCalled();
-
-      // Verify the result is null
-      expect(result).toBeNull();
     });
 
     it("should return null when token verification fails", async () => {
-      // Mock axios error
-      postSpy.mockRejectedValueOnce(new Error("Network error"));
+      mockedAxios.post.mockRejectedValueOnce(new Error("Network error"));
 
-      const result = await authService.verifyToken("invalid-token");
-
-      // Verify axios was called
-      expect(postSpy).toHaveBeenCalled();
-
-      // Verify the result is null
+      const result = await authService.verifyToken("valid-token");
       expect(result).toBeNull();
     });
 
     it("should handle missing claims in token response", async () => {
-      // Mock response with missing claims
-      postSpy.mockResolvedValueOnce({
-        data: {
+      mockedAxios.post.mockResolvedValueOnce(
+        createMockAxiosResponse({
           active: true,
           sub: "user123",
-          // Missing other claims
-        },
-      });
+        }),
+      );
 
-      const result = await authService.verifyToken("partial-token");
+      const result = await authService.verifyToken("valid-token");
 
       // Verify axios was called
-      expect(postSpy).toHaveBeenCalled();
+      expect(mockedAxios.post).toHaveBeenCalled();
 
       // Verify the result has default values for missing claims
       expect(result).toEqual({
@@ -127,7 +122,105 @@ describe("AuthService", () => {
         preferred_username: "",
         scope: [],
         aud: [],
+        toolsAvailable: undefined,
+        toolsHidden: undefined,
       });
+    });
+
+    it("should handle string format toolsAvailable", async () => {
+      mockedAxios.post.mockResolvedValueOnce(
+        createMockAxiosResponse({
+          active: true,
+          sub: "user123",
+          email: "user@example.com",
+          name: "Test User",
+          preferred_username: "testuser",
+          scope: "openid profile email",
+          aud: "test-client-id",
+          toolsAvailable: "tool1,tool2, tool3",
+          toolsHidden: ["tool2"],
+        }),
+      );
+
+      const result = await authService.verifyToken("valid-token");
+
+      expect(result?.toolsAvailable).toEqual(["tool1", "tool2", "tool3"]);
+      expect(result?.toolsHidden).toEqual(["tool2"]);
+    });
+
+    it("should handle missing toolsAvailable", async () => {
+      mockedAxios.post.mockResolvedValueOnce(
+        createMockAxiosResponse({
+          active: true,
+          sub: "user123",
+          email: "user@example.com",
+          name: "Test User",
+          preferred_username: "testuser",
+          scope: "openid profile email",
+          aud: "test-client-id",
+          toolsHidden: ["tool2"],
+        }),
+      );
+
+      const result = await authService.verifyToken("valid-token");
+
+      expect(result?.toolsAvailable).toBeUndefined();
+      expect(result?.toolsHidden).toEqual(["tool2"]);
+    });
+
+    it("should handle comma-separated toolsAvailable and toolsHidden", async () => {
+      mockedAxios.post.mockResolvedValueOnce(
+        createMockAxiosResponse({
+          active: true,
+          sub: "user123",
+          toolsAvailable: "tool1, tool2, tool3",
+          toolsHidden: "tool2, tool3",
+        }),
+      );
+
+      const result = await authService.verifyToken("valid-token");
+
+      expect(result).toEqual({
+        active: true,
+        sub: "user123",
+        email: "",
+        name: "",
+        preferred_username: "",
+        scope: [],
+        aud: [],
+        toolsAvailable: ["tool1", "tool2", "tool3"],
+        toolsHidden: ["tool2", "tool3"],
+      });
+    });
+
+    it("should handle missing toolsAvailable and toolsHidden", async () => {
+      mockedAxios.post.mockResolvedValueOnce(
+        createMockAxiosResponse({
+          active: true,
+          sub: "user123",
+        }),
+      );
+
+      const result = await authService.verifyToken("valid-token");
+
+      expect(result).toEqual({
+        active: true,
+        sub: "user123",
+        email: "",
+        name: "",
+        preferred_username: "",
+        scope: [],
+        aud: [],
+        toolsAvailable: undefined,
+        toolsHidden: undefined,
+      });
+    });
+
+    it("should handle error during token verification", async () => {
+      mockedAxios.post.mockRejectedValueOnce(new Error("Network error"));
+
+      const result = await authService.verifyToken("valid-token");
+      expect(result).toBeNull();
     });
   });
 

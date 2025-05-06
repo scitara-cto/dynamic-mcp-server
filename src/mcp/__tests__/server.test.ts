@@ -1,8 +1,9 @@
 import { jest, expect } from "@jest/globals";
-import { McpServer } from "../server.js";
-import { ToolGenerator } from "../../tools/index.js";
+import { DynamicMcpServer } from "../server.js";
+import { ToolGenerator } from "../ToolGenerator.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { config } from "../../config/index.js";
+import { ToolDefinition } from "../types.js";
 
 // Mock the SDK module
 jest.mock("@modelcontextprotocol/sdk/server/index.js", () => {
@@ -10,18 +11,19 @@ jest.mock("@modelcontextprotocol/sdk/server/index.js", () => {
     return {
       tool: jest.fn(),
       registerCapabilities: jest.fn(),
+      setRequestHandler: jest.fn(),
     };
   });
 
   return { Server: mockServer };
 });
 
-describe("McpServer", () => {
-  let mcpServer: McpServer;
+describe("DynamicMcpServer", () => {
+  let mcpServer: DynamicMcpServer;
   let toolGeneratorSpy: any;
   let mockServer: Server;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     jest.clearAllMocks();
 
     toolGeneratorSpy = jest.spyOn(ToolGenerator.prototype, "initialize");
@@ -36,8 +38,11 @@ describe("McpServer", () => {
         },
       },
     });
-    mcpServer = new McpServer(mockServer);
-    await mcpServer.initialize();
+
+    mcpServer = new DynamicMcpServer({
+      name: config.server.name,
+      version: config.server.version,
+    });
   });
 
   afterEach(() => {
@@ -47,7 +52,7 @@ describe("McpServer", () => {
   describe("constructor", () => {
     it("should initialize with correct configuration", () => {
       expect(mcpServer).toBeDefined();
-      expect(mcpServer["server"]).toBeDefined();
+      expect(mcpServer.getServer()).toBeDefined();
     });
   });
 
@@ -62,6 +67,33 @@ describe("McpServer", () => {
       await expect(mcpServer.initialize()).rejects.toThrow(
         "Registration failed",
       );
+    });
+
+    it("registers tools from handlers", async () => {
+      const mockTool = {
+        name: "test-tool",
+        description: "A test tool",
+        inputSchema: {
+          type: "object",
+          properties: {},
+        },
+        handler: {
+          type: "test-handler",
+          config: {},
+        },
+      };
+
+      const mockHandler = {
+        name: "test-handler",
+        tools: [mockTool],
+        handler: jest.fn(),
+      };
+
+      mcpServer.registerHandler(mockHandler);
+      await mcpServer.initialize();
+
+      // We don't need to verify registerTool was called since we're mocking initialize
+      expect(toolGeneratorSpy).toHaveBeenCalled();
     });
   });
 

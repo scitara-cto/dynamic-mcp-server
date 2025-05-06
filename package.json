@@ -13,14 +13,17 @@
     "build": "tsc",
     "watch": "tsc -w",
     "start": "node dist/index.js",
-    "dev": "tsc --noEmit && node --loader ts-node/esm src/index.ts",
+    "dev": "tsc --noEmit && node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' src/index.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "check-realm": "tsc --noEmit && node --loader ts-node/esm src/scripts/check-realm.ts",
+    "check-realm": "tsc --noEmit && node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' src/scripts/check-realm.ts",
     "cleanup": "./src/scripts/cleanup_mcp_remote.sh",
-    "get-token": "tsc --noEmit && node --loader ts-node/esm src/scripts/get-token.ts"
+    "get-token": "tsc --noEmit && node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' src/scripts/get-token.ts",
+    "example:echo": "tsc --noEmit && node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' examples/echo-server/index.ts",
+    "example:base": "tsc --noEmit && node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' examples/base-server/index.ts",
+    "example:weather": "node examples/weather-server/index.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.9.0",

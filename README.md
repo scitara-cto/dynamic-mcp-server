@@ -1,151 +1,401 @@
-# DLX MCP Server
+# Dynamic MCP Server Framework
 
-A Model Context Protocol (MCP) server for the DLX application that provides tools and resources for AI agents.
+A flexible and extensible framework for building Model Context Protocol (MCP) servers that conforms to the [Model Context Protocol specification](https://modelcontextprotocol.io/). This framework enables both static and dynamic tool registration, allowing tools to be defined at runtime as well as compile time.
 
-## Features
+## Key Features
 
-- OAuth2 authentication with Keycloak
-- HTTP with SSE transport for robust communication
-- Tools for interacting with the DLX application
-- Debug endpoints for troubleshooting
-- TypeScript support
-- Comprehensive logging system
-- Test suite with Jest
+- **Dynamic Tool Registration**: Tools can be defined and registered at runtime, enabling flexible and adaptive tool management
+- **Handler-Based Architecture**: Custom handlers implement specific functionalities that can be called by dynamically defined tools
+- **Extensible Design**: Easy to add new handlers and tool types through a clean, type-safe API
+- **Built-in Tool Management**: Core functionality for managing and monitoring registered tools
+- **MCP Specification Compliance**: Fully compliant with the Model Context Protocol specification
 
-## Prerequisites
+## How It Works
 
-- Node.js 18.19.0 or higher
-- npm 9.0.0 or higher
-- Access to a Keycloak server
+The framework operates on a handler-based architecture where:
+
+1. **Handlers** implement specific functionalities (e.g., web services, file operations, database queries)
+2. **Tools** are defined to use these handlers with specific configurations
+3. **Dynamic Registration** allows tools to be created and registered at runtime
+4. **Tool Management** provides core functionality for listing and managing tools
+
+This architecture enables powerful use cases where:
+
+- Clients can define custom tools that use existing handlers
+- Handlers can be reused across multiple tools
+- Tools can be dynamically created and configured
+- The system remains type-safe and maintainable
 
 ## Installation
 
-1. Clone the repository:
+```bash
+npm install dynamic-mcp-server
+```
 
-   ```bash
-   git clone https://github.com/yourusername/dlx-mcp-server.git
-   cd dlx-mcp-server
+## Quick Start
+
+### Basic Server Setup
+
+Create a basic MCP server with tool management:
+
+```typescript
+import { DynamicMcpServer } from "dynamic-mcp-server";
+
+const server = new DynamicMcpServer({
+  name: "my-mcp-server",
+  version: "1.0.0",
+  port: 3000,
+  host: "localhost",
+});
+
+server.start().then(() => {
+  console.log("MCP server started");
+});
+```
+
+### Creating a Custom Handler
+
+Create a custom handler as a plain object with `name`, `handler`, and `tools`:
+
+```typescript
+import { DynamicMcpServer } from "dynamic-mcp-server";
+
+const myHandler = {
+  name: "my-handler",
+  tools: [
+    {
+      name: "my-tool",
+      description: "A custom tool",
+      inputSchema: {
+        type: "object",
+        properties: {
+          input: { type: "string" },
+        },
+      },
+      handler: {
+        type: "my-handler",
+        config: { action: "process" },
+      },
+    },
+  ],
+  handler: async (args, context, config) => {
+    return {
+      result: { processed: args.input },
+      message: "Processing complete",
+    };
+  },
+};
+
+const server = new DynamicMcpServer({
+  /* config */
+});
+server.registerHandler(myHandler);
+```
+
+### Complex Example: Web Service Handler
+
+```typescript
+import { DynamicMcpServer } from "dynamic-mcp-server";
+
+const webServiceHandler = {
+  name: "web-service",
+  tools: [
+    {
+      name: "web-request",
+      description: "Make HTTP requests to web services",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "The URL to request" },
+          method: {
+            type: "string",
+            enum: ["GET", "POST", "PUT", "DELETE"],
+            default: "GET",
+          },
+          queryParams: {
+            type: "object",
+            additionalProperties: true,
+            description: "Query parameters to include in the request",
+          },
+        },
+        required: ["url"],
+      },
+      handler: {
+        type: "web-service",
+        config: {},
+      },
+    },
+  ],
+  handler: async (args, context, config) => {
+    const method = args.method || "GET";
+    const baseUrl = config.url || args.url;
+    const queryParams = {
+      ...(config.queryParams || {}),
+      ...(args.queryParams || {}),
+    };
+    const resolvedParams = {};
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (
+        typeof value === "string" &&
+        value.startsWith("${") &&
+        value.endsWith("}")
+      ) {
+        const varName = value.slice(2, -1);
+        resolvedParams[key] = args[varName] || process.env[varName] || "";
+      } else {
+        resolvedParams[key] = value;
+      }
+    }
+    const urlObj = new URL(baseUrl);
+    Object.entries(resolvedParams).forEach(([k, v]) => {
+      if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
+    });
+    const body =
+      method === "POST" || method === "PUT"
+        ? JSON.stringify(args.body)
+        : undefined;
+    const response = await fetch(urlObj.toString(), {
+      method,
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+      },
+      ...(body && { body }),
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return { result: data, message: "Request successful" };
+  },
+};
+
+const weatherTool = {
+  name: "get-weather",
+  description: "Get current weather for a location",
+  inputSchema: {
+    type: "object",
+    properties: {
+      q: { type: "string", description: "City name or coordinates" },
+      units: {
+        type: "string",
+        enum: ["metric", "imperial"],
+        default: "metric",
+      },
+    },
+    required: ["q"],
+  },
+  handler: {
+    type: "web-service",
+    config: {
+      url: "https://api.openweathermap.org/data/2.5/weather",
+      queryParams: {
+        appid: "${OPENWEATHER_API_KEY}",
+        q: "${q}",
+        units: "${units}",
+      },
+    },
+  },
+};
+
+webServiceHandler.tools.push(weatherTool);
+
+const server = new DynamicMcpServer({
+  name: "weather-mcp-server",
+  version: "1.0.0",
+  port: 3000,
+  host: "localhost",
+});
+server.registerHandler(webServiceHandler);
+```
+
+This example demonstrates:
+
+1. Creating a reusable web service handler
+2. Defining a specific weather tool that uses the handler
+3. Dynamic tool registration via the handler's tools array
+4. Environment variable usage in tool configuration
+5. Complex input schema definition
+
+## Examples
+
+The framework includes several example implementations to help you get started:
+
+### Base Server
+
+A minimal server with tool management capabilities:
+
+```bash
+npm run example:base
+```
+
+This example demonstrates:
+
+- Basic server setup
+- Built-in tool management
+- Core tool registration
+
+### Echo Server
+
+A server with a custom echo handler:
+
+```bash
+npm run example:echo
+```
+
+This example demonstrates:
+
+- Custom handler implementation
+- Tool registration via the handler's tools array
+
+## API Reference
+
+### DynamicMcpServer
+
+The main server class that handles tool registration and management.
+
+```typescript
+interface DynamicMcpServerConfig {
+  name: string;
+  version: string;
+  port: number;
+  host: string;
+}
+
+class DynamicMcpServer {
+  constructor(config: DynamicMcpServerConfig);
+  start(): Promise<void>;
+  registerHandler(handler: Handler): void;
+  toolGenerator: ToolGenerator;
+}
+```
+
+### Handler
+
+Interface for implementing custom handlers:
+
+```typescript
+interface Handler {
+  name: string;
+  handler: (
+    args: Record<string, any>,
+    context: any,
+    config: any,
+  ) => Promise<any>;
+  tools: ToolDefinition[];
+}
+```
+
+### ToolDefinition
+
+Interface for defining tools.
+
+```typescript
+interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: object;
+  handler: {
+    type: string;
+    config: Record<string, any>;
+  };
+}
+```
+
+## Tool Handler Output
+
+Tool handler functions should return an object of the form:
+
+```typescript
+{
+  result: any;
+  message?: string;
+  nextSteps?: string[];
+}
+```
+
+**Note:** The framework will automatically wrap this output in the correct MCP protocol format for clients.
+
+## Tool Access Control
+
+The framework supports fine-grained control over which tools are available to users through Keycloak attributes. This is implemented using two attributes:
+
+### toolsAvailable
+
+This attribute specifies which tools a user or group has access to. In Keycloak, this should be set as a comma-delimited string:
+
+```
+web-request, get-weather, admin-tool
+```
+
+If `toolsAvailable` is not set, the user has access to all tools by default.
+
+### toolsHidden
+
+This attribute specifies which tools should be hidden from a user or group, even if they are in `toolsAvailable`. In Keycloak, this should also be set as a comma-delimited string:
+
+```
+admin-tool, debug-tool
+```
+
+### Example Scenarios
+
+1. **Allow specific tools only:**
+   In Keycloak, set the `toolsAvailable` attribute to:
+
+   ```
+   web-request, get-weather
    ```
 
-2. Install dependencies:
+2. **Hide specific tools:**
+   In Keycloak, set the `toolsHidden` attribute to:
 
-   ```bash
-   npm install
+   ```
+   admin-tool, debug-tool
    ```
 
-3. Create a `.env` file based on `.env.example`:
-
-   ```bash
-   cp .env.example .env
+3. **Combined usage:**
+   In Keycloak, set both attributes:
    ```
-
-4. Update the `.env` file with your configuration:
-
-   ```bash
-   # Server Configuration
-   MCP_PORT=4001
-   AUTH_PORT=4000
-
-   # Keycloak Configuration
-   KEYCLOAK_AUTH_SERVER_URL=https://your-keycloak-server
-   KEYCLOAK_REALM=your-realm
-   KEYCLOAK_CLIENT_ID=your-client-id
-   KEYCLOAK_CLIENT_SECRET=your-client-secret
-   KEYCLOAK_REDIRECT_URI=http://localhost:4000/callback
-
-   # Logging Configuration
-   LOG_LEVEL=info
-   LOG_FILE_PATH=logs
+   toolsAvailable: web-request, get-weather, admin-tool
+   toolsHidden: admin-tool
    ```
+   In this case, the user will only have access to `web-request` and `get-weather`, as `admin-tool` is hidden.
+
+### Setting Attributes in Keycloak
+
+1. Navigate to your Keycloak admin console
+2. Select your realm
+3. Go to Users or Groups
+4. Add the attributes:
+   - For users: Edit user → Attributes
+   - For groups: Select group → Attributes
+   - Enter the tool names as comma-delimited strings
+
+The framework will automatically convert these comma-delimited strings into arrays when processing the user's token.
 
 ## Development
 
-To run the server in development mode:
-
-```bash
-npm run dev
-```
-
-This will start the server on the ports specified in your `.env` file (default: MCP_PORT=4001, AUTH_PORT=4000).
-
-## Building and Running
-
-To build and run the server:
-
-```bash
-npm run build
-npm start
-```
-
-## Testing
-
-The project includes a test suite using Jest. To run tests:
+### Running Tests
 
 ```bash
 npm test
 ```
 
-For watch mode during development:
+### Building
 
 ```bash
-npm run test:watch
+npm run build
 ```
 
-## Authentication Utilities
+### Running Examples in Development Mode
 
-The project includes several utility scripts for working with Keycloak authentication:
+```bash
+# Base server example
+npm run example:base
 
-- `npm run get-token` - Get an authentication token
-- `npm run check-realm` - Check realm configuration
-- `npm run get-client-token` - Get a client token
-- `npm run get-auth-url` - Get the authentication URL
-- `npm run get-token-with-code` - Get a token using an authorization code
-
-## Connecting with Cursor
-
-To connect this MCP server with Cursor, create a `.cursor/mcp.json` file with the following content:
-
-```json
-{
-  "mcpServers": {
-    "dlx-mcp-server": {
-      "command": "node",
-      "args": ["dist/index.js"]
-    }
-  }
-}
+# Echo server example
+npm run example:echo
 ```
-
-## API Endpoints
-
-- `/sse` - SSE endpoint for establishing a connection with the MCP server
-  - Query Parameters:
-    - `dlxApiUrl` - (Optional) The URL of the DLX API to use for this connection. If not provided, the default URL from the server configuration will be used.
-- `/messages` - Endpoint for handling MCP messages
-- `/sessions` - Debug endpoint to list active sessions
-- `/health` - Health check endpoint
-
-## Authentication
-
-The server uses OAuth2 authentication with Keycloak. To authenticate:
-
-1. Obtain a token from your Keycloak server
-2. Include the token in the Authorization header: `Authorization: Bearer <token>`
-
-## Logging
-
-The server uses Winston for logging. Logs are stored in the `logs` directory by default. The log level can be configured in the `.env` file using the `LOG_LEVEL` variable.
-
-## Troubleshooting
-
-If you encounter issues:
-
-1. Check the server logs in the `logs` directory
-2. Visit the `/sessions` endpoint to see active sessions
-3. Ensure your Keycloak configuration is correct
-4. Check that the client has the necessary scopes
-5. Verify that both MCP_PORT and AUTH_PORT are available and correctly configured
 
 ## License
 
-[MIT](LICENSE)
+MIT

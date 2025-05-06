@@ -2,9 +2,9 @@ import { jest, expect, describe, it, beforeEach } from "@jest/globals";
 import { Request, Response } from "express";
 import { createAuthMiddleware } from "../auth.js";
 import { AuthService } from "../AuthService.js";
-import { McpServer } from "../../../../mcp/server.js";
+import { DynamicMcpServer } from "../../../../mcp/server.js";
 
-// Mock the AuthService and McpServer
+// Mock the AuthService and DynamicMcpServer
 jest.mock("../AuthService.js");
 jest.mock("../../../../mcp/server.js");
 
@@ -29,7 +29,7 @@ type VerifyTokenFn = (token: string) => Promise<UserInfo | null>;
 
 describe("Auth Middleware", () => {
   let mockAuthService: jest.Mocked<AuthService>;
-  let mockMcpServer: jest.Mocked<McpServer>;
+  let mockMcpServer: jest.Mocked<DynamicMcpServer>;
   let mockRequest: Partial<RequestWithUser>;
   let mockResponse: Partial<Response>;
   let nextFunction: jest.Mock;
@@ -41,8 +41,10 @@ describe("Auth Middleware", () => {
     // Create mock AuthService instance
     mockAuthService = new AuthService({} as any) as jest.Mocked<AuthService>;
 
-    // Create mock McpServer instance
-    mockMcpServer = new McpServer({} as any) as jest.Mocked<McpServer>;
+    // Create mock DynamicMcpServer instance
+    mockMcpServer = new DynamicMcpServer(
+      {} as any,
+    ) as jest.Mocked<DynamicMcpServer>;
 
     // Create mock request object
     mockRequest = {

@@ -1,6 +1,6 @@
-import type { ToolDefinition } from "../../index.js";
+import type { ToolDefinition } from "../index.js";
 
-export const tools: ToolDefinition[] = [
+export const toolManagementTools: ToolDefinition[] = [
   {
     name: "list-tools",
     description: "List all tools",

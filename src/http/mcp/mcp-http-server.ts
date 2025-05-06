@@ -2,19 +2,26 @@ import express, { Request, Response, RequestHandler } from "express";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { config } from "../../config/index.js";
 import logger from "../../utils/logger.js";
-import { McpServer } from "../../mcp/server.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { DynamicMcpServer } from "../../mcp/server.js";
 import { handleClientRegistration } from "./client-registration.js";
 import { handleOAuthMetadata } from "./oauth-metadata.js";
 
 export class McpHttpServer {
   private app: express.Application;
-  private mcpServer: McpServer;
+  private mcpServer: Server;
+  private sessionManager: DynamicMcpServer;
   private authMiddleware: RequestHandler;
   private transports: { [sessionId: string]: SSEServerTransport } = {};
 
-  constructor(mcpServer: McpServer, authMiddleware: RequestHandler) {
+  constructor(
+    mcpServer: Server,
+    sessionManager: DynamicMcpServer,
+    authMiddleware: RequestHandler,
+  ) {
     this.app = express();
     this.mcpServer = mcpServer;
+    this.sessionManager = sessionManager;
     this.authMiddleware = authMiddleware;
     this.setupRoutes();
   }
@@ -72,14 +79,6 @@ export class McpHttpServer {
         return;
       }
 
-      // Inject the entire query object into sessionInfo
-      const sessionInfo = {
-        token: oauthResult.token,
-        user: oauthResult.user,
-        query: req.query,
-      };
-      logger.debug(`Using OAuth authentication`);
-
       // Create a new SSE transport
       const transport = new SSEServerTransport("/messages", res);
       logger.info(`Transport created: ${transport.sessionId}`);
@@ -87,18 +86,26 @@ export class McpHttpServer {
       // Store the transport
       this.transports[transport.sessionId] = transport;
 
-      // Store auth info in McpServer
-      this.mcpServer.setSessionInfo(transport.sessionId, sessionInfo);
+      // Inject the entire query object into sessionInfo
+      const sessionInfo = {
+        sessionId: transport.sessionId,
+        user: oauthResult.user, // Store the entire user info
+        query: req.query,
+      };
+      logger.debug(`Using OAuth authentication`);
+
+      // Store auth info in session manager
+      this.sessionManager.setSessionInfo(transport.sessionId, sessionInfo);
 
       // Clean up when the connection closes
       res.on("close", () => {
         logger.info(`Transport closed: ${transport.sessionId}`);
         delete this.transports[transport.sessionId];
-        this.mcpServer.removeSessionInfo(transport.sessionId);
+        this.sessionManager.removeSessionInfo(transport.sessionId);
       });
 
       // Connect the transport to the server
-      await this.mcpServer.getServer().connect(transport);
+      await this.mcpServer.connect(transport);
 
       // Add debug logging for messages
       const originalOnMessage = transport.onmessage;

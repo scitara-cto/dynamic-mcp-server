@@ -39,12 +39,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/dynamic-mcp-server.git"
+    "url": "git+https://github.com/scitara-cto/dynamic-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/dynamic-mcp-server/issues"
+    "url": "https://github.com/scitara-cto/dynamic-mcp-server/issues"
   },
-  "homepage": "https://github.com/yourusername/dynamic-mcp-server#readme",
+  "homepage": "https://github.com/scitara-cto/dynamic-mcp-server#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.9.0",
     "@types/axios": "^0.9.36",

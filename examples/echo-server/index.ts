@@ -41,8 +41,6 @@ const echoHandler = {
 const server = new DynamicMcpServer({
   name: "echo-mcp-server",
   version: "1.0.0",
-  port: 3000,
-  host: "localhost",
 });
 
 server.registerHandler(echoHandler);

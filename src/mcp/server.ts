@@ -20,8 +20,6 @@ export interface SessionInfo {
 export interface DynamicMcpServerConfig {
   name: string;
   version: string;
-  port?: number;
-  host?: string;
   capabilities?: {
     tools?: {
       listChanged?: boolean;

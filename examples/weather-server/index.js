@@ -133,8 +133,6 @@ const weatherTool = {
 const server = new DynamicMcpServer({
   name: "weather-mcp-server",
   version: "1.0.0",
-  port: 4001,
-  host: "localhost",
 });
 
 // Register the web service handler

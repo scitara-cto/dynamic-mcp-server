@@ -300,19 +300,33 @@ interface ToolDefinition {
 }
 ```
 
-## Tool Handler Output
+### Types
 
-Tool handler functions should return an object of the form:
+#### HandlerOutput
+
+The `HandlerOutput` interface defines the expected return type for tool handlers:
 
 ```typescript
-{
-  result: any;
-  message?: string;
-  nextSteps?: string[];
+interface HandlerOutput {
+  result: any; // The main output of the handler
+  message?: string; // Optional message providing additional context
+  nextSteps?: string[]; // Optional array of suggested next actions
 }
 ```
 
-**Note:** The framework will automatically wrap this output in the correct MCP protocol format for clients.
+When implementing a handler, you should return an object that matches this interface. For example:
+
+```typescript
+const myHandler = async (args: any, context: any): Promise<HandlerOutput> => {
+  return {
+    result: {
+      /* your handler's result */
+    },
+    message: "Optional message about the operation",
+    nextSteps: ["Optional suggested next steps"],
+  };
+};
+```
 
 ## Tool Access Control
 

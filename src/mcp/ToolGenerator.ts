@@ -13,6 +13,15 @@ import { DynamicMcpServer } from "../mcp/server.js";
 import { ToolDefinition, RuntimeToolDefinition } from "./types.js";
 
 /**
+ * Represents the expected output shape from a tool handler
+ */
+export interface HandlerOutput {
+  result: any;
+  message?: string;
+  nextSteps?: string[];
+}
+
+/**
  * ToolGenerator class responsible for registering all tools with an MCP server
  */
 export class ToolGenerator {
@@ -148,7 +157,7 @@ export class ToolGenerator {
   /**
    * Helper to format tool output for MCP protocol
    */
-  private formatToolOutput(toolOutput: any): any {
+  private formatToolOutput(toolOutput: HandlerOutput): any {
     return {
       content: [
         {

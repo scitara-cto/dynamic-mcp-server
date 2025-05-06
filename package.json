@@ -22,7 +22,7 @@
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:typecheck": "tsc -p tsconfig.test.json --noEmit",
     "typecheck": "tsc --noEmit --skipLibCheck",
-    "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "example:echo": "tsc --noEmit && node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' examples/echo-server/index.ts",
     "example:base": "tsc --noEmit && node --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' examples/base-server/index.ts",
     "example:weather": "node examples/weather-server/index.js"

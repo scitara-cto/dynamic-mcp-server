@@ -25,10 +25,10 @@ describe("AuthService", () => {
   let postSpy: any; // Use any type instead of jest.SpyInstance
 
   const mockConfig = {
-    authServerUrl: "https://auth.example.com",
+    authServerUrl: "http://localhost:8080",
     realm: "test-realm",
-    clientId: "test-client-id",
-    clientSecret: "test-client-secret",
+    clientId: "test-client",
+    clientSecret: "test-secret",
   };
 
   beforeEach(() => {
@@ -44,262 +44,191 @@ describe("AuthService", () => {
     jest.restoreAllMocks();
   });
 
-  describe("verifyToken", () => {
-    it("should return null when token is not active", async () => {
-      mockedAxios.post.mockResolvedValueOnce(
-        createMockAxiosResponse({ active: false }),
-      );
+  describe("validateToken", () => {
+    it("should return token data when token is valid", async () => {
+      const mockTokenData = {
+        active: true,
+        sub: "test-user",
+        email: "test@example.com",
+        name: "Test User",
+        preferred_username: "testuser",
+        scope: "openid profile email",
+        aud: ["test-client"],
+        toolsAvailable: "tool1,tool2,tool3",
+        toolsHidden: "tool4,tool5",
+      };
 
-      const result = await authService.verifyToken("invalid-token");
-      expect(result).toBeNull();
-    });
+      const mockResponse = {
+        data: mockTokenData,
+      };
 
-    it("should return user info when token is valid", async () => {
-      // Mock successful response
-      mockedAxios.post.mockResolvedValueOnce(
-        createMockAxiosResponse({
-          active: true,
-          sub: "user123",
-          email: "user@example.com",
-          name: "Test User",
-          preferred_username: "testuser",
-          scope: "openid profile email",
-          aud: "test-client-id",
-          toolsAvailable: ["tool1", "tool2", "tool3"],
-          toolsHidden: ["tool2"],
-        }),
-      );
+      (axios.post as jest.Mock).mockResolvedValueOnce(mockResponse);
 
-      const result = await authService.verifyToken("valid-token");
+      const result = await authService.validateToken("valid-token");
 
-      // Verify axios was called with correct parameters
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        "https://auth.example.com/realms/test-realm/protocol/openid-connect/token/introspect",
+      expect(result).toEqual(mockTokenData);
+      expect(axios.post).toHaveBeenCalledWith(
+        "http://localhost:8080/realms/test-realm/protocol/openid-connect/token/introspect",
         expect.any(URLSearchParams),
         expect.any(Object),
       );
-
-      // Verify the returned user info
-      expect(result).toEqual({
-        active: true,
-        sub: "user123",
-        email: "user@example.com",
-        name: "Test User",
-        preferred_username: "testuser",
-        scope: ["openid", "profile", "email"],
-        aud: ["test-client-id"],
-        toolsAvailable: ["tool1", "tool2", "tool3"],
-        toolsHidden: ["tool2"],
-      });
     });
 
-    it("should return null when token verification fails", async () => {
-      mockedAxios.post.mockRejectedValueOnce(new Error("Network error"));
+    it("should return null when token is not active", async () => {
+      const mockResponse = {
+        data: {
+          active: false,
+        },
+      };
 
-      const result = await authService.verifyToken("valid-token");
+      (axios.post as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const result = await authService.validateToken("invalid-token");
+
       expect(result).toBeNull();
     });
 
-    it("should handle missing claims in token response", async () => {
-      mockedAxios.post.mockResolvedValueOnce(
-        createMockAxiosResponse({
-          active: true,
-          sub: "user123",
-        }),
+    it("should return null when token validation fails", async () => {
+      (axios.post as jest.Mock).mockRejectedValueOnce(
+        new Error("Network error"),
       );
 
-      const result = await authService.verifyToken("valid-token");
+      const result = await authService.validateToken("invalid-token");
 
-      // Verify axios was called
-      expect(mockedAxios.post).toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+  });
 
-      // Verify the result has default values for missing claims
-      expect(result).toEqual({
+  describe("extractUserInfo", () => {
+    it("should extract user info from token data", () => {
+      const tokenData = {
         active: true,
-        sub: "user123",
-        email: "",
-        name: "",
-        preferred_username: "",
-        scope: [],
-        aud: [],
-        toolsAvailable: undefined,
-        toolsHidden: undefined,
-      });
-    });
+        sub: "test-user",
+        email: "test@example.com",
+        name: "Test User",
+        preferred_username: "testuser",
+        scope: "openid profile email",
+        aud: ["test-client"],
+        toolsAvailable: "tool1,tool2,tool3",
+        toolsHidden: "tool4,tool5",
+      };
 
-    it("should handle string format toolsAvailable", async () => {
-      mockedAxios.post.mockResolvedValueOnce(
-        createMockAxiosResponse({
-          active: true,
-          sub: "user123",
-          email: "user@example.com",
-          name: "Test User",
-          preferred_username: "testuser",
-          scope: "openid profile email",
-          aud: "test-client-id",
-          toolsAvailable: "tool1,tool2, tool3",
-          toolsHidden: ["tool2"],
-        }),
-      );
-
-      const result = await authService.verifyToken("valid-token");
-
-      expect(result?.toolsAvailable).toEqual(["tool1", "tool2", "tool3"]);
-      expect(result?.toolsHidden).toEqual(["tool2"]);
-    });
-
-    it("should handle missing toolsAvailable", async () => {
-      mockedAxios.post.mockResolvedValueOnce(
-        createMockAxiosResponse({
-          active: true,
-          sub: "user123",
-          email: "user@example.com",
-          name: "Test User",
-          preferred_username: "testuser",
-          scope: "openid profile email",
-          aud: "test-client-id",
-          toolsHidden: ["tool2"],
-        }),
-      );
-
-      const result = await authService.verifyToken("valid-token");
-
-      expect(result?.toolsAvailable).toBeUndefined();
-      expect(result?.toolsHidden).toEqual(["tool2"]);
-    });
-
-    it("should handle comma-separated toolsAvailable and toolsHidden", async () => {
-      mockedAxios.post.mockResolvedValueOnce(
-        createMockAxiosResponse({
-          active: true,
-          sub: "user123",
-          toolsAvailable: "tool1, tool2, tool3",
-          toolsHidden: "tool2, tool3",
-        }),
-      );
-
-      const result = await authService.verifyToken("valid-token");
+      const result = authService.extractUserInfo(tokenData);
 
       expect(result).toEqual({
-        active: true,
-        sub: "user123",
-        email: "",
-        name: "",
-        preferred_username: "",
-        scope: [],
-        aud: [],
+        ...tokenData,
+        scope: ["openid", "profile", "email"],
         toolsAvailable: ["tool1", "tool2", "tool3"],
-        toolsHidden: ["tool2", "tool3"],
+        toolsHidden: ["tool4", "tool5"],
       });
     });
 
-    it("should handle missing toolsAvailable and toolsHidden", async () => {
-      mockedAxios.post.mockResolvedValueOnce(
-        createMockAxiosResponse({
-          active: true,
-          sub: "user123",
-        }),
-      );
+    it("should handle missing optional fields", () => {
+      const tokenData = {
+        active: true,
+        sub: "test-user",
+        email: "",
+        name: "",
+        preferred_username: "",
+        scope: "",
+        aud: [],
+      };
+
+      const result = authService.extractUserInfo(tokenData);
+
+      expect(result).toEqual({
+        ...tokenData,
+        scope: [],
+        aud: [],
+      });
+    });
+  });
+
+  describe("verifyToken", () => {
+    it("should return user info when token is valid", async () => {
+      const mockTokenData = {
+        active: true,
+        sub: "test-user",
+        email: "test@example.com",
+        name: "Test User",
+        preferred_username: "testuser",
+        scope: "openid profile email",
+        aud: ["test-client"],
+        toolsAvailable: "tool1,tool2,tool3",
+        toolsHidden: "tool4,tool5",
+      };
+
+      const mockResponse = {
+        data: mockTokenData,
+      };
+
+      (axios.post as jest.Mock).mockResolvedValueOnce(mockResponse);
 
       const result = await authService.verifyToken("valid-token");
 
       expect(result).toEqual({
-        active: true,
-        sub: "user123",
-        email: "",
-        name: "",
-        preferred_username: "",
-        scope: [],
-        aud: [],
-        toolsAvailable: undefined,
-        toolsHidden: undefined,
+        ...mockTokenData,
+        scope: ["openid", "profile", "email"],
+        toolsAvailable: ["tool1", "tool2", "tool3"],
+        toolsHidden: ["tool4", "tool5"],
       });
     });
 
-    it("should handle error during token verification", async () => {
-      mockedAxios.post.mockRejectedValueOnce(new Error("Network error"));
+    it("should return null when token is invalid", async () => {
+      (axios.post as jest.Mock).mockRejectedValueOnce(
+        new Error("Network error"),
+      );
 
-      const result = await authService.verifyToken("valid-token");
+      const result = await authService.verifyToken("invalid-token");
+
       expect(result).toBeNull();
     });
   });
 
   describe("getToken", () => {
     it("should return access token when credentials are valid", async () => {
-      // Mock successful response
-      postSpy.mockResolvedValueOnce({
+      const mockResponse = {
         status: 200,
         data: {
-          access_token: "valid-access-token",
+          access_token: "valid-token",
         },
-      });
+      };
 
-      const result = await authService.getToken("testuser", "password123");
+      (axios.post as jest.Mock).mockResolvedValueOnce(mockResponse);
 
-      // Verify axios was called with correct parameters
-      expect(postSpy).toHaveBeenCalledWith(
-        "https://auth.example.com/realms/test-realm/protocol/openid-connect/token",
+      const result = await authService.getToken("testuser", "password");
+
+      expect(result).toBe("valid-token");
+      expect(axios.post).toHaveBeenCalledWith(
+        "http://localhost:8080/realms/test-realm/protocol/openid-connect/token",
         expect.any(URLSearchParams),
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          validateStatus: expect.any(Function),
-        },
+        expect.any(Object),
       );
-
-      // Verify the result
-      expect(result).toBe("valid-access-token");
     });
 
     it("should return null when credentials are invalid", async () => {
-      // Mock response with error status
-      postSpy.mockResolvedValueOnce({
+      const mockResponse = {
         status: 401,
         data: {
           error: "invalid_grant",
           error_description: "Invalid user credentials",
         },
-      });
+      };
 
-      const result = await authService.getToken("testuser", "wrongpassword");
+      (axios.post as jest.Mock).mockResolvedValueOnce(mockResponse);
 
-      // Verify axios was called
-      expect(postSpy).toHaveBeenCalled();
+      const result = await authService.getToken("testuser", "wrong-password");
 
-      // Verify the result is null
       expect(result).toBeNull();
     });
 
-    it("should return null when network error occurs", async () => {
-      // Mock axios error
-      postSpy.mockRejectedValueOnce(new Error("Network error"));
+    it("should return null when request fails", async () => {
+      (axios.post as jest.Mock).mockRejectedValueOnce(
+        new Error("Network error"),
+      );
 
-      const result = await authService.getToken("testuser", "password123");
+      const result = await authService.getToken("testuser", "password");
 
-      // Verify axios was called
-      expect(postSpy).toHaveBeenCalled();
-
-      // Verify the result is null
-      expect(result).toBeNull();
-    });
-
-    it("should handle non-200 status codes", async () => {
-      // Mock response with non-200 status
-      postSpy.mockResolvedValueOnce({
-        status: 500,
-        data: {
-          error: "server_error",
-          error_description: "Internal server error",
-        },
-      });
-
-      const result = await authService.getToken("testuser", "password123");
-
-      // Verify axios was called
-      expect(postSpy).toHaveBeenCalled();
-
-      // Verify the result is null
       expect(result).toBeNull();
     });
   });

@@ -26,17 +26,53 @@ export class McpHttpServer {
     this.setupRoutes();
   }
 
-  private async validateOAuthToken(
-    req: Request,
-  ): Promise<{ valid: boolean; user: any; token: string }> {
-    const authHeader = req.headers.authorization as string | undefined;
-    const token = authHeader?.split(" ")[1] || "";
-    const user = (req as any).user; // Already validated by middleware
+  /**
+   * Creates a new session with the given transport and request
+   */
+  private createSession(transport: SSEServerTransport, req: Request): void {
+    // Extract user info from token data
+    const tokenData = (req as any).tokenData;
+    const userInfo = {
+      ...tokenData,
+      active: tokenData.active,
+      sub: tokenData.sub || "",
+      email: tokenData.email || "",
+      name: tokenData.name || "",
+      preferred_username: tokenData.preferred_username || "",
+      scope: tokenData.scope ? tokenData.scope.split(" ") : [],
+      aud: tokenData.aud
+        ? Array.isArray(tokenData.aud)
+          ? tokenData.aud
+          : [tokenData.aud]
+        : [],
+      toolsAvailable: tokenData.toolsAvailable
+        ? tokenData.toolsAvailable.split(",").map((t: string) => t.trim())
+        : undefined,
+      toolsHidden: tokenData.toolsHidden
+        ? tokenData.toolsHidden.split(",").map((t: string) => t.trim())
+        : undefined,
+    };
+    logger.debug(`Extracted user info for session: ${userInfo.sub}`);
 
-    return {
-      valid: !!token && !!user, // We know it's valid if we have both since middleware validated
-      user,
-      token,
+    // Create session info with extracted user info and token
+    const sessionInfo = {
+      sessionId: transport.sessionId,
+      user: userInfo,
+      token: (req as any).token, // Store the raw token for potential future use
+      mcpServer: this.sessionManager,
+    };
+
+    // Store auth info in session manager
+    this.sessionManager.setSessionInfo(transport.sessionId, sessionInfo);
+
+    // Store the transport
+    this.transports[transport.sessionId] = transport;
+
+    // Clean up when the connection closes
+    transport.onclose = () => {
+      logger.info(`Transport closed: ${transport.sessionId}`);
+      delete this.transports[transport.sessionId];
+      this.sessionManager.removeSessionInfo(transport.sessionId);
     };
   }
 
@@ -63,47 +99,18 @@ export class McpHttpServer {
       logger.debug(`SSE endpoint called`);
       logger.debug(`Query parameters: ${JSON.stringify(req.query)}`);
       logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
-      logger.debug(`User object: ${JSON.stringify((req as any).user)}`);
 
       // Set headers for SSE
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      // Only use OAuth authentication
-      logger.debug(`Validating OAuth token`);
-      const oauthResult = await this.validateOAuthToken(req);
-      if (!oauthResult.valid) {
-        logger.debug(`OAuth validation failed`);
-        res.status(401).send("Invalid OAuth token");
-        return;
-      }
-
       // Create a new SSE transport
       const transport = new SSEServerTransport("/messages", res);
       logger.info(`Transport created: ${transport.sessionId}`);
 
-      // Store the transport
-      this.transports[transport.sessionId] = transport;
-
-      // Inject the entire query object into sessionInfo
-      const sessionInfo = {
-        sessionId: transport.sessionId,
-        user: oauthResult.user, // Store the entire user info
-        query: req.query,
-        mcpServer: this.sessionManager,
-      };
-      logger.debug(`Using OAuth authentication`);
-
-      // Store auth info in session manager
-      this.sessionManager.setSessionInfo(transport.sessionId, sessionInfo);
-
-      // Clean up when the connection closes
-      res.on("close", () => {
-        logger.info(`Transport closed: ${transport.sessionId}`);
-        delete this.transports[transport.sessionId];
-        this.sessionManager.removeSessionInfo(transport.sessionId);
-      });
+      // Create session with the transport
+      this.createSession(transport, req);
 
       // Connect the transport to the server
       await this.mcpServer.connect(transport);

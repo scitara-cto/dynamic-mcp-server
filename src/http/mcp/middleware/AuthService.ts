@@ -21,6 +21,11 @@ export interface UserInfo {
   [key: string]: any; // Allow any additional claims from the token
 }
 
+interface TokenValidationResult {
+  active: boolean;
+  [key: string]: any; // Allow any additional claims from the token
+}
+
 export class AuthService {
   private config: AuthConfig;
 
@@ -28,9 +33,8 @@ export class AuthService {
     this.config = config;
   }
 
-  async verifyToken(token: string): Promise<UserInfo | null> {
+  async validateToken(token: string): Promise<TokenValidationResult | null> {
     try {
-      // Use token introspection instead of userinfo endpoint
       const response = await axios.post(
         `${this.config.authServerUrl}/realms/${this.config.realm}/protocol/openid-connect/token/introspect`,
         new URLSearchParams({
@@ -45,45 +49,47 @@ export class AuthService {
         },
       );
 
-      // Check if the token is active
       if (!response.data.active) {
         logger.warn("Token is not active");
         return null;
       }
 
-      // Create a UserInfo object with default values for missing claims
-      const userInfo: UserInfo = {
-        ...response.data,
-        active: response.data.active,
-        sub: response.data.sub || "",
-        email: response.data.email || "",
-        name: response.data.name || "",
-        preferred_username: response.data.preferred_username || "",
-        scope: response.data.scope ? response.data.scope.split(" ") : [],
-        aud: response.data.aud
-          ? Array.isArray(response.data.aud)
-            ? response.data.aud
-            : [response.data.aud]
-          : [],
-        toolsAvailable: response.data.toolsAvailable
-          ? Array.isArray(response.data.toolsAvailable)
-            ? response.data.toolsAvailable
-            : response.data.toolsAvailable
-                .split(",")
-                .map((t: string) => t.trim())
-          : undefined,
-        toolsHidden: response.data.toolsHidden
-          ? Array.isArray(response.data.toolsHidden)
-            ? response.data.toolsHidden
-            : response.data.toolsHidden.split(",").map((t: string) => t.trim())
-          : undefined,
-      };
-
-      return userInfo;
+      return response.data;
     } catch (error) {
-      logger.error("Error verifying token:", error);
+      logger.error("Error validating token:", error);
       return null;
     }
+  }
+
+  extractUserInfo(tokenData: TokenValidationResult): UserInfo {
+    return {
+      ...tokenData,
+      active: tokenData.active,
+      sub: tokenData.sub || "",
+      email: tokenData.email || "",
+      name: tokenData.name || "",
+      preferred_username: tokenData.preferred_username || "",
+      scope: tokenData.scope ? tokenData.scope.split(" ") : [],
+      aud: tokenData.aud
+        ? Array.isArray(tokenData.aud)
+          ? tokenData.aud
+          : [tokenData.aud]
+        : [],
+      toolsAvailable: tokenData.toolsAvailable
+        ? tokenData.toolsAvailable.split(",").map((t: string) => t.trim())
+        : undefined,
+      toolsHidden: tokenData.toolsHidden
+        ? tokenData.toolsHidden.split(",").map((t: string) => t.trim())
+        : undefined,
+    };
+  }
+
+  async verifyToken(token: string): Promise<UserInfo | null> {
+    const tokenData = await this.validateToken(token);
+    if (!tokenData) {
+      return null;
+    }
+    return this.extractUserInfo(tokenData);
   }
 
   async getToken(username: string, password: string): Promise<string | null> {

@@ -27,16 +27,19 @@ export function createAuthMiddleware(authService: AuthService): RequestHandler {
         return;
       }
 
-      // Verify token with DLX Auth service
-      const userInfo = await authService.verifyToken(token);
-      if (!userInfo) {
+      // Validate the token
+      const tokenData = await authService.validateToken(token);
+      if (!tokenData) {
         logger.warn("Authentication failed: Invalid token");
         res.status(401).json({ error: "Invalid token" });
         return;
       }
-      // Add user info to request
-      (req as any).user = userInfo;
-      logger.debug(`User authenticated: ${userInfo.sub}`);
+
+      // Store token and token data in request for later use
+      (req as any).token = token;
+      (req as any).tokenData = tokenData;
+
+      logger.debug(`Token validated for request`);
       next();
     } catch (error: unknown) {
       logger.error("Authentication error:", error);

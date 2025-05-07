@@ -13,7 +13,7 @@ import { ToolManagementHandler } from "../toolManagementHandler/index.js";
 export interface SessionInfo {
   sessionId: string;
   user: UserInfo;
-  query?: Record<string, any>;
+  token: string;
   mcpServer: DynamicMcpServer;
 }
 

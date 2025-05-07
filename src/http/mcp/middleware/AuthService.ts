@@ -53,6 +53,7 @@ export class AuthService {
 
       // Create a UserInfo object with default values for missing claims
       const userInfo: UserInfo = {
+        ...response.data,
         active: response.data.active,
         sub: response.data.sub || "",
         email: response.data.email || "",
@@ -76,7 +77,6 @@ export class AuthService {
             ? response.data.toolsHidden
             : response.data.toolsHidden.split(",").map((t: string) => t.trim())
           : undefined,
-        ...response.data,
       };
 
       return userInfo;

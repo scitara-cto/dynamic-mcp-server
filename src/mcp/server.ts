@@ -14,7 +14,7 @@ export interface SessionInfo {
   sessionId: string;
   user: UserInfo;
   query?: Record<string, any>;
-  mcpServer?: DynamicMcpServer;
+  mcpServer: DynamicMcpServer;
 }
 
 export interface DynamicMcpServerConfig {

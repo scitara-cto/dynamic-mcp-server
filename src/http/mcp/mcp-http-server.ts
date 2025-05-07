@@ -91,6 +91,7 @@ export class McpHttpServer {
         sessionId: transport.sessionId,
         user: oauthResult.user, // Store the entire user info
         query: req.query,
+        mcpServer: this.sessionManager,
       };
       logger.debug(`Using OAuth authentication`);
 

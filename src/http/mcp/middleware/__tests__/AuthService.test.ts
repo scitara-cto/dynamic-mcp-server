@@ -54,8 +54,6 @@ describe("AuthService", () => {
         preferred_username: "testuser",
         scope: "openid profile email",
         aud: ["test-client"],
-        toolsAvailable: "tool1,tool2,tool3",
-        toolsHidden: "tool4,tool5",
       };
 
       const mockResponse = {
@@ -109,8 +107,6 @@ describe("AuthService", () => {
         preferred_username: "testuser",
         scope: "openid profile email",
         aud: ["test-client"],
-        toolsAvailable: "tool1,tool2,tool3",
-        toolsHidden: "tool4,tool5",
       };
 
       const result = authService.extractUserInfo(tokenData);
@@ -118,8 +114,6 @@ describe("AuthService", () => {
       expect(result).toEqual({
         ...tokenData,
         scope: ["openid", "profile", "email"],
-        toolsAvailable: ["tool1", "tool2", "tool3"],
-        toolsHidden: ["tool4", "tool5"],
       });
     });
 
@@ -154,8 +148,6 @@ describe("AuthService", () => {
         preferred_username: "testuser",
         scope: "openid profile email",
         aud: ["test-client"],
-        toolsAvailable: "tool1,tool2,tool3",
-        toolsHidden: "tool4,tool5",
       };
 
       const mockResponse = {
@@ -169,8 +161,6 @@ describe("AuthService", () => {
       expect(result).toEqual({
         ...mockTokenData,
         scope: ["openid", "profile", "email"],
-        toolsAvailable: ["tool1", "tool2", "tool3"],
-        toolsHidden: ["tool4", "tool5"],
       });
     });
 

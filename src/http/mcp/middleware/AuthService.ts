@@ -16,8 +16,6 @@ export interface UserInfo {
   preferred_username: string;
   scope: string[];
   aud: string[];
-  toolsAvailable?: string[];
-  toolsHidden?: string[];
   [key: string]: any; // Allow any additional claims from the token
 }
 
@@ -75,12 +73,6 @@ export class AuthService {
           ? tokenData.aud
           : [tokenData.aud]
         : [],
-      toolsAvailable: tokenData.toolsAvailable
-        ? tokenData.toolsAvailable.split(",").map((t: string) => t.trim())
-        : undefined,
-      toolsHidden: tokenData.toolsHidden
-        ? tokenData.toolsHidden.split(",").map((t: string) => t.trim())
-        : undefined,
     };
   }
 

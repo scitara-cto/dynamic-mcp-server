@@ -5,10 +5,22 @@ import {
   SessionInfo,
 } from "./mcp/server.js";
 import { ToolDefinition } from "./mcp/types.js";
-import { HandlerOutput } from "./mcp/ToolGenerator.js";
+import { HandlerOutput } from "./mcp/toolGenerator/ToolGenerator.js";
 import logger from "./utils/logger.js";
 
-export { DynamicMcpServer, logger };
+function addAuthHttpRoute(
+  serverInstance: DynamicMcpServer,
+  method: "get" | "post",
+  path: string,
+  handler: import("express").RequestHandler,
+) {
+  const authServer = serverInstance.getAuthHttpServer();
+  if (!authServer) throw new Error("Auth server not initialized");
+  authServer.addHttpRoute(method, path, handler);
+}
+
+export { DynamicMcpServer, addAuthHttpRoute, logger };
+
 export type {
   Handler,
   DynamicMcpServerConfig,

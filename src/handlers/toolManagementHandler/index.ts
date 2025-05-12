@@ -1,7 +1,7 @@
-import logger from "../utils/logger.js";
-import { ToolOutput } from "../mcp/types.js";
+import logger from "../../utils/logger.js";
+import { ToolOutput } from "../../mcp/types.js";
 import { toolManagementTools } from "./tools.js";
-import { Handler } from "../mcp/server.js";
+import { Handler } from "../../mcp/server.js";
 
 export class ToolManagementHandler implements Handler {
   name = "tool-management";
@@ -20,6 +20,7 @@ export class ToolManagementHandler implements Handler {
     this.actionHandlers = {
       delete: this.handleDeleteToolAction.bind(this),
       list: this.handleListToolsAction.bind(this),
+      add: this.handleAddToolAction.bind(this),
     };
   }
 
@@ -60,6 +61,7 @@ export class ToolManagementHandler implements Handler {
       throw new Error(`Tool with name '${toolName}' not found`);
     }
     await toolGenerator.removeTool(toolName);
+    await mcpServer.notifyToolListChanged();
     return {
       result: { success: true, name: toolName },
       message: `Tool '${toolName}' deleted successfully`,
@@ -92,6 +94,36 @@ export class ToolManagementHandler implements Handler {
       message: `Found ${filtered.length} tools${
         nameContains ? ` matching \"${nameContains}\"` : ""
       }`,
+    };
+  }
+
+  private async handleAddToolAction(
+    args: Record<string, any>,
+    context: any,
+    handlerConfig: { action: string; tool?: string[] },
+  ): Promise<ToolOutput> {
+    const mcpServer = context.mcpServer;
+    if (!mcpServer) {
+      throw new Error("McpServer not available in context");
+    }
+    const toolGenerator = mcpServer.toolGenerator;
+    const user = context.user;
+    if (!user || !user.email) {
+      throw new Error("User context with email is required to add a tool");
+    }
+    const toolDef = args.toolDefinition;
+    if (!toolDef || typeof toolDef !== "object" || !toolDef.name) {
+      throw new Error("A valid toolDefinition object with a name is required");
+    }
+    // Persist the tool
+    await toolGenerator.addTool(toolDef, user.email);
+    // Register the tool in memory for this session
+    await toolGenerator.publishTool(toolDef);
+    // Notify all sessions
+    await mcpServer.notifyToolListChanged();
+    return {
+      result: { success: true, name: toolDef.name },
+      message: `Tool '${toolDef.name}' added successfully`,
     };
   }
 }

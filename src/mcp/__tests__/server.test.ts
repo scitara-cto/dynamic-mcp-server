@@ -1,6 +1,6 @@
 import { jest, expect } from "@jest/globals";
 import { DynamicMcpServer } from "../server.js";
-import { ToolGenerator } from "../ToolGenerator.js";
+import { ToolGenerator } from "../toolGenerator/ToolGenerator.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { config } from "../../config/index.js";
 import { ToolDefinition } from "../types.js";

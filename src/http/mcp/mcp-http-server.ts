@@ -45,12 +45,6 @@ export class McpHttpServer {
           ? tokenData.aud
           : [tokenData.aud]
         : [],
-      toolsAvailable: tokenData.toolsAvailable
-        ? tokenData.toolsAvailable.split(",").map((t: string) => t.trim())
-        : undefined,
-      toolsHidden: tokenData.toolsHidden
-        ? tokenData.toolsHidden.split(",").map((t: string) => t.trim())
-        : undefined,
     };
     logger.debug(`Extracted user info for session: ${userInfo.sub}`);
 
@@ -185,5 +179,9 @@ export class McpHttpServer {
         );
       }
     }
+  }
+
+  public getApp(): express.Application {
+    return this.app;
   }
 }

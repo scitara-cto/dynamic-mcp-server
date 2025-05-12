@@ -1,5 +1,5 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import logger from "../utils/logger.js";
+import logger from "../../utils/logger.js";
 import {
   ListToolsRequestSchema,
   CallToolRequestSchema,
@@ -9,8 +9,13 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import { z } from "zod";
-import { DynamicMcpServer } from "../mcp/server.js";
-import { ToolDefinition, RuntimeToolDefinition } from "./types.js";
+import { DynamicMcpServer } from "../server.js";
+import { ToolDefinition, RuntimeToolDefinition } from "../types.js";
+import { UserRepository } from "../../db/repositories/UserRepository.js";
+import { SessionToolManager } from "./SessionToolManager.js";
+import { ToolAuthorization } from "./ToolAuthorization.js";
+import { ToolRegistry } from "./ToolRegistry.js";
+import { ToolRepository } from "../../db/repositories/ToolRepository.js";
 
 /**
  * Represents the expected output shape from a tool handler
@@ -27,35 +32,25 @@ export interface HandlerOutput {
 export class ToolGenerator {
   private server: Server;
   private mcpServer: DynamicMcpServer;
-  private handlerFactory: Record<string, (config: any) => any> = {};
-  private tools: Map<string, RuntimeToolDefinition> = new Map();
-  private sessionTools: Map<string, Set<string>> = new Map();
+  private userRepository: UserRepository;
+  private sessionToolManager: SessionToolManager;
+  private toolAuthorization: ToolAuthorization;
+  private toolRegistry: ToolRegistry;
   private initialized: boolean = false;
 
-  constructor(server: Server, mcpServer: DynamicMcpServer) {
+  constructor(
+    server: Server,
+    mcpServer: DynamicMcpServer,
+    userRepository: UserRepository,
+  ) {
     this.server = server;
     this.mcpServer = mcpServer;
-  }
-
-  /**
-   * Update available tools for a session based on toolsAvailable and toolsHidden attributes
-   */
-  private updateSessionTools(sessionId: string, context: any): void {
-    const toolsAvailable = context.user?.toolsAvailable;
-    const toolsHidden = context.user?.toolsHidden || [];
-
-    if (!toolsAvailable) {
-      // If no toolsAvailable specified, allow all tools except hidden ones
-      const allTools = new Set<string>(this.tools.keys());
-      toolsHidden.forEach((tool: string) => allTools.delete(tool));
-      this.sessionTools.set(sessionId, allTools);
-      return;
-    }
-
-    // Start with available tools and remove any hidden ones
-    const allowedTools = new Set<string>(toolsAvailable);
-    toolsHidden.forEach((tool: string) => allowedTools.delete(tool));
-    this.sessionTools.set(sessionId, allowedTools);
+    this.userRepository = userRepository;
+    this.toolRegistry = new ToolRegistry();
+    this.sessionToolManager = new SessionToolManager(() =>
+      this.toolRegistry.getRegisteredToolNames(),
+    );
+    this.toolAuthorization = new ToolAuthorization(this.userRepository);
   }
 
   /**
@@ -65,7 +60,7 @@ export class ToolGenerator {
     type: string,
     factory: (config: any) => any,
   ): void {
-    this.handlerFactory[type] = factory;
+    this.toolRegistry.registerHandlerFactory(type, factory);
     logger.info(`Registered handler factory for type: ${type}`);
   }
 
@@ -86,12 +81,13 @@ export class ToolGenerator {
           const sessionId = extra.sessionId!; // Safe because getSessionInfo would have thrown if undefined
 
           // Update session tools if not already set
-          if (!this.sessionTools.has(sessionId)) {
-            this.updateSessionTools(sessionId, context);
+          if (!this.sessionToolManager.getAllowedTools(sessionId)) {
+            this.sessionToolManager.updateSessionTools(sessionId, context);
           }
 
-          const allowedTools = this.sessionTools.get(sessionId)!;
-          const tools = Array.from(this.tools.values())
+          const allowedTools =
+            this.sessionToolManager.getAllowedTools(sessionId)!;
+          const tools = Array.from(this.toolRegistry.getAllTools())
             .filter((tool) => allowedTools.has(tool.name))
             .map(({ handler, ...tool }) => tool);
 
@@ -113,22 +109,33 @@ export class ToolGenerator {
           const sessionId = extra.sessionId!; // Safe because getSessionInfo would have thrown if undefined
 
           // Update session tools if not already set
-          if (!this.sessionTools.has(sessionId)) {
-            this.updateSessionTools(sessionId, context);
+          if (!this.sessionToolManager.getAllowedTools(sessionId)) {
+            this.sessionToolManager.updateSessionTools(sessionId, context);
           }
 
-          const allowedTools = this.sessionTools.get(sessionId)!;
+          // --- User authorization check ---
+          const userEmail = context.user?.email;
+          const authResult = await this.toolAuthorization.authorizeToolCall(
+            userEmail,
+            name,
+          );
+          if (!authResult.authorized) {
+            return this.createErrorResponse(authResult.error);
+          }
+
+          const allowedTools =
+            this.sessionToolManager.getAllowedTools(sessionId)!;
           if (!allowedTools.has(name)) {
             logger.error(`Tool ${name} not allowed for session ${sessionId}`);
-            throw new Error(
+            return this.createErrorResponse(
               `Tool ${name} not allowed for session ${sessionId}`,
             );
           }
 
-          const tool = this.tools.get(name);
+          const tool = this.toolRegistry.getTool(name);
           if (!tool) {
             logger.error(`Tool ${name} not found`);
-            throw new Error(`Tool ${name} not found`);
+            return this.createErrorResponse(`Tool ${name} not found`);
           }
 
           try {
@@ -141,7 +148,7 @@ export class ToolGenerator {
             return response;
           } catch (error) {
             logger.error(`Tool ${name} execution failed`, { error });
-            throw error;
+            return this.createErrorResponse(error);
           }
         },
       );
@@ -190,22 +197,21 @@ export class ToolGenerator {
   }
 
   /**
-   * Registers a tool with the MCP server
+   * Publishes a tool with the MCP server if it does not already exist
+   * If a tool with the same name exists, publishing is skipped.
    */
-  public async registerTool({
-    name,
-    description,
-    inputSchema,
-    annotations,
-    handler: { type, config },
-  }: ToolDefinition): Promise<void> {
-    // Use the handlerFactory to get a wrapped handler for this tool
-    const factory = this.handlerFactory[type];
-    if (!factory) {
-      throw new Error(`Unknown handler type: ${type}`);
+  public async publishTool(toolDef: ToolDefinition): Promise<void> {
+    if (this.toolRegistry.getTool(toolDef.name)) {
+      // Tool already exists, do not register again
+      logger.info(`Tool '${toolDef.name}' already registered, skipping.`);
+      return;
     }
-
-    const handler = factory(config);
+    // Wrap the handler to ensure output is always formatted for MCP protocol
+    const factory = this.toolRegistry["handlerFactory"][toolDef.handler.type];
+    if (!factory) {
+      throw new Error(`Unknown handler type: ${toolDef.handler.type}`);
+    }
+    const handler = factory(toolDef.handler.config);
     const wrappedHandler = async (args: any, context: any) => {
       try {
         const result = await handler(args, context);
@@ -214,47 +220,45 @@ export class ToolGenerator {
         return this.createErrorResponse(error);
       }
     };
-    this.tools.set(name, {
-      name,
-      description,
-      inputSchema,
-      annotations,
-      handler: wrappedHandler,
+    // Register the tool with the wrapped handler
+    await this.toolRegistry.registerTool({
+      ...toolDef,
+      handler: {
+        ...toolDef.handler,
+        // The registry expects a handler function, not a factory config, so we override below
+      },
     });
-
-    // Update all sessions that don't have toolsAvailable restriction
-    for (const [sessionId, allowedTools] of this.sessionTools.entries()) {
-      if (allowedTools.size === this.tools.size - 1) {
-        // -1 because we haven't added the new tool yet
-        allowedTools.add(name);
-      }
+    // Overwrite the handler in the registry with the wrapped handler
+    const regTool = this.toolRegistry.getTool(toolDef.name);
+    if (regTool) {
+      regTool.handler = wrappedHandler;
     }
-
-    logger.info(`Registered tool: ${name}`);
+    logger.info(`Registered tool: ${toolDef.name}`);
   }
 
   /**
    * Get all registered tool names
    */
   public getRegisteredToolNames(): string[] {
-    return Array.from(this.tools.keys());
+    return this.toolRegistry.getRegisteredToolNames();
   }
 
   /**
    * Get a tool by name
    */
   public getTool(name: string): RuntimeToolDefinition | undefined {
-    return this.tools.get(name);
+    return this.toolRegistry.getTool(name);
   }
 
   /**
    * Remove a tool by name
    */
   public async removeTool(name: string): Promise<boolean> {
-    const result = this.tools.delete(name);
-    if (result) {
-      // Remove tool from all session tool sets
-      for (const allowedTools of this.sessionTools.values()) {
+    const result = await this.toolRegistry.removeTool(name);
+    // Remove tool from all session tool sets
+    for (const sessionId of this.sessionToolManager["sessionTools"].keys()) {
+      const allowedTools = this.sessionToolManager.getAllowedTools(sessionId);
+      if (allowedTools) {
         allowedTools.delete(name);
       }
     }
@@ -265,6 +269,17 @@ export class ToolGenerator {
    * Clean up session tools when a session ends
    */
   public cleanupSession(sessionId: string): void {
-    this.sessionTools.delete(sessionId);
+    this.sessionToolManager.cleanupSession(sessionId);
+  }
+
+  /**
+   * Persist a tool definition to the tools collection
+   */
+  public async addTool(
+    toolDef: ToolDefinition,
+    creator: string,
+  ): Promise<void> {
+    const toolRepo = new ToolRepository();
+    await toolRepo.upsertMany([{ ...toolDef, creator }]);
   }
 }

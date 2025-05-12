@@ -9,6 +9,7 @@ import axios from "axios";
 
 export class AuthHttpServer {
   private app: express.Application;
+  private registeredRoutes: Set<string> = new Set();
 
   constructor() {
     this.app = express();
@@ -85,5 +86,25 @@ export class AuthHttpServer {
     } catch (error) {
       logger.error(`Failed to start Auth server: ${error}`);
     }
+  }
+
+  /**
+   * Add a new HTTP route to the Auth server, ensuring no overwrite of existing routes.
+   * Throws an error if the route already exists for the given method.
+   */
+  public addHttpRoute(
+    method: "get" | "post" | "put" | "delete" | "patch",
+    path: string,
+    handler: express.RequestHandler,
+  ): void {
+    const routeKey = `${method.toLowerCase()} ${path}`;
+    if (this.registeredRoutes.has(routeKey)) {
+      throw new Error(
+        `Route already exists: [${method.toUpperCase()}] ${path}`,
+      );
+    }
+    (this.app as any)[method](path, handler);
+    this.registeredRoutes.add(routeKey);
+    logger.info(`Added custom route: [${method.toUpperCase()}] ${path}`);
   }
 }

@@ -141,7 +141,7 @@ const server = new DynamicMcpServer({
 server.registerHandler(webServiceHandler);
 
 // No need to manually register the weather tool; it's handled by the handler registration.
-server.toolGenerator.registerTool(weatherTool);
+server.toolGenerator.addTool(weatherTool, "system");
 
 // Check if OPENWEATHER_API_KEY is set
 if (!process.env.OPENWEATHER_API_KEY) {

@@ -251,8 +251,6 @@ describe("createAuthMiddleware", () => {
       preferred_username: "testuser",
       scope: "openid profile email",
       aud: ["test-client"],
-      toolsAvailable: "tool1,tool2,tool3",
-      toolsHidden: "tool4,tool5",
     };
 
     mockAuthService.validateToken.mockResolvedValue(mockTokenData);

@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "dlx": {
+    "weather": {
       "command": "npx",
       "args": [
         "mcp-remote",

@@ -1,5 +1,5 @@
-import type { ToolDefinition } from "../index.js";
-
+import type { ToolDefinition } from "../../mcp/types.js";
+1
 export const toolManagementTools: ToolDefinition[] = [
   {
     name: "list-tools",

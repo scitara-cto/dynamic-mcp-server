@@ -1,6 +1,6 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import logger from "../utils/logger.js";
-import { ToolGenerator } from "./ToolGenerator.js";
+import { ToolGenerator } from "./toolGenerator/ToolGenerator.js";
 import { ToolDefinition } from "./types.js";
 import { EventEmitter } from "events";
 import { AuthService, UserInfo } from "../http/mcp/middleware/AuthService.js";
@@ -8,7 +8,13 @@ import { McpHttpServer } from "../http/mcp/mcp-http-server.js";
 import { AuthHttpServer } from "../http/auth/auth-http-server.js";
 import { createAuthMiddleware } from "../http/mcp/middleware/auth.js";
 import { config } from "../config/index.js";
-import { ToolManagementHandler } from "../toolManagementHandler/index.js";
+import { ToolManagementHandler } from "../handlers/toolManagementHandler/index.js";
+import { UserManagementHandler } from "../handlers/userManagementHandler/index.js";
+import { connectToDatabase } from "../db/connection.js";
+import { UserRepository } from "../db/repositories/UserRepository.js";
+import { ToolRepository } from "../db/repositories/ToolRepository.js";
+import { toolManagementTools } from "../handlers/toolManagementHandler/tools.js";
+import { userManagementTools } from "../handlers/userManagementHandler/tools.js";
 
 export interface SessionInfo {
   sessionId: string;
@@ -51,6 +57,7 @@ export class DynamicMcpServer extends EventEmitter {
   private handlers: Handler[] = [];
   private mcpHttpServer?: McpHttpServer;
   private authHttpServer?: AuthHttpServer;
+  private userRepository: UserRepository;
 
   constructor(config: DynamicMcpServerConfig) {
     super();
@@ -63,11 +70,20 @@ export class DynamicMcpServer extends EventEmitter {
         },
       },
     });
-    this.toolGenerator = new ToolGenerator(this.server, this);
+    this.userRepository = new UserRepository();
+    this.toolGenerator = new ToolGenerator(
+      this.server,
+      this,
+      this.userRepository,
+    );
 
     // Register the tool management handler and its factory
     const toolManagementHandler = new ToolManagementHandler();
     this.registerHandler(toolManagementHandler);
+
+    // Register the user management handler and its factory
+    const userManagementHandler = new UserManagementHandler();
+    this.registerHandler(userManagementHandler);
 
     // Register any additional handlers
     if (config.handlers) {
@@ -89,20 +105,47 @@ export class DynamicMcpServer extends EventEmitter {
       (config: any) => async (args: Record<string, any>, context: any) =>
         handler.handler(args, context, config),
     );
-    // Register all tools for this handler
-    if (handler.tools && Array.isArray(handler.tools)) {
-      handler.tools.forEach((tool) => {
-        this.toolGenerator.registerTool(tool);
-      });
-    }
   }
 
   /**
    * Set auth info for a session
    */
-  public setSessionInfo(sessionId: string, sessionInfo: SessionInfo): void {
+  public async setSessionInfo(
+    sessionId: string,
+    sessionInfo: SessionInfo,
+  ): Promise<void> {
     sessionInfo.mcpServer = this;
     this.sessionInfo.set(sessionId, sessionInfo);
+    // Load user tools for this session
+    if (sessionInfo.user?.email) {
+      await this.loadUserToolsForSession(sessionId, sessionInfo.user.email);
+    }
+  }
+
+  /**
+   * Load tools for a user and register them for the session
+   */
+  public async loadUserToolsForSession(
+    sessionId: string,
+    userEmail: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findByEmail(userEmail);
+    if (!user) {
+      logger.warn(`User not found for session ${sessionId}: ${userEmail}`);
+      return;
+    }
+    const allowed = user.allowedTools || [];
+    const shared = (user.sharedTools || []).map((t: any) => t.toolId);
+    const toolNames = Array.from(new Set([...allowed, ...shared]));
+    if (!toolNames.length) return;
+    const toolRepo = new ToolRepository();
+    const tools = await toolRepo.findByNames(toolNames);
+    for (const tool of tools) {
+      await this.toolGenerator.publishTool(tool as any); // ToolDefinition compatible
+    }
+    logger.info(
+      `Loaded ${tools.length} tools for session ${sessionId} (${userEmail})`,
+    );
   }
 
   /**
@@ -137,14 +180,7 @@ export class DynamicMcpServer extends EventEmitter {
    */
   async initialize(): Promise<void> {
     try {
-      // Register tools from all handlers
-      for (const handler of this.handlers) {
-        if (handler.tools && Array.isArray(handler.tools)) {
-          for (const tool of handler.tools) {
-            await this.toolGenerator.registerTool(tool);
-          }
-        }
-      }
+      // Remove global tool registration from here
       // Ensure the tools/list handler is registered
       await this.toolGenerator.initialize();
     } catch (error) {
@@ -154,10 +190,95 @@ export class DynamicMcpServer extends EventEmitter {
   }
 
   /**
+   * Synchronize built-in tools: upsert current, remove stale, and return removed tool names
+   */
+  private async syncBuiltinTools(): Promise<string[]> {
+    const toolRepo = new ToolRepository();
+    const builtinTools = [...toolManagementTools, ...userManagementTools].map(
+      (tool) => ({
+        ...tool,
+        creator: "system",
+      }),
+    );
+    await toolRepo.upsertMany(builtinTools);
+    logger.info("Bootstrapped built-in tools into the tools collection");
+
+    // Remove stale built-in tools
+    const builtinToolNames = new Set(builtinTools.map((t) => t.name));
+    const dbBuiltinTools = await toolRepo.list({});
+    const removedToolNames: string[] = [];
+    for (const tool of dbBuiltinTools) {
+      if (tool.creator === "system" && !builtinToolNames.has(tool.name)) {
+        await toolRepo.deleteTool(tool.name);
+        removedToolNames.push(tool.name);
+        logger.info(`Removed stale built-in tool from DB: ${tool.name}`);
+      }
+    }
+    return removedToolNames;
+  }
+
+  /**
+   * Remove references to removed tools from all users' allowedTools and sharedTools
+   */
+  private async cleanupUserToolReferences(
+    removedToolNames: string[],
+  ): Promise<void> {
+    if (!removedToolNames.length) return;
+    const userRepo = new UserRepository();
+    const users = await userRepo.list({ skip: 0, limit: 10000 }); // adjust limit as needed
+    for (const user of users) {
+      let changed = false;
+      if (user.allowedTools) {
+        const filtered = user.allowedTools.filter(
+          (name) => !removedToolNames.includes(name),
+        );
+        if (filtered.length !== user.allowedTools.length) {
+          user.allowedTools = filtered;
+          changed = true;
+        }
+      }
+      if (user.sharedTools) {
+        const filtered = user.sharedTools.filter(
+          (st) => !removedToolNames.includes(st.toolId),
+        );
+        if (filtered.length !== user.sharedTools.length) {
+          user.sharedTools = filtered;
+          changed = true;
+        }
+      }
+      if (changed) {
+        await userRepo.updateUser(user.email, {
+          allowedTools: user.allowedTools,
+          sharedTools: user.sharedTools,
+        });
+        logger.info(`Cleaned up stale tool references for user: ${user.email}`);
+      }
+    }
+  }
+
+  /**
    * Start the MCP server with HTTP and Auth servers
    */
   async start(): Promise<void> {
     try {
+      // Connect to MongoDB
+      await connectToDatabase();
+
+      // Admin user bootstrapping
+      const adminEmail = process.env.MCP_ADMIN_EMAIL;
+      if (!adminEmail) {
+        throw new Error(
+          "[CONFIG ERROR] Admin user bootstrapping failed: MCP_ADMIN_EMAIL environment variable is not set.\n" +
+            "Please set MCP_ADMIN_EMAIL in your environment or .env file.\n" +
+            "Example: MCP_ADMIN_EMAIL=admin@example.com\n" +
+            "The server cannot start without an admin user.",
+        );
+      }
+
+      // --- Tool sync and user tool cleanup ---
+      const removedToolNames = await this.syncBuiltinTools();
+      await this.cleanupUserToolReferences(removedToolNames);
+
       // Initialize Auth service
       const authService = new AuthService({
         authServerUrl: config.auth.authServerUrl,
@@ -219,5 +340,24 @@ export class DynamicMcpServer extends EventEmitter {
 
   public getServer(): Server {
     return this.server;
+  }
+
+  /**
+   * Notify all sessions, or only sessions for a given user email, of tool list changes
+   */
+  public async notifyToolListChanged(userEmail?: string): Promise<void> {
+    if (userEmail) {
+      for (const [sessionId, sessionInfo] of this.sessionInfo.entries()) {
+        if (sessionInfo.user?.email === userEmail) {
+          this.emit("toolsChanged", sessionId);
+        }
+      }
+    } else {
+      this.emit("toolsChanged");
+    }
+  }
+
+  public getAuthHttpServer(): AuthHttpServer | undefined {
+    return this.authHttpServer;
   }
 }

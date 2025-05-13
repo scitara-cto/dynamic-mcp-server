@@ -1,5 +1,12 @@
 import mongoose from "mongoose";
 
+export interface SharedTool {
+  toolId: string;
+  sharedBy: string;
+  accessLevel: "read" | "write";
+  sharedAt: Date;
+}
+
 export interface IUser {
   email: string; // Primary identifier
   name?: string;
@@ -7,12 +14,13 @@ export interface IUser {
   updatedAt: Date;
   roles?: string[];
   allowedTools?: string[];
-  sharedTools: {
-    toolId: string;
-    sharedBy: string;
-    accessLevel: "read" | "write";
-    sharedAt: Date;
-  }[];
+  sharedTools: SharedTool[];
+  applicationAuthentication?: {
+    [appKey: string]: any;
+  };
+  applicationAuthorization?: {
+    [appKey: string]: any;
+  };
 }
 
 const userSchema = new mongoose.Schema<IUser>(
@@ -29,6 +37,14 @@ const userSchema = new mongoose.Schema<IUser>(
         sharedAt: { type: Date, default: Date.now },
       },
     ],
+    applicationAuthentication: {
+      type: mongoose.Schema.Types.Mixed,
+      default: undefined,
+    },
+    applicationAuthorization: {
+      type: mongoose.Schema.Types.Mixed,
+      default: undefined,
+    },
   },
   { timestamps: true },
 );

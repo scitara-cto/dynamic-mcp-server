@@ -21,6 +21,8 @@ function addAuthHttpRoute(
 
 export { DynamicMcpServer, addAuthHttpRoute, logger };
 export { UserRepository } from "./db/repositories/UserRepository.js";
+export type { IUser } from "./db/models/User.js";
+export type { ITool } from "./db/models/Tool.js";
 
 export type {
   Handler,

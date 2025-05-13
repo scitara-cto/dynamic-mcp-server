@@ -1,7 +1,7 @@
 import express, { Request, Response, RequestHandler } from "express";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { config } from "../../config/index.js";
-import logger from "../../utils/logger.js";
+import { config as realConfig } from "../../config/index.js";
+import realLogger from "../../utils/logger.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { DynamicMcpServer } from "../../mcp/server.js";
 import { handleClientRegistration } from "./client-registration.js";
@@ -13,16 +13,22 @@ export class McpHttpServer {
   private sessionManager: DynamicMcpServer;
   private authMiddleware: RequestHandler;
   private transports: { [sessionId: string]: SSEServerTransport } = {};
+  private config: typeof realConfig;
+  private logger: typeof realLogger;
 
   constructor(
     mcpServer: Server,
     sessionManager: DynamicMcpServer,
     authMiddleware: RequestHandler,
+    config = realConfig,
+    logger = realLogger,
   ) {
     this.app = express();
     this.mcpServer = mcpServer;
     this.sessionManager = sessionManager;
     this.authMiddleware = authMiddleware;
+    this.config = config;
+    this.logger = logger;
     this.setupRoutes();
   }
 
@@ -46,7 +52,7 @@ export class McpHttpServer {
           : [tokenData.aud]
         : [],
     };
-    logger.debug(`Extracted user info for session: ${userInfo.sub}`);
+    this.logger.debug(`Extracted user info for session: ${userInfo.sub}`);
 
     // Create session info with extracted user info and token
     const sessionInfo = {
@@ -64,7 +70,7 @@ export class McpHttpServer {
 
     // Clean up when the connection closes
     transport.onclose = () => {
-      logger.info(`Transport closed: ${transport.sessionId}`);
+      this.logger.info(`Transport closed: ${transport.sessionId}`);
       delete this.transports[transport.sessionId];
       this.sessionManager.removeSessionInfo(transport.sessionId);
     };
@@ -90,9 +96,9 @@ export class McpHttpServer {
     // SSE endpoint
     this.app.get("/sse", async (req: Request, res: Response) => {
       // Debug logging
-      logger.debug(`SSE endpoint called`);
-      logger.debug(`Query parameters: ${JSON.stringify(req.query)}`);
-      logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
+      this.logger.debug(`SSE endpoint called`);
+      this.logger.debug(`Query parameters: ${JSON.stringify(req.query)}`);
+      this.logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
 
       // Set headers for SSE
       res.setHeader("Content-Type", "text/event-stream");
@@ -101,7 +107,7 @@ export class McpHttpServer {
 
       // Create a new SSE transport
       const transport = new SSEServerTransport("/messages", res);
-      logger.info(`Transport created: ${transport.sessionId}`);
+      this.logger.info(`Transport created: ${transport.sessionId}`);
 
       // Create session with the transport
       this.createSession(transport, req);
@@ -112,7 +118,7 @@ export class McpHttpServer {
       // Add debug logging for messages
       const originalOnMessage = transport.onmessage;
       transport.onmessage = (message: any) => {
-        logger.debug(`SSE message for ${transport.sessionId}:`, message);
+        this.logger.debug(`SSE message for ${transport.sessionId}:`, message);
         originalOnMessage?.(message);
       };
     });
@@ -120,7 +126,7 @@ export class McpHttpServer {
     // Message endpoint for handling MCP messages
     this.app.post("/messages", async (req: Request, res: Response) => {
       const sessionId = req.query.sessionId as string;
-      logger.info(
+      this.logger.info(
         `Message for session: ${sessionId}, ${
           req?.body?.method || "no method provided"
         }`,
@@ -130,7 +136,7 @@ export class McpHttpServer {
       if (transport) {
         await transport.handlePostMessage(req, res, req.body);
       } else {
-        logger.error(`No transport found for sessionId: ${sessionId}`);
+        this.logger.error(`No transport found for sessionId: ${sessionId}`);
         res.status(400).send("No transport found for sessionId");
       }
     });
@@ -155,11 +161,13 @@ export class McpHttpServer {
 
   public start(): void {
     try {
-      this.app.listen(config.server.port, () => {
-        logger.info(`MCP server started on port ${config.server.port}`);
+      this.app.listen(this.config.server.port, () => {
+        this.logger.info(
+          `MCP server started on port ${this.config.server.port}`,
+        );
       });
     } catch (error) {
-      logger.error(`Failed to start MCP server: ${error}`);
+      this.logger.error(`Failed to start MCP server: ${error}`);
     }
   }
 
@@ -172,9 +180,9 @@ export class McpHttpServer {
           method: "notifications/tools/list_changed",
           params: {},
         });
-        logger.info(`Notified client ${sessionId} of tool changes`);
+        this.logger.info(`Notified client ${sessionId} of tool changes`);
       } catch (error) {
-        logger.warn(
+        this.logger.warn(
           `Failed to notify client ${sessionId} of tool changes: ${error}`,
         );
       }

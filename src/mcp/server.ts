@@ -8,13 +8,11 @@ import { McpHttpServer } from "../http/mcp/mcp-http-server.js";
 import { AuthHttpServer } from "../http/auth/auth-http-server.js";
 import { createAuthMiddleware } from "../http/mcp/middleware/auth.js";
 import { config } from "../config/index.js";
-import { ToolManagementHandler } from "../handlers/toolManagementHandler/index.js";
-import { UserManagementHandler } from "../handlers/userManagementHandler/index.js";
 import { connectToDatabase } from "../db/connection.js";
 import { UserRepository } from "../db/repositories/UserRepository.js";
 import { ToolRepository } from "../db/repositories/ToolRepository.js";
-import { toolManagementTools } from "../handlers/toolManagementHandler/tools.js";
-import { userManagementTools } from "../handlers/userManagementHandler/tools.js";
+import { handlers } from "../handlers/index.js";
+import { syncBuiltinTools, cleanupUserToolReferences } from "../db/toolSync.js";
 
 export interface SessionInfo {
   sessionId: string;
@@ -77,19 +75,9 @@ export class DynamicMcpServer extends EventEmitter {
       this.userRepository,
     );
 
-    // Register the tool management handler and its factory
-    const toolManagementHandler = new ToolManagementHandler();
-    this.registerHandler(toolManagementHandler);
-
-    // Register the user management handler and its factory
-    const userManagementHandler = new UserManagementHandler();
-    this.registerHandler(userManagementHandler);
-
-    // Register any additional handlers
-    if (config.handlers) {
-      for (const handler of config.handlers) {
-        this.registerHandler(handler);
-      }
+    // Register all handlers from aggregator
+    for (const handler of handlers) {
+      this.registerHandler(handler);
     }
   }
 
@@ -190,73 +178,6 @@ export class DynamicMcpServer extends EventEmitter {
   }
 
   /**
-   * Synchronize built-in tools: upsert current, remove stale, and return removed tool names
-   */
-  private async syncBuiltinTools(): Promise<string[]> {
-    const toolRepo = new ToolRepository();
-    const builtinTools = [...toolManagementTools, ...userManagementTools].map(
-      (tool) => ({
-        ...tool,
-        creator: "system",
-      }),
-    );
-    await toolRepo.upsertMany(builtinTools);
-    logger.info("Bootstrapped built-in tools into the tools collection");
-
-    // Remove stale built-in tools
-    const builtinToolNames = new Set(builtinTools.map((t) => t.name));
-    const dbBuiltinTools = await toolRepo.list({});
-    const removedToolNames: string[] = [];
-    for (const tool of dbBuiltinTools) {
-      if (tool.creator === "system" && !builtinToolNames.has(tool.name)) {
-        await toolRepo.deleteTool(tool.name);
-        removedToolNames.push(tool.name);
-        logger.info(`Removed stale built-in tool from DB: ${tool.name}`);
-      }
-    }
-    return removedToolNames;
-  }
-
-  /**
-   * Remove references to removed tools from all users' allowedTools and sharedTools
-   */
-  private async cleanupUserToolReferences(
-    removedToolNames: string[],
-  ): Promise<void> {
-    if (!removedToolNames.length) return;
-    const userRepo = new UserRepository();
-    const users = await userRepo.list({ skip: 0, limit: 10000 }); // adjust limit as needed
-    for (const user of users) {
-      let changed = false;
-      if (user.allowedTools) {
-        const filtered = user.allowedTools.filter(
-          (name) => !removedToolNames.includes(name),
-        );
-        if (filtered.length !== user.allowedTools.length) {
-          user.allowedTools = filtered;
-          changed = true;
-        }
-      }
-      if (user.sharedTools) {
-        const filtered = user.sharedTools.filter(
-          (st) => !removedToolNames.includes(st.toolId),
-        );
-        if (filtered.length !== user.sharedTools.length) {
-          user.sharedTools = filtered;
-          changed = true;
-        }
-      }
-      if (changed) {
-        await userRepo.updateUser(user.email, {
-          allowedTools: user.allowedTools,
-          sharedTools: user.sharedTools,
-        });
-        logger.info(`Cleaned up stale tool references for user: ${user.email}`);
-      }
-    }
-  }
-
-  /**
    * Start the MCP server with HTTP and Auth servers
    */
   async start(): Promise<void> {
@@ -276,8 +197,8 @@ export class DynamicMcpServer extends EventEmitter {
       }
 
       // --- Tool sync and user tool cleanup ---
-      const removedToolNames = await this.syncBuiltinTools();
-      await this.cleanupUserToolReferences(removedToolNames);
+      const removedToolNames = await syncBuiltinTools();
+      await cleanupUserToolReferences(removedToolNames);
 
       // Initialize Auth service
       const authService = new AuthService({

@@ -16,6 +16,7 @@ describe("ToolManagementHandler", () => {
     mockContext = {
       mcpServer: {
         toolGenerator: mockToolGenerator,
+        notifyToolListChanged: jest.fn(),
       },
     };
   });
@@ -56,6 +57,14 @@ describe("ToolManagementHandler", () => {
           ),
         ).rejects.toThrow(/McpServer not available/);
       });
+
+      it("throws if removeTool throws an error", async () => {
+        mockToolGenerator.getTool.mockReturnValue({ name: "foo" });
+        mockToolGenerator.removeTool.mockRejectedValue(new Error("DB error"));
+        await expect(
+          handler.handler({ name: "foo" }, mockContext, { action: "delete" }),
+        ).rejects.toThrow(/DB error/);
+      });
     });
 
     describe("list action", () => {
@@ -92,12 +101,38 @@ describe("ToolManagementHandler", () => {
           handler.handler({}, { token: "", user: {} }, { action: "list" }),
         ).rejects.toThrow(/McpServer not available/);
       });
+
+      it("returns an empty list if no tools are registered", async () => {
+        mockToolGenerator.getRegisteredToolNames.mockReturnValue([]);
+        const result = await handler.handler({}, mockContext, {
+          action: "list",
+        });
+        expect(result.result.tools).toEqual([]);
+        expect(result.result.total).toBe(0);
+        expect(result.result.filtered).toBe(false);
+      });
     });
 
     it("throws on unknown action", async () => {
       await expect(
         handler.handler({}, mockContext, { action: "unknown" }),
       ).rejects.toThrow(/Unknown action/);
+    });
+
+    describe("edge cases", () => {
+      it("handles duplicate tool names gracefully", async () => {
+        mockToolGenerator.getRegisteredToolNames.mockReturnValue([
+          "foo",
+          "foo",
+          "bar",
+        ]);
+        const result = await handler.handler({}, mockContext, {
+          action: "list",
+        });
+        // Should still return all names, but duplicates present
+        expect(result.result.tools).toEqual(["foo", "foo", "bar"]);
+        expect(result.result.total).toBe(3);
+      });
     });
   });
 

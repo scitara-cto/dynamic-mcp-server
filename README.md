@@ -49,6 +49,12 @@ See [Getting Started](./docs/getting-started.md) for installation and basic usag
 
 Contributions are welcome! See [the documentation](./docs/) for more details.
 
+## Testing
+
+For robust test patterns, mocking strategies, and solutions to common ESM/TypeScript issues, see:
+
+- [docs/test_patterns.md](docs/test_patterns.md)
+
 ---
 
 ## 📄 License

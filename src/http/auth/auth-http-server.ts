@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
-import { config } from "../../config/index.js";
-import logger from "../../utils/logger.js";
+import { config as realConfig } from "../../config/index.js";
+import realLogger from "../../utils/logger.js";
 import {
   handleProtectedResourceMetadata,
   handleAuthorizationServerMetadata,
@@ -10,8 +10,12 @@ import axios from "axios";
 export class AuthHttpServer {
   private app: express.Application;
   private registeredRoutes: Set<string> = new Set();
+  private config: typeof realConfig;
+  private logger: typeof realLogger;
 
-  constructor() {
+  constructor(config = realConfig, logger = realLogger) {
+    this.config = config;
+    this.logger = logger;
     this.app = express();
     this.setupRoutes();
   }
@@ -37,13 +41,13 @@ export class AuthHttpServer {
       }
 
       try {
-        const tokenUrl = `${config.auth.authServerUrl}/realms/${config.auth.realm}/protocol/openid-connect/token`;
+        const tokenUrl = `${this.config.auth.authServerUrl}/realms/${this.config.auth.realm}/protocol/openid-connect/token`;
         const formData = new URLSearchParams();
         formData.append("grant_type", "authorization_code");
-        formData.append("client_id", config.auth.clientId);
-        formData.append("client_secret", config.auth.clientSecret);
+        formData.append("client_id", this.config.auth.clientId);
+        formData.append("client_secret", this.config.auth.clientSecret);
         formData.append("code", code as string);
-        formData.append("redirect_uri", config.auth.redirectUri);
+        formData.append("redirect_uri", this.config.auth.redirectUri);
 
         const response = await axios.post(tokenUrl, formData, {
           headers: {
@@ -78,13 +82,13 @@ export class AuthHttpServer {
   }
 
   public start(): void {
-    const authPort = config.auth.port || 3000;
+    const authPort = this.config.auth.port || 3000;
     try {
       this.app.listen(authPort, () => {
-        logger.info(`Auth server started on port ${authPort}`);
+        this.logger.info(`Auth server started on port ${authPort}`);
       });
     } catch (error) {
-      logger.error(`Failed to start Auth server: ${error}`);
+      this.logger.error(`Failed to start Auth server: ${error}`);
     }
   }
 
@@ -105,6 +109,6 @@ export class AuthHttpServer {
     }
     (this.app as any)[method](path, handler);
     this.registeredRoutes.add(routeKey);
-    logger.info(`Added custom route: [${method.toUpperCase()}] ${path}`);
+    this.logger.info(`Added custom route: [${method.toUpperCase()}] ${path}`);
   }
 }

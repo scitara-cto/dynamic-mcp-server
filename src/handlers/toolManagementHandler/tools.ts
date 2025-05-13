@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "../../mcp/types.js";
-1
+1;
 export const toolManagementTools: ToolDefinition[] = [
   {
     name: "list-tools",
@@ -13,6 +13,7 @@ export const toolManagementTools: ToolDefinition[] = [
         },
       },
     },
+    rolesPermitted: ["user", "power-user", "admin"],
     annotations: {
       title: "List Tools",
       readOnlyHint: true,
@@ -36,6 +37,7 @@ export const toolManagementTools: ToolDefinition[] = [
         name: { type: "string", description: "The name of the tool" },
       },
     },
+    rolesPermitted: ["admin", "power-user"],
     annotations: {
       title: "Delete Tool",
       readOnlyHint: false,

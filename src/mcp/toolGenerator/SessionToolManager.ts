@@ -11,10 +11,6 @@ export class SessionToolManager {
     this.sessionTools.set(sessionId, allTools);
   }
 
-  getAllowedTools(sessionId: string): Set<string> | undefined {
-    return this.sessionTools.get(sessionId);
-  }
-
   cleanupSession(sessionId: string): void {
     this.sessionTools.delete(sessionId);
   }

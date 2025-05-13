@@ -35,6 +35,7 @@ export interface ToolDefinition {
       [key: string]: any;
     };
   };
+  rolesPermitted?: string[];
 }
 
 // Extended tool schema that includes annotations

@@ -11,19 +11,28 @@
 - All tools (built-in and user-created) are persisted in MongoDB.
 - Tools are loaded for each user session based on their access rights.
 
-## Tool Sharing Model
+## Tool Access Model
 
-- Tools can be shared with other users.
-- Sharing is managed by updating the `sharedTools` array on the recipient user record.
-- Each shared tool entry includes:
-  - `toolId`: The tool being shared
-  - `sharedBy`: The user who shared the tool
-  - `accessLevel`: "read" or "write"
-  - `sharedAt`: Timestamp of sharing
+A user can access a tool if **any** of the following are true:
+
+- The user's roles overlap with the tool's `rolesPermitted` array.
+- The tool is in the user's `sharedTools`.
+- The user is the creator of the tool.
+- The tool is a built-in system tool.
+
+The set of tools a user can access is called their **available tools**. This is computed dynamically and not stored on the user record.
+
+## Tool Usage (usedTools)
+
+- Users can "activate" (select for use) any tool from their available tools list. The set of tools a user has chosen to use is stored in the `usedTools` array.
+- The `usedTools` array is for personalization/filtering only. **It does not grant access to tools.**
+- To add a tool to your `usedTools`, use the `use-tools` action.
 
 ## Tool Management Tools
 
-- **List Tools**: View all tools available to the user.
+- **List Tools**: View all tools available to the user. Each tool in the list includes:
+  - `available`: Whether the user is permitted to use the tool (see above).
+  - `inUse`: Whether the tool is in the user's `usedTools` array.
 - **Add Tool**: Register a new tool (admin or owner only).
 - **Delete Tool**: Remove a tool (admin or owner only).
 - **Share Tool**: Share a tool with another user.

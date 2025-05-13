@@ -1,5 +1,21 @@
 # API Reference
 
+## Tool Access & Usage Model
+
+- A user can access a tool if:
+  - Their roles overlap with the tool's `rolesPermitted` array, OR
+  - The tool is in their `sharedTools`, OR
+  - They are the creator, OR
+  - The tool is a built-in system tool.
+- The set of tools a user can access is called their **available tools** (computed dynamically).
+- Users can "activate" (select for use) any available tool; these are tracked in the `usedTools` array (for personalization/filtering only, not for authorization).
+- The `list-tools` action returns all tools, with `available` and `inUse` flags for each tool:
+  - `available`: User is permitted to use this tool.
+  - `inUse`: Tool is in the user's `usedTools` array.
+- To add a tool to your `usedTools`, use the `use-tools` action.
+
+See [User Management](./user-management.md) and [Tool Management](./tool-management.md) for more details.
+
 ## DynamicMcpServer
 
 The main server class that handles tool registration, user management, and session handling.
@@ -65,6 +81,7 @@ interface ToolDefinition {
     type: string;
     config: Record<string, any>;
   };
+  rolesPermitted?: string[];
 }
 ```
 

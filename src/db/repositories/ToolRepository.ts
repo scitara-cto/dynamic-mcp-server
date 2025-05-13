@@ -1,4 +1,5 @@
 import { Tool, ITool } from "../models/Tool.js";
+import { ToolDefinition } from "../../mcp/types.js";
 
 export class ToolRepository {
   async findByName(name: string): Promise<ITool | null> {
@@ -61,5 +62,37 @@ export class ToolRepository {
     if (!names.length) return [];
     const docs = await Tool.find({ name: { $in: names } });
     return docs.map((doc) => doc.toJSON());
+  }
+
+  async findAll(): Promise<ITool[]> {
+    const docs = await Tool.find({});
+    return docs.map((doc) => doc.toJSON());
+  }
+
+  async getAvailableToolsForUser(user: {
+    email: string;
+    roles?: string[];
+    sharedTools?: { toolId: string }[];
+  }): Promise<ToolDefinition[]> {
+    const allTools = await this.findAll();
+    const userRoles = user.roles || [];
+    const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
+    return allTools
+      .filter(
+        (tool) =>
+          (tool.rolesPermitted &&
+            tool.rolesPermitted.some((role) => userRoles.includes(role))) ||
+          sharedToolNames.includes(tool.name) ||
+          tool.creator === user.email ||
+          tool.creator === "system",
+      )
+      .map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        annotations: tool.annotations,
+        handler: tool.handler,
+        rolesPermitted: tool.rolesPermitted,
+      }));
   }
 }

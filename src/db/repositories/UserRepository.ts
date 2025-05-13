@@ -40,11 +40,32 @@ export class UserRepository {
   }
 
   async checkToolAccess(email: string, toolId: string): Promise<boolean> {
-    const user = await User.findOne({
-      email,
-      $or: [{ allowedTools: toolId }, { "sharedTools.toolId": toolId }],
-    });
-    return !!user;
+    const user = await User.findOne({ email });
+    if (!user) return false;
+    // Check sharedTools
+    if (user.sharedTools.some((t) => t.toolId === toolId)) return true;
+    // Get tool definition (assume ToolRepository exists and has findByName)
+    const { ToolRepository } = await import(
+      "../repositories/ToolRepository.js"
+    );
+    const toolRepo = new ToolRepository();
+    const toolDef = await toolRepo.findByName(toolId);
+    if (!toolDef || !Array.isArray(toolDef.rolesPermitted)) return false;
+    // Check if user has any permitted role
+    const userRoles = user.roles || [];
+    return userRoles.some((role) => toolDef.rolesPermitted!.includes(role));
+  }
+
+  async addUsedTools(email: string, toolIds: string[]): Promise<IUser | null> {
+    if (!Array.isArray(toolIds) || toolIds.length === 0) {
+      throw new Error("toolIds must be a non-empty array");
+    }
+    const doc = await User.findOneAndUpdate(
+      { email },
+      { $addToSet: { usedTools: { $each: toolIds } } },
+      { new: true },
+    );
+    return doc ? doc.toJSON() : null;
   }
 
   static async ensureAdminUser(email: string, logger: any): Promise<void> {
@@ -55,14 +76,6 @@ export class UserRepository {
         email,
         roles: ["admin"],
         name: "Admin User",
-        allowedTools: [
-          "list-users",
-          "add-user",
-          "update-user",
-          "delete-user",
-          "list-tools",
-          "delete-tool",
-        ],
       });
       logger.info(`Admin user created: ${email}`);
     } else {

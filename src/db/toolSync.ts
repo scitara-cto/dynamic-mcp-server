@@ -33,15 +33,6 @@ export async function cleanupUserToolReferences(
   const users = await userRepo.list({ skip: 0, limit: 10000 });
   for (const user of users) {
     let changed = false;
-    if (user.allowedTools) {
-      const filtered = user.allowedTools.filter(
-        (name: string) => !removedToolNames.includes(name),
-      );
-      if (filtered.length !== user.allowedTools.length) {
-        user.allowedTools = filtered;
-        changed = true;
-      }
-    }
     if (user.sharedTools) {
       const filtered = user.sharedTools.filter(
         (st: any) => !removedToolNames.includes(st.toolId),
@@ -53,7 +44,6 @@ export async function cleanupUserToolReferences(
     }
     if (changed) {
       await userRepo.updateUser(user.email, {
-        allowedTools: user.allowedTools,
         sharedTools: user.sharedTools,
       });
       logger.info(`Cleaned up stale tool references for user: ${user.email}`);

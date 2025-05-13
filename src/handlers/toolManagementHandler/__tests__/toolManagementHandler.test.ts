@@ -1,10 +1,41 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals";
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+} from "@jest/globals";
 import { ToolManagementHandler } from "../index.js";
+import { ToolRepository } from "../../../db/repositories/ToolRepository.js";
 
 describe("ToolManagementHandler", () => {
   let handler: ToolManagementHandler;
   let mockContext: any;
   let mockToolGenerator: any;
+
+  beforeAll(() => {
+    jest.spyOn(ToolRepository.prototype, "findAll").mockResolvedValue([
+      {
+        name: "foo",
+        description: "",
+        rolesPermitted: ["admin"],
+        creator: "system",
+      },
+      {
+        name: "bar",
+        description: "",
+        rolesPermitted: ["admin"],
+        creator: "system",
+      },
+      {
+        name: "baz",
+        description: "",
+        rolesPermitted: ["admin"],
+        creator: "system",
+      },
+    ]);
+  });
 
   beforeEach(() => {
     handler = new ToolManagementHandler();
@@ -18,7 +49,14 @@ describe("ToolManagementHandler", () => {
         toolGenerator: mockToolGenerator,
         notifyToolListChanged: jest.fn(),
       },
+      user: {
+        email: "test@example.com",
+        roles: ["admin"],
+        sharedTools: [],
+        usedTools: [],
+      },
     };
+    jest.clearAllMocks();
   });
 
   describe("handle", () => {
@@ -69,30 +107,28 @@ describe("ToolManagementHandler", () => {
 
     describe("list action", () => {
       it("lists all tools", async () => {
-        mockToolGenerator.getRegisteredToolNames.mockReturnValue([
-          "foo",
-          "bar",
-        ]);
         const result = await handler.handler({}, mockContext, {
           action: "list",
         });
-        expect(result.result.tools).toEqual(["foo", "bar"]);
-        expect(result.result.total).toBe(2);
+        expect(result.result.tools).toEqual([
+          { name: "foo", description: "", available: true, inUse: false },
+          { name: "bar", description: "", available: true, inUse: false },
+          { name: "baz", description: "", available: true, inUse: false },
+        ]);
+        expect(result.result.total).toBe(3);
         expect(result.result.filtered).toBe(false);
       });
 
       it("filters tools by nameContains", async () => {
-        mockToolGenerator.getRegisteredToolNames.mockReturnValue([
-          "foo",
-          "bar",
-          "baz",
-        ]);
         const result = await handler.handler(
           { nameContains: "ba" },
           mockContext,
           { action: "list" },
         );
-        expect(result.result.tools).toEqual(["bar", "baz"]);
+        expect(result.result.tools).toEqual([
+          { name: "bar", description: "", available: true, inUse: false },
+          { name: "baz", description: "", available: true, inUse: false },
+        ]);
         expect(result.result.filtered).toBe(true);
       });
 
@@ -103,7 +139,7 @@ describe("ToolManagementHandler", () => {
       });
 
       it("returns an empty list if no tools are registered", async () => {
-        mockToolGenerator.getRegisteredToolNames.mockReturnValue([]);
+        jest.spyOn(ToolRepository.prototype, "findAll").mockResolvedValue([]);
         const result = await handler.handler({}, mockContext, {
           action: "list",
         });
@@ -111,28 +147,44 @@ describe("ToolManagementHandler", () => {
         expect(result.result.total).toBe(0);
         expect(result.result.filtered).toBe(false);
       });
+
+      it("handles duplicate tool names gracefully", async () => {
+        jest.spyOn(ToolRepository.prototype, "findAll").mockResolvedValue([
+          {
+            name: "foo",
+            description: "",
+            rolesPermitted: ["admin"],
+            creator: "system",
+          },
+          {
+            name: "foo",
+            description: "",
+            rolesPermitted: ["admin"],
+            creator: "system",
+          },
+          {
+            name: "bar",
+            description: "",
+            rolesPermitted: ["admin"],
+            creator: "system",
+          },
+        ]);
+        const result = await handler.handler({}, mockContext, {
+          action: "list",
+        });
+        expect(result.result.tools).toEqual([
+          { name: "foo", description: "", available: true, inUse: false },
+          { name: "foo", description: "", available: true, inUse: false },
+          { name: "bar", description: "", available: true, inUse: false },
+        ]);
+        expect(result.result.total).toBe(3);
+      });
     });
 
     it("throws on unknown action", async () => {
       await expect(
         handler.handler({}, mockContext, { action: "unknown" }),
       ).rejects.toThrow(/Unknown action/);
-    });
-
-    describe("edge cases", () => {
-      it("handles duplicate tool names gracefully", async () => {
-        mockToolGenerator.getRegisteredToolNames.mockReturnValue([
-          "foo",
-          "foo",
-          "bar",
-        ]);
-        const result = await handler.handler({}, mockContext, {
-          action: "list",
-        });
-        // Should still return all names, but duplicates present
-        expect(result.result.tools).toEqual(["foo", "foo", "bar"]);
-        expect(result.result.total).toBe(3);
-      });
     });
   });
 

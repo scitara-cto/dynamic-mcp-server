@@ -13,8 +13,8 @@ export interface IUser {
   createdAt: Date;
   updatedAt: Date;
   roles?: string[];
-  allowedTools?: string[];
   sharedTools: SharedTool[];
+  usedTools?: string[];
   applicationAuthentication?: {
     [appKey: string]: any;
   };
@@ -23,12 +23,19 @@ export interface IUser {
   };
 }
 
+export const ROLES = {
+  ADMIN: "admin",
+  POWER_USER: "power-user",
+  USER: "user",
+} as const;
+
+export type Role = (typeof ROLES)[keyof typeof ROLES];
+
 const userSchema = new mongoose.Schema<IUser>(
   {
     email: { type: String, required: true, unique: true },
     name: { type: String },
     roles: [{ type: String }],
-    allowedTools: [{ type: String }],
     sharedTools: [
       {
         toolId: { type: String, required: true },
@@ -37,6 +44,7 @@ const userSchema = new mongoose.Schema<IUser>(
         sharedAt: { type: Date, default: Date.now },
       },
     ],
+    usedTools: [{ type: String }],
     applicationAuthentication: {
       type: mongoose.Schema.Types.Mixed,
       default: undefined,

@@ -13,6 +13,7 @@ export interface ITool {
   createdAt: Date;
   updatedAt: Date;
   lastUsed?: Date;
+  rolesPermitted?: string[];
 }
 
 const toolSchema = new mongoose.Schema<ITool>(
@@ -27,6 +28,7 @@ const toolSchema = new mongoose.Schema<ITool>(
     },
     creator: { type: String, required: true },
     lastUsed: { type: Date },
+    rolesPermitted: [{ type: String }],
   },
   { timestamps: true },
 );

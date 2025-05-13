@@ -122,17 +122,14 @@ export class DynamicMcpServer extends EventEmitter {
       logger.warn(`User not found for session ${sessionId}: ${userEmail}`);
       return;
     }
-    const allowed = user.allowedTools || [];
-    const shared = (user.sharedTools || []).map((t: any) => t.toolId);
-    const toolNames = Array.from(new Set([...allowed, ...shared]));
-    if (!toolNames.length) return;
     const toolRepo = new ToolRepository();
-    const tools = await toolRepo.findByNames(toolNames);
-    for (const tool of tools) {
-      await this.toolGenerator.publishTool(tool as any); // ToolDefinition compatible
+    const availableTools = await toolRepo.getAvailableToolsForUser(user);
+    if (!availableTools.length) return;
+    for (const tool of availableTools) {
+      await this.toolGenerator.publishTool(tool);
     }
     logger.info(
-      `Loaded ${tools.length} tools for session ${sessionId} (${userEmail})`,
+      `Loaded ${availableTools.length} tools for session ${sessionId} (${userEmail})`,
     );
   }
 

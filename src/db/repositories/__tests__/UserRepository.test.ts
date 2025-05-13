@@ -27,7 +27,6 @@ describe("UserRepository", () => {
     const user: Partial<IUser> = {
       email: "test@example.com",
       name: "Test User",
-      allowedTools: ["tool1"],
       sharedTools: [],
     };
     await repo.create(user);
@@ -40,14 +39,12 @@ describe("UserRepository", () => {
     expect(updated?.name).toBe("Updated User");
   });
 
-  it("should update allowedTools and sharedTools", async () => {
+  it("should update sharedTools", async () => {
     await repo.create({
       email: "a@example.com",
-      allowedTools: ["foo"],
       sharedTools: [],
     });
     await repo.updateUser("a@example.com", {
-      allowedTools: ["bar"],
       sharedTools: [
         {
           toolId: "baz",
@@ -58,14 +55,12 @@ describe("UserRepository", () => {
       ],
     });
     const user = await repo.findByEmail("a@example.com");
-    expect(user?.allowedTools).toEqual(["bar"]);
     expect(user?.sharedTools[0].toolId).toBe("baz");
   });
 
-  it("should check tool access for allowed and shared tools", async () => {
+  it("should check tool access for shared tools", async () => {
     await repo.create({
       email: "c@example.com",
-      allowedTools: ["foo"],
       sharedTools: [
         {
           toolId: "bar",
@@ -75,7 +70,6 @@ describe("UserRepository", () => {
         },
       ],
     });
-    expect(await repo.checkToolAccess("c@example.com", "foo")).toBe(true);
     expect(await repo.checkToolAccess("c@example.com", "bar")).toBe(true);
     expect(await repo.checkToolAccess("c@example.com", "baz")).toBe(false);
   });

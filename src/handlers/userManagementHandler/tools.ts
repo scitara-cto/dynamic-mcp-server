@@ -18,6 +18,7 @@ export const userManagementTools: ToolDefinition[] = [
         },
       },
     },
+    rolesPermitted: ["user", "power-user", "admin"],
     annotations: {
       title: "List Users",
       readOnlyHint: true,
@@ -48,6 +49,7 @@ export const userManagementTools: ToolDefinition[] = [
       },
       required: ["email"],
     },
+    rolesPermitted: ["admin"],
     annotations: {
       title: "Add User",
       readOnlyHint: false,
@@ -79,12 +81,6 @@ export const userManagementTools: ToolDefinition[] = [
           items: { type: "string" },
           description: "User roles",
         },
-        allowedTools: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "List of tool names the user is allowed to access. Use the list-tools tool to get a list of valid tools before executing this tool.",
-        },
         sharedTools: {
           type: "array",
           items: {
@@ -111,6 +107,7 @@ export const userManagementTools: ToolDefinition[] = [
       },
       required: ["email"],
     },
+    rolesPermitted: ["admin"],
     annotations: {
       title: "Update User",
       readOnlyHint: false,
@@ -139,6 +136,7 @@ export const userManagementTools: ToolDefinition[] = [
       },
       required: ["email"],
     },
+    rolesPermitted: ["admin"],
     annotations: {
       title: "Delete User",
       readOnlyHint: false,
@@ -178,6 +176,7 @@ export const userManagementTools: ToolDefinition[] = [
       },
       required: ["email", "toolId", "accessLevel"],
     },
+    rolesPermitted: ["admin", "power-user"],
     annotations: {
       title: "Share Tool",
       readOnlyHint: false,
@@ -212,6 +211,7 @@ export const userManagementTools: ToolDefinition[] = [
       },
       required: ["email", "toolId"],
     },
+    rolesPermitted: ["admin", "power-user"],
     annotations: {
       title: "Unshare Tool",
       readOnlyHint: false,

@@ -27,6 +27,7 @@ export class UserManagementHandler implements Handler {
       "delete": this.handleDeleteUserAction.bind(this),
       "share-tool": this.handleShareToolAction.bind(this),
       "unshare-tool": this.handleUnshareToolAction.bind(this),
+      "use-tools": this.handleUseToolsAction.bind(this),
     };
   }
 
@@ -183,5 +184,22 @@ export class UserManagementHandler implements Handler {
       undefined,
       context?.mcpServer,
     );
+  }
+
+  private async handleUseToolsAction(
+    args: Record<string, any>,
+    _context: any,
+    _handlerConfig: { action: string },
+  ): Promise<ToolOutput> {
+    const { email, toolIds } = args;
+    if (!email) throw new Error("Email is required");
+    if (!Array.isArray(toolIds) || toolIds.length === 0) {
+      throw new Error("toolIds must be a non-empty array");
+    }
+    const updatedUser = await this.userRepository.addUsedTools(email, toolIds);
+    return {
+      result: { success: true, usedTools: updatedUser?.usedTools },
+      message: `Added ${toolIds.length} tool(s) to usedTools for user '${email}'`,
+    };
   }
 }

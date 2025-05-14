@@ -133,29 +133,31 @@ const weatherTool = {
   },
 };
 
-// Setup server with web service handler
-const server = new DynamicMcpServer({
-  name: "weather-mcp",
-  version: "1.0.0",
-});
+(async () => {
+  // Setup server with web service handler
+  const server = new DynamicMcpServer({
+    name: "weather-mcp",
+    version: "1.0.0",
+  });
 
-// Register the web service handler
-server.registerHandler(webServiceHandler);
+  // Register the web service handler and await registration
+  await server.registerHandler(webServiceHandler);
 
-// No need to manually register the weather tool; it's handled by the handler registration.
-server.toolGenerator.addTool(weatherTool, "weather-mcp");
+  // No need to manually register the weather tool; it's handled by the handler registration.
+  server.toolGenerator.addTool(weatherTool, "weather-mcp");
 
-// Check if OPENWEATHER_API_KEY is set
-if (!process.env.OPENWEATHER_API_KEY) {
-  logger.info(
-    "Note: You need to set the OPENWEATHER_API_KEY environment variable to use the weather tool. Get an API key from https://openweathermap.org/",
-  );
-  process.exit(1);
-}
-logger.info("OPENWEATHER_API_KEY is set");
+  // Check if OPENWEATHER_API_KEY is set
+  if (!process.env.OPENWEATHER_API_KEY) {
+    logger.info(
+      "Note: You need to set the OPENWEATHER_API_KEY environment variable to use the weather tool. Get an API key from https://openweathermap.org/",
+    );
+    process.exit(1);
+  }
+  logger.info("OPENWEATHER_API_KEY is set");
 
-// Start the server
-server.start().then(() => {
-  logger.info("Weather MCP Server started");
-  logger.info("Available at http://localhost:3000");
-});
+  // Start the server
+  server.start().then(() => {
+    logger.info("Weather MCP Server started");
+    logger.info("Available at http://localhost:3000");
+  });
+})();

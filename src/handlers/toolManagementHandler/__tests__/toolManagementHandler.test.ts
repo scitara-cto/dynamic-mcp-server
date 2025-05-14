@@ -191,9 +191,10 @@ describe("ToolManagementHandler", () => {
   describe("registerTools", () => {
     it("returns the tool management tools", () => {
       const tools = handler.tools;
-      expect(tools).toHaveLength(2);
+      expect(tools).toHaveLength(3);
       expect(tools[0].name).toBe("list-tools");
       expect(tools[1].name).toBe("delete-tool");
+      expect(tools[2].name).toBe("use-tools");
     });
   });
 });

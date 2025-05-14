@@ -56,6 +56,7 @@ export class DynamicMcpServer extends EventEmitter {
   private mcpHttpServer?: McpHttpServer;
   private authHttpServer?: AuthHttpServer;
   private userRepository: UserRepository;
+  public name: string;
 
   constructor(config: DynamicMcpServerConfig) {
     super();
@@ -69,6 +70,7 @@ export class DynamicMcpServer extends EventEmitter {
       },
     });
     this.userRepository = new UserRepository();
+    this.name = config.name;
     this.toolGenerator = new ToolGenerator(
       this.server,
       this,
@@ -123,13 +125,30 @@ export class DynamicMcpServer extends EventEmitter {
       return;
     }
     const toolRepo = new ToolRepository();
-    const availableTools = await toolRepo.getAvailableToolsForUser(user);
-    if (!availableTools.length) return;
-    for (const tool of availableTools) {
+    const availableTools = await toolRepo.getAvailableToolsForUser(
+      user,
+      this.name,
+    );
+    const usedTools = user.usedTools || [];
+    // Always include tools with alwaysUsed: true, plus those in usedTools
+    const toolsToLoad = availableTools.filter(
+      (tool) => tool.alwaysUsed || usedTools.includes(tool.name),
+    );
+    // Remove duplicates by tool name
+    const uniqueToolsToLoad = Array.from(
+      new Map(toolsToLoad.map((t) => [t.name, t])).values(),
+    );
+    if (!uniqueToolsToLoad.length) {
+      logger.info(
+        `No tools to load for session ${sessionId} (${userEmail}) (usedTools is empty or no overlap, and no alwaysUsed tools)`,
+      );
+      return;
+    }
+    for (const tool of uniqueToolsToLoad) {
       await this.toolGenerator.publishTool(tool);
     }
     logger.info(
-      `Loaded ${availableTools.length} tools for session ${sessionId} (${userEmail})`,
+      `Loaded ${uniqueToolsToLoad.length} tools for session ${sessionId} (${userEmail})`,
     );
   }
 

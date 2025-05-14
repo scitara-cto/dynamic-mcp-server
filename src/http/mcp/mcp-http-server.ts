@@ -35,7 +35,10 @@ export class McpHttpServer {
   /**
    * Creates a new session with the given transport and request
    */
-  private createSession(transport: SSEServerTransport, req: Request): void {
+  private async createSession(
+    transport: SSEServerTransport,
+    req: Request,
+  ): Promise<void> {
     // Extract user info from token data
     const tokenData = (req as any).tokenData;
     const userInfo = {
@@ -54,10 +57,29 @@ export class McpHttpServer {
     };
     this.logger.debug(`Extracted user info for session: ${userInfo.sub}`);
 
-    // Create session info with extracted user info and token
+    // Fetch MongoDB user record and merge claims
+    let enrichedUser = null;
+    try {
+      const { UserRepository } = await import(
+        "../../db/repositories/UserRepository.js"
+      );
+      const userRepo = new UserRepository();
+      const dbUser = await userRepo.findByEmail(userInfo.email);
+      if (dbUser) {
+        enrichedUser = { ...dbUser, claims: userInfo };
+      } else {
+        this.logger.warn(`User not found in DB for session: ${userInfo.email}`);
+        enrichedUser = { ...userInfo, claims: userInfo }; // fallback to JWT only
+      }
+    } catch (err) {
+      this.logger.error(`Error fetching user from DB: ${err}`);
+      enrichedUser = { ...userInfo, claims: userInfo }; // fallback to JWT only
+    }
+
+    // Create session info with enriched user and token
     const sessionInfo = {
       sessionId: transport.sessionId,
-      user: userInfo,
+      user: enrichedUser,
       token: (req as any).token, // Store the raw token for potential future use
       mcpServer: this.sessionManager,
     };

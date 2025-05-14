@@ -2,6 +2,7 @@ import { ToolRepository } from "./repositories/ToolRepository.js";
 import { UserRepository } from "./repositories/UserRepository.js";
 import logger from "../utils/logger.js";
 import { builtInTools } from "../handlers/index.js";
+import { Tool } from "./models/Tool.js";
 
 export async function syncBuiltinTools(): Promise<string[]> {
   const toolRepo = new ToolRepository();

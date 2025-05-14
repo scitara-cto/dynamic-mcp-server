@@ -21,6 +21,7 @@ export const toolManagementTools: ToolDefinition[] = [
       idempotentHint: true,
       openWorldHint: true,
     },
+    alwaysUsed: true,
     handler: {
       type: "tool-management",
       config: {
@@ -49,6 +50,36 @@ export const toolManagementTools: ToolDefinition[] = [
       type: "tool-management",
       config: {
         action: "delete",
+      },
+    },
+  },
+  {
+    name: "use-tools",
+    description: "Select tools to add to your in-use list (usedTools)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        toolIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Array of tool names to add to your in-use list",
+        },
+      },
+      required: ["toolIds"],
+    },
+    rolesPermitted: ["user", "power-user", "admin"],
+    annotations: {
+      title: "Use Tools",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    alwaysUsed: true,
+    handler: {
+      type: "tool-management",
+      config: {
+        action: "use-tools",
       },
     },
   },

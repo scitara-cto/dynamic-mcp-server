@@ -106,7 +106,20 @@ export class ToolGenerator {
                 response,
               ).join(", ")} }, size: ${JSON.stringify(response).length}`,
             );
-            return response;
+            // Merge in static message/nextSteps from tool definition if not present in handler output
+            const toolDef = tool;
+            let parsed;
+            try {
+              parsed =
+                typeof response === "string" ? JSON.parse(response) : response;
+            } catch {
+              parsed = response;
+            }
+            const result = parsed?.result ?? parsed;
+            // Use (toolDef as any)?.message to avoid linter error if not present
+            const message = parsed?.message || (toolDef as any)?.message;
+            const nextSteps = parsed?.nextSteps || (toolDef as any)?.nextSteps;
+            return this.formatToolOutput({ result, message, nextSteps });
           } catch (error) {
             logger.error(`Tool ${name} execution failed`, { error });
             return this.createErrorResponse(error);
@@ -153,7 +166,6 @@ export class ToolGenerator {
 
   public async publishTool(toolDef: ToolDefinition): Promise<void> {
     if (this.toolRegistry.getTool(toolDef.name)) {
-      logger.info(`Tool '${toolDef.name}' already registered, skipping.`);
       return;
     }
     const factory = this.toolRegistry["handlerFactory"][toolDef.handler.type];
@@ -198,11 +210,32 @@ export class ToolGenerator {
     this.sessionToolManager.cleanupSession(sessionId);
   }
 
+  /**
+   * Register a tool in the database.
+   *
+   * - If rolesPermitted is missing or an empty array, the tool is considered internal/hidden and will not be available to any user directly.
+   * - If rolesPermitted is a non-empty array, only users with those roles will have access.
+   * - name, handler, and inputSchema are always required.
+   * - If creator is not provided, defaults to the server's name.
+   */
   public async addTool(
     toolDef: ToolDefinition,
-    creator: string,
+    creator?: string,
   ): Promise<void> {
+    if (!toolDef.name) {
+      throw new Error("Tool definition missing required field: name");
+    }
+    if (!toolDef.handler) {
+      throw new Error(`Tool '${toolDef.name}' missing required field: handler`);
+    }
+    if (!toolDef.inputSchema) {
+      throw new Error(
+        `Tool '${toolDef.name}' missing required field: inputSchema`,
+      );
+    }
+    // rolesPermitted may be missing or empty for internal/hidden tools
+    const toolCreator = creator || this.mcpServer.name;
     const toolRepo = new ToolRepository();
-    await toolRepo.upsertMany([{ ...toolDef, creator }]);
+    await toolRepo.upsertMany([{ ...toolDef, creator: toolCreator }]);
   }
 }

@@ -95,29 +95,39 @@ export class ToolManagementHandler implements Handler {
         (tool) =>
           !nameContains || tool.name.toLowerCase().includes(nameContains),
       )
-      .map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        available:
+      .map((tool) => {
+        const available =
           (tool.rolesPermitted &&
             tool.rolesPermitted.some((role: string) =>
               userRoles.includes(role),
             )) ||
           sharedToolNames.includes(tool.name) ||
           tool.creator === user.email ||
-          tool.creator === "system",
-        inUse: usedTools.includes(tool.name),
-      }));
+          tool.creator === "system";
+        const inUse = usedTools.includes(tool.name);
+        return {
+          name: tool.name,
+          description: tool.description,
+          available,
+          inUse,
+        };
+      });
+    // Split tools into available and in-use arrays
+    const availableTools = filteredTools.filter((t) => t.available);
+    const inUseTools = filteredTools.filter((t) => t.inUse);
     return {
       result: {
-        tools: filteredTools,
+        availableTools,
+        inUseTools,
         total: filteredTools.length,
         filtered: !!nameContains,
       },
       message:
-        "Tools marked as available: true are tools you are permitted to use. Tools marked as inUse: true are tools you have currently selected for use.",
+        "Tools are grouped into those available to you and those currently in use. To use a tool, add it to your in-use list.",
       nextSteps: [
         "To start using an available tool, call the 'use-tools' tool with the tool's name to add it to your in-use list.",
+        "You can only use tools that are in your in-use list.",
+        "To stop using a tool, remove it from your in-use list.",
       ],
     };
   }

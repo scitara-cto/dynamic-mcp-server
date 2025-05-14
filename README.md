@@ -36,6 +36,8 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 - [Extending the Server (HTTP & DB)](./docs/extending.md)
 - [API Reference](./docs/api-reference.md)
 - [Examples](./docs/examples.md)
+- [Tool Authoring Guide](docs/tool_authoring.md)
+- [Test Patterns & Mocking Strategies](docs/test_patterns.md)
 
 ---
 
@@ -48,14 +50,6 @@ See [Getting Started](./docs/getting-started.md) for installation and basic usag
 ## 📝 Contributing
 
 Contributions are welcome! See [the documentation](./docs/) for more details.
-
-## Testing
-
-For robust test patterns, mocking strategies, and solutions to common ESM/TypeScript issues, see:
-
-- [docs/test_patterns.md](docs/test_patterns.md)
-
----
 
 ## 📄 License
 

@@ -69,11 +69,14 @@ export class ToolRepository {
     return docs.map((doc) => doc.toJSON());
   }
 
-  async getAvailableToolsForUser(user: {
-    email: string;
-    roles?: string[];
-    sharedTools?: { toolId: string }[];
-  }): Promise<ToolDefinition[]> {
+  async getAvailableToolsForUser(
+    user: {
+      email: string;
+      roles?: string[];
+      sharedTools?: { toolId: string }[];
+    },
+    serverName: string = "system",
+  ): Promise<ToolDefinition[]> {
     const allTools = await this.findAll();
     const userRoles = user.roles || [];
     const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
@@ -84,7 +87,8 @@ export class ToolRepository {
             tool.rolesPermitted.some((role) => userRoles.includes(role))) ||
           sharedToolNames.includes(tool.name) ||
           tool.creator === user.email ||
-          tool.creator === "system",
+          tool.creator === "system" ||
+          tool.creator === serverName,
       )
       .map((tool) => ({
         name: tool.name,
@@ -93,6 +97,7 @@ export class ToolRepository {
         annotations: tool.annotations,
         handler: tool.handler,
         rolesPermitted: tool.rolesPermitted,
+        alwaysUsed: tool.alwaysUsed,
       }));
   }
 }

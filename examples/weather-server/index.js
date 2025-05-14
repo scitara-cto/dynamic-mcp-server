@@ -31,6 +31,7 @@ const webServiceHandler = {
         },
         required: ["url"],
       },
+      rolesPermitted: [],
       annotations: {
         title: "Web Service",
         readOnlyHint: true,
@@ -111,6 +112,7 @@ const weatherTool = {
     },
     required: ["location"],
   },
+  rolesPermitted: ["user", "power-user", "admin"],
   annotations: {
     title: "Weather",
     readOnlyHint: true,
@@ -133,7 +135,7 @@ const weatherTool = {
 
 // Setup server with web service handler
 const server = new DynamicMcpServer({
-  name: "weather-mcp-server",
+  name: "weather-mcp",
   version: "1.0.0",
 });
 
@@ -141,7 +143,7 @@ const server = new DynamicMcpServer({
 server.registerHandler(webServiceHandler);
 
 // No need to manually register the weather tool; it's handled by the handler registration.
-server.toolGenerator.addTool(weatherTool, "system");
+server.toolGenerator.addTool(weatherTool, "weather-mcp");
 
 // Check if OPENWEATHER_API_KEY is set
 if (!process.env.OPENWEATHER_API_KEY) {

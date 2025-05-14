@@ -68,6 +68,21 @@ export class UserRepository {
     return doc ? doc.toJSON() : null;
   }
 
+  async removeUsedTools(
+    email: string,
+    toolIds: string[],
+  ): Promise<IUser | null> {
+    if (!Array.isArray(toolIds) || toolIds.length === 0) {
+      throw new Error("toolIds must be a non-empty array");
+    }
+    const doc = await User.findOneAndUpdate(
+      { email },
+      { $pull: { usedTools: { $in: toolIds } } },
+      { new: true },
+    );
+    return doc ? doc.toJSON() : null;
+  }
+
   static async ensureAdminUser(email: string, logger: any): Promise<void> {
     const existing = await User.findOne({ email });
     if (!existing) {
@@ -86,5 +101,10 @@ export class UserRepository {
     } else {
       logger.info(`Admin user exists: ${email}`);
     }
+  }
+
+  async removeUser(email: string): Promise<boolean> {
+    const result = await User.deleteOne({ email });
+    return result.deletedCount > 0;
   }
 }

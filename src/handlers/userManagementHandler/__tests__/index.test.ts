@@ -13,6 +13,7 @@ describe("UserManagementHandler", () => {
       create: jest.fn(),
       updateUser: jest.fn(),
       findByEmail: jest.fn(),
+      removeUser: jest.fn(),
     } as any;
     jest
       .spyOn(UserRepository.prototype, "list")
@@ -26,6 +27,9 @@ describe("UserManagementHandler", () => {
     jest
       .spyOn(UserRepository.prototype, "findByEmail")
       .mockImplementation(mockUserRepo.findByEmail);
+    jest
+      .spyOn(UserRepository.prototype, "removeUser")
+      .mockImplementation(mockUserRepo.removeUser);
     handler = new UserManagementHandler();
     context = {
       user: { email: "admin@example.com" },
@@ -81,6 +85,7 @@ describe("UserManagementHandler", () => {
   });
 
   it("should delete a user", async () => {
+    mockUserRepo.removeUser.mockResolvedValue(true);
     const result = await handler.handler({ email: "d@example.com" }, context, {
       action: "delete",
     });

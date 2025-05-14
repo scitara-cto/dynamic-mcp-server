@@ -27,7 +27,7 @@ export class UserManagementHandler implements Handler {
       "delete": this.handleDeleteUserAction.bind(this),
       "share-tool": this.handleShareToolAction.bind(this),
       "unshare-tool": this.handleUnshareToolAction.bind(this),
-      "use-tools": this.handleUseToolsAction.bind(this),
+      "update-usedTools": this.handleUpdateUsedToolsAction.bind(this),
     };
   }
 
@@ -100,12 +100,12 @@ export class UserManagementHandler implements Handler {
   ): Promise<ToolOutput> {
     const { email } = args;
     if (!email) throw new Error("Email is required");
-    // For simplicity, use updateUser to set a 'deleted' flag or actually delete if implemented
-    // Here, let's assume actual deletion is not implemented, so just return success
-    // You can implement actual deletion if needed
+    const deleted = await this.userRepository.removeUser(email);
     return {
-      result: { success: true, email },
-      message: `User '${email}' deleted (not actually removed from DB)`,
+      result: { success: deleted, email },
+      message: deleted
+        ? `User '${email}' deleted successfully`
+        : `User '${email}' not found or not deleted`,
     };
   }
 
@@ -186,20 +186,44 @@ export class UserManagementHandler implements Handler {
     );
   }
 
-  private async handleUseToolsAction(
+  private async handleUpdateUsedToolsAction(
     args: Record<string, any>,
-    _context: any,
-    _handlerConfig: { action: string },
+    context: any,
+    handlerConfig: { action: string },
   ): Promise<ToolOutput> {
-    const { email, toolIds } = args;
-    if (!email) throw new Error("Email is required");
-    if (!Array.isArray(toolIds) || toolIds.length === 0) {
-      throw new Error("toolIds must be a non-empty array");
+    const user = context.user;
+    if (!user || !user.email) {
+      throw new Error(
+        "User context with email is required to update used tools",
+      );
     }
-    const updatedUser = await this.userRepository.addUsedTools(email, toolIds);
+    const { operation, toolId } = args;
+    if (!toolId || typeof toolId !== "string") {
+      throw new Error("toolId must be a non-empty string");
+    }
+    if (operation !== "add" && operation !== "remove") {
+      throw new Error("operation must be 'add' or 'remove'");
+    }
+    let updatedUser;
+    if (operation === "add") {
+      updatedUser = await this.userRepository.addUsedTools(user.email, [
+        toolId,
+      ]);
+    } else {
+      if (!this.userRepository.removeUsedTools) {
+        throw new Error(
+          "removeUsedTools method not implemented in UserRepository",
+        );
+      }
+      updatedUser = await this.userRepository.removeUsedTools(user.email, [
+        toolId,
+      ]);
+    }
     return {
       result: { success: true, usedTools: updatedUser?.usedTools },
-      message: `Added ${toolIds.length} tool(s) to usedTools for user '${email}'`,
+      message: `Tool '${toolId}' has been ${
+        operation === "add" ? "added to" : "removed from"
+      } your used tools list`,
     };
   }
 }

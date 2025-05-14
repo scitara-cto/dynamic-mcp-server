@@ -18,10 +18,9 @@ export class ToolManagementHandler implements Handler {
 
   constructor() {
     this.actionHandlers = {
-      "delete": this.handleDeleteToolAction.bind(this),
-      "list": this.handleListToolsAction.bind(this),
-      "add": this.handleAddToolAction.bind(this),
-      "use-tools": this.handleUseToolsAction.bind(this),
+      delete: this.handleDeleteToolAction.bind(this),
+      list: this.handleListToolsAction.bind(this),
+      add: this.handleAddToolAction.bind(this),
     };
   }
 
@@ -125,9 +124,9 @@ export class ToolManagementHandler implements Handler {
       message:
         "Tools are grouped into those available to you and those currently in use. To use a tool, add it to your in-use list.",
       nextSteps: [
-        "To start using an available tool, call the 'use-tools' tool with the tool's name to add it to your in-use list.",
+        "To start using an available tool, call the 'update-usedTools' tool (from user management) with the tool's name to add it to your in-use list.",
         "You can only use tools that are in your in-use list.",
-        "To stop using a tool, remove it from your in-use list.",
+        "To stop using a tool, remove it from your in-use list via user management.",
       ],
     };
   }
@@ -160,32 +159,8 @@ export class ToolManagementHandler implements Handler {
       result: { success: true, name: toolDef.name },
       message: `Tool '${toolDef.name}' added successfully`,
       nextSteps: [
-        `To start using '${toolDef.name}', call the 'use-tools' tool with this tool's name to add it to your in-use list.`,
+        `To start using '${toolDef.name}', call the 'update-usedTools' tool (from user management) with this tool's name to add it to your in-use list.`,
       ],
-    };
-  }
-
-  private async handleUseToolsAction(
-    args: Record<string, any>,
-    context: any,
-    handlerConfig: { action: string; tool?: string[] },
-  ): Promise<ToolOutput> {
-    const user = context.user;
-    if (!user || !user.email) {
-      throw new Error("User context with email is required to use tools");
-    }
-    const toolIds = args.toolIds;
-    if (!Array.isArray(toolIds) || toolIds.length === 0) {
-      throw new Error("toolIds must be a non-empty array");
-    }
-    const { UserRepository } = await import(
-      "../../db/repositories/UserRepository.js"
-    );
-    const repo = new UserRepository();
-    const updatedUser = await repo.addUsedTools(user.email, toolIds);
-    return {
-      result: { success: true, usedTools: updatedUser?.usedTools },
-      message: `Added ${toolIds.length} tool(s) to usedTools`,
     };
   }
 }

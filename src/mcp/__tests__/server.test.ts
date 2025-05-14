@@ -60,6 +60,7 @@ describe("DynamicMcpServer", () => {
       .mockImplementation(() => Promise.resolve());
     mockLogger.error.mockClear();
     server = new DynamicMcpServer(baseConfig);
+    await server.initializeHandlers();
   });
 
   afterEach(() => {
@@ -73,13 +74,13 @@ describe("DynamicMcpServer", () => {
     expect(typeof server.registerHandler).toBe("function");
   });
 
-  it("registers a handler and calls ToolGenerator.registerHandlerFactory", () => {
+  it("registers a handler and calls ToolGenerator.registerHandlerFactory", async () => {
     const handler = {
       name: "testHandler",
       handler: async () => Promise.resolve(),
       tools: [],
     };
-    server.registerHandler(handler);
+    await server.registerHandler(handler);
     expect(registerHandlerFactorySpy).toHaveBeenCalledWith(
       "testHandler",
       expect.any(Function),

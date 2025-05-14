@@ -76,25 +76,46 @@ export class DynamicMcpServer extends EventEmitter {
       this,
       this.userRepository,
     );
+    // Handler registration moved to initializeHandlers()
+  }
 
-    // Register all handlers from aggregator
+  /**
+   * Register all handlers from the handlers array (call after construction)
+   */
+  public async initializeHandlers(): Promise<void> {
     for (const handler of handlers) {
-      this.registerHandler(handler);
+      await this.registerHandler(handler);
     }
   }
 
   /**
-   * Register a new handler with the server
+   * Register a new handler with the server and its tools
    */
-  public registerHandler(handler: Handler): void {
+  public async registerHandler(handler: Handler): Promise<void> {
     this.handlers.push(handler);
-    logger.info(`Registered handler: ${handler.name}`);
-    // Register the handler factory
+    // Register the handler factory for this handler type
     this.toolGenerator.registerHandlerFactory(
       handler.name,
       (config: any) => async (args: Record<string, any>, context: any) =>
         handler.handler(args, context, config),
     );
+    logger.info(`Registered handler factory for: ${handler.name}`);
+
+    // Register all tools defined in this handler
+    if (Array.isArray(handler.tools)) {
+      for (const tool of handler.tools) {
+        try {
+          await this.toolGenerator.publishTool(tool);
+          logger.info(
+            `Registered tool from handler '${handler.name}': ${tool.name}`,
+          );
+        } catch (err) {
+          logger.error(
+            `Failed to register tool '${tool.name}' from handler '${handler.name}': ${err}`,
+          );
+        }
+      }
+    }
   }
 
   /**

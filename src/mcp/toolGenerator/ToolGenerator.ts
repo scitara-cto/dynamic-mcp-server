@@ -52,7 +52,6 @@ export class ToolGenerator {
     factory: (config: any) => any,
   ): void {
     this.toolRegistry.registerHandlerFactory(type, factory);
-    logger.info(`Registered handler factory for type: ${type}`);
   }
 
   public async initialize(): Promise<void> {

@@ -110,7 +110,7 @@ describe("ToolManagementHandler", () => {
         const result = await handler.handler({}, mockContext, {
           action: "list",
         });
-        expect(result.result.tools).toEqual([
+        expect(result.result.availableTools).toEqual([
           { name: "foo", description: "", available: true, inUse: false },
           { name: "bar", description: "", available: true, inUse: false },
           { name: "baz", description: "", available: true, inUse: false },
@@ -125,7 +125,7 @@ describe("ToolManagementHandler", () => {
           mockContext,
           { action: "list" },
         );
-        expect(result.result.tools).toEqual([
+        expect(result.result.availableTools).toEqual([
           { name: "bar", description: "", available: true, inUse: false },
           { name: "baz", description: "", available: true, inUse: false },
         ]);
@@ -143,7 +143,7 @@ describe("ToolManagementHandler", () => {
         const result = await handler.handler({}, mockContext, {
           action: "list",
         });
-        expect(result.result.tools).toEqual([]);
+        expect(result.result.availableTools).toEqual([]);
         expect(result.result.total).toBe(0);
         expect(result.result.filtered).toBe(false);
       });
@@ -172,7 +172,7 @@ describe("ToolManagementHandler", () => {
         const result = await handler.handler({}, mockContext, {
           action: "list",
         });
-        expect(result.result.tools).toEqual([
+        expect(result.result.availableTools).toEqual([
           { name: "foo", description: "", available: true, inUse: false },
           { name: "foo", description: "", available: true, inUse: false },
           { name: "bar", description: "", available: true, inUse: false },

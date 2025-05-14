@@ -76,44 +76,48 @@ export class DynamicMcpServer extends EventEmitter {
       this,
       this.userRepository,
     );
-    // Handler registration moved to initializeHandlers()
+    // Handler registration moved to initializeHandlers() or start()
   }
 
   /**
-   * Register all handlers from the handlers array (call after construction)
-   */
-  public async initializeHandlers(): Promise<void> {
-    for (const handler of handlers) {
-      await this.registerHandler(handler);
-    }
-  }
-
-  /**
-   * Register a new handler with the server and its tools
+   * Register a new handler with the server and its tools.
+   * Only registers the given handler, no built-in logic.
    */
   public async registerHandler(handler: Handler): Promise<void> {
+    await this._registerHandlerInternal(handler);
+  }
+
+  /**
+   * Internal handler registration logic (no built-in check)
+   */
+  private async _registerHandlerInternal(handler: Handler): Promise<void> {
     this.handlers.push(handler);
-    // Register the handler factory for this handler type
     this.toolGenerator.registerHandlerFactory(
       handler.name,
       (config: any) => async (args: Record<string, any>, context: any) =>
         handler.handler(args, context, config),
     );
     logger.info(`Registered handler factory for: ${handler.name}`);
-
-    // Register all tools defined in this handler
     if (Array.isArray(handler.tools)) {
       for (const tool of handler.tools) {
         try {
           await this.toolGenerator.publishTool(tool);
-          logger.info(
-            `Registered tool from handler '${handler.name}': ${tool.name}`,
-          );
         } catch (err) {
           logger.error(
             `Failed to register tool '${tool.name}' from handler '${handler.name}': ${err}`,
           );
         }
+      }
+    }
+  }
+
+  /**
+   * Register all built-in handlers (no guard)
+   */
+  private async _registerBuiltinHandlers(): Promise<void> {
+    for (const builtin of handlers) {
+      if (!this.handlers.some((h) => h.name === builtin.name)) {
+        await this._registerHandlerInternal(builtin);
       }
     }
   }
@@ -219,6 +223,8 @@ export class DynamicMcpServer extends EventEmitter {
    */
   async start(): Promise<void> {
     try {
+      // Register built-in handlers before anything else
+      await this._registerBuiltinHandlers();
       // Connect to MongoDB
       await connectToDatabase();
 

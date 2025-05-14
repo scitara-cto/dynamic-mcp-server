@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "@jest/globals";
+import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import { DynamicMcpServer } from "../server.js";
 import { handlers } from "../../handlers/index.js";
 
@@ -11,8 +11,9 @@ describe("Integration: Handler and Tool Registration", () => {
     server = new DynamicMcpServer({
       name: "integration-test-server",
       version: "0.0.1",
+      port: 0, // Use ephemeral port to avoid conflicts
     });
-    await server.initializeHandlers();
+    await server.start();
   });
 
   it("registers all handler factories for known handlers", () => {
@@ -33,6 +34,12 @@ describe("Integration: Handler and Tool Registration", () => {
     const registered = server.toolGenerator.getRegisteredToolNames();
     for (const toolName of expectedTools) {
       expect(registered).toContain(toolName);
+    }
+  });
+
+  afterAll(async () => {
+    if (server && typeof server.stop === "function") {
+      await server.stop();
     }
   });
 });

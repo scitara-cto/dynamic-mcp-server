@@ -1,12 +1,7 @@
-// Mock logger before any imports
-const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
-
-// @ts-nocheck
 import { jest } from "@jest/globals";
 
-// Remove static imports of server, ToolGenerator, UserRepository, ToolRepository, Server
-// All will be dynamically imported in beforeEach
-
+// Mock all dependencies BEFORE importing the server
+jest.doMock("../../handlers/index.js", () => ({ handlers: [] }));
 jest.mock("../../db/repositories/UserRepository.js");
 jest.mock("../../db/repositories/ToolRepository.js");
 jest.mock("../toolGenerator/ToolGenerator.js");
@@ -16,62 +11,44 @@ jest.mock("@modelcontextprotocol/sdk/server/index.js", () => ({
     setRequestHandler: jest.fn(),
   })),
 }));
+jest.doMock("../../http/auth/auth-http-server.ts", () => ({
+  AuthHttpServer: jest.fn().mockImplementation(() => ({
+    start: jest.fn(),
+    stop: jest.fn(),
+  })),
+}));
+jest.doMock("../../http/mcp/mcp-http-server.ts", () => ({
+  McpHttpServer: jest.fn().mockImplementation(() => ({
+    notifyToolListChanged: jest.fn(),
+    stop: jest.fn(),
+  })),
+}));
 
-let DynamicMcpServer;
-let ToolGenerator;
-let UserRepository;
-let ToolRepository;
-let Server;
+describe("DynamicMcpServer (unit)", () => {
+  let DynamicMcpServer, ToolGenerator, server, registerHandlerFactorySpy;
 
-const baseConfig = {
-  name: "test-server",
-  version: "0.1.0",
-  logger: mockLogger,
-};
-
-describe("DynamicMcpServer", () => {
-  let server;
-  let findByEmailSpy;
-  let registerHandlerFactorySpy;
-  let initializeSpy;
+  const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  const baseConfig = {
+    name: "test-server",
+    version: "0.1.0",
+    logger: mockLogger,
+  };
 
   beforeEach(async () => {
     jest.resetModules();
     jest.clearAllMocks();
-    jest.doMock("../../utils/logger.js", () => mockLogger);
-    // Dynamic imports after mocks
+    // Dynamic import after all mocks
     ({ DynamicMcpServer } = await import("../server.js"));
     ({ ToolGenerator } = await import("../toolGenerator/ToolGenerator.js"));
-    ({ UserRepository } = await import(
-      "../../db/repositories/UserRepository.js"
-    ));
-    ({ ToolRepository } = await import(
-      "../../db/repositories/ToolRepository.js"
-    ));
-    ({ Server } = await import("@modelcontextprotocol/sdk/server/index.js"));
-    findByEmailSpy = jest
-      .spyOn(UserRepository.prototype, "findByEmail")
-      .mockImplementation(() => Promise.resolve(null));
     registerHandlerFactorySpy = jest
       .spyOn(ToolGenerator.prototype, "registerHandlerFactory")
       .mockImplementation(() => undefined);
-    initializeSpy = jest
-      .spyOn(ToolGenerator.prototype, "initialize")
-      .mockImplementation(() => Promise.resolve());
-    mockLogger.error.mockClear();
     server = new DynamicMcpServer(baseConfig);
-    await server.initializeHandlers();
+    // DO NOT call server.start()
   });
 
   afterEach(() => {
-    findByEmailSpy.mockRestore();
     registerHandlerFactorySpy.mockRestore();
-    initializeSpy.mockRestore();
-  });
-
-  it("constructs with config and initializes dependencies", () => {
-    expect(server).toBeInstanceOf(DynamicMcpServer);
-    expect(typeof server.registerHandler).toBe("function");
   });
 
   it("registers a handler and calls ToolGenerator.registerHandlerFactory", async () => {
@@ -150,9 +127,12 @@ describe("DynamicMcpServer", () => {
   });
 
   it("initialize calls toolGenerator.initialize", async () => {
-    initializeSpy.mockResolvedValue(undefined);
+    const initializeSpy = jest
+      .spyOn(ToolGenerator.prototype, "initialize")
+      .mockImplementation(() => Promise.resolve());
     await server.initialize();
     expect(initializeSpy).toHaveBeenCalled();
+    initializeSpy.mockRestore();
   });
 
   it("notifyToolListChanged emits toolsChanged for all or user", async () => {

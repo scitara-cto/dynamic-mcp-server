@@ -69,14 +69,19 @@ export class UserRepository {
   }
 
   static async ensureAdminUser(email: string, logger: any): Promise<void> {
-    const repo = new UserRepository();
-    const adminUser = await repo.findByEmail(email);
-    if (!adminUser) {
-      await repo.create({
-        email,
-        roles: ["admin"],
-        name: "Admin User",
-      });
+    const existing = await User.findOne({ email });
+    if (!existing) {
+      await User.findOneAndUpdate(
+        { email },
+        {
+          $setOnInsert: {
+            email,
+            roles: ["admin"],
+            name: "Admin User",
+          },
+        },
+        { upsert: true, new: true },
+      );
       logger.info(`Admin user created: ${email}`);
     } else {
       logger.info(`Admin user exists: ${email}`);

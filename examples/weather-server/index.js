@@ -140,12 +140,6 @@ const weatherTool = {
     version: "1.0.0",
   });
 
-  // Register the web service handler and await registration
-  await server.registerHandler(webServiceHandler);
-
-  // No need to manually register the weather tool; it's handled by the handler registration.
-  server.toolGenerator.addTool(weatherTool, "weather-mcp");
-
   // Check if OPENWEATHER_API_KEY is set
   if (!process.env.OPENWEATHER_API_KEY) {
     logger.info(
@@ -155,9 +149,16 @@ const weatherTool = {
   }
   logger.info("OPENWEATHER_API_KEY is set");
 
-  // Start the server
-  server.start().then(() => {
-    logger.info("Weather MCP Server started");
-    logger.info("Available at http://localhost:3000");
-  });
+  // Start the server (connects to MongoDB)
+  await server.start();
+
+  // Register the web service handler and await registration
+  await server.registerHandler(webServiceHandler);
+
+  // Register the weather tool
+  await server.toolGenerator.addTool(weatherTool, "weather-mcp");
+
+  // Start the server HTTP listeners (if not already started in server.start)
+  logger.info("Weather MCP Server started");
+  logger.info("Available at http://localhost:3000");
 })();

@@ -101,7 +101,7 @@ export class DynamicMcpServer extends EventEmitter {
     if (Array.isArray(handler.tools)) {
       for (const tool of handler.tools) {
         try {
-          await this.toolGenerator.publishTool(tool);
+          await this.toolGenerator.addTool(tool, this.name);
         } catch (err) {
           logger.error(
             `Failed to register tool '${tool.name}' from handler '${handler.name}': ${err}`,
@@ -223,10 +223,11 @@ export class DynamicMcpServer extends EventEmitter {
    */
   async start(): Promise<void> {
     try {
+      // Connect to MongoDB
+      await connectToDatabase(); 
+      
       // Register built-in handlers before anything else
       await this._registerBuiltinHandlers();
-      // Connect to MongoDB
-      await connectToDatabase();
 
       // Admin user bootstrapping
       const adminEmail = process.env.MCP_ADMIN_EMAIL;

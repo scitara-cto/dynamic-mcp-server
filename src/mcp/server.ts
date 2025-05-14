@@ -211,6 +211,8 @@ export class DynamicMcpServer extends EventEmitter {
             "The server cannot start without an admin user.",
         );
       }
+      // Ensure admin user exists
+      await UserRepository.ensureAdminUser(adminEmail, logger);
 
       // --- Tool sync and user tool cleanup ---
       const removedToolNames = await syncBuiltinTools();

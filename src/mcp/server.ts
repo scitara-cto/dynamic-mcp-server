@@ -98,16 +98,25 @@ export class DynamicMcpServer extends EventEmitter {
         handler.handler(args, context, config),
     );
     logger.info(`Registered handler factory for: ${handler.name}`);
+    const toolsAdded: string[] = [];
     if (Array.isArray(handler.tools)) {
       for (const tool of handler.tools) {
         try {
           await this.toolGenerator.addTool(tool, this.name);
+          toolsAdded.push(tool.name);
         } catch (err) {
           logger.error(
             `Failed to register tool '${tool.name}' from handler '${handler.name}': ${err}`,
           );
         }
       }
+      logger.info(
+        toolsAdded.length
+          ? `Registered tools for handler ${handler.name}: ${toolsAdded.join(
+              ", ",
+            )}`
+          : `No tools registered for handler: ${handler.name}`,
+      );
     }
   }
 
@@ -224,8 +233,8 @@ export class DynamicMcpServer extends EventEmitter {
   async start(): Promise<void> {
     try {
       // Connect to MongoDB
-      await connectToDatabase(); 
-      
+      await connectToDatabase();
+
       // Register built-in handlers before anything else
       await this._registerBuiltinHandlers();
 

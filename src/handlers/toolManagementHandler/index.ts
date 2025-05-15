@@ -51,16 +51,13 @@ export class ToolManagementHandler implements Handler {
     if (!mcpServer) {
       throw new Error("McpServer not available in context");
     }
-    const toolGenerator = mcpServer.toolGenerator;
+    const toolService = mcpServer.toolService;
     const toolName = args.name as string;
     if (!toolName) {
       throw new Error("Tool name is required for deletion");
     }
-    const tool = toolGenerator.getTool(toolName);
-    if (!tool) {
-      throw new Error(`Tool with name '${toolName}' not found`);
-    }
-    await toolGenerator.removeTool(toolName);
+    // Remove tool directly; if not found, handle error in removeTool
+    await toolService.removeTool(toolName); // Will throw if not found
     await mcpServer.notifyToolListChanged();
     return {
       result: { success: true, name: toolName },
@@ -140,7 +137,7 @@ export class ToolManagementHandler implements Handler {
     if (!mcpServer) {
       throw new Error("McpServer not available in context");
     }
-    const toolGenerator = mcpServer.toolGenerator;
+    const toolService = mcpServer.toolService;
     const user = context.user;
     if (!user || !user.email) {
       throw new Error("User context with email is required to add a tool");
@@ -150,9 +147,7 @@ export class ToolManagementHandler implements Handler {
       throw new Error("A valid toolDefinition object with a name is required");
     }
     // Persist the tool
-    await toolGenerator.addTool(toolDef, user.email);
-    // Register the tool in memory for this session
-    await toolGenerator.publishTool(toolDef);
+    await toolService.addTool(toolDef, user.email);
     // Notify all sessions
     await mcpServer.notifyToolListChanged();
     return {
@@ -164,3 +159,9 @@ export class ToolManagementHandler implements Handler {
     };
   }
 }
+
+export const toolManagementHandlerPackage = {
+  name: "tool-management",
+  handler: new ToolManagementHandler(),
+  tools: toolManagementTools,
+};

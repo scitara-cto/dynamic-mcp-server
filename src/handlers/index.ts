@@ -1,18 +1,7 @@
-import { UserManagementHandler } from "./userManagementHandler/index.js";
-import { ToolManagementHandler } from "./toolManagementHandler/index.js";
-import { userManagementTools } from "./userManagementHandler/tools.js";
-import { toolManagementTools } from "./toolManagementHandler/tools.js";
+import { userManagementHandlerPackage } from "./userManagementHandler/index.js";
+import { toolManagementHandlerPackage } from "./toolManagementHandler/index.js";
 
-export const handlers = [
-  new UserManagementHandler(),
-  new ToolManagementHandler(),
+export const handlerPackages = [
+  userManagementHandlerPackage,
+  toolManagementHandlerPackage,
 ];
-
-export const builtInTools = [...userManagementTools, ...toolManagementTools];
-
-export {
-  UserManagementHandler,
-  ToolManagementHandler,
-  userManagementTools,
-  toolManagementTools,
-};

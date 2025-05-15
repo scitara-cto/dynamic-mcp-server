@@ -43,9 +43,11 @@ export class ToolRepository {
     return docs.map((doc) => doc.toJSON());
   }
 
-  async deleteTool(name: string): Promise<boolean> {
+  async deleteTool(name: string): Promise<void> {
     const result = await Tool.deleteOne({ name });
-    return result.deletedCount > 0;
+    if (result.deletedCount === 0) {
+      throw new Error(`Tool with name '${name}' not found`);
+    }
   }
 
   async upsertMany(tools: Partial<ITool>[]): Promise<void> {

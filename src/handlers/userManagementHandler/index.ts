@@ -227,3 +227,9 @@ export class UserManagementHandler implements Handler {
     };
   }
 }
+
+export const userManagementHandlerPackage = {
+  name: "user-management",
+  handler: new UserManagementHandler(),
+  tools: userManagementTools,
+};

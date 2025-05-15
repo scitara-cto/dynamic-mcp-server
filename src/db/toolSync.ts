@@ -1,15 +1,16 @@
 import { ToolRepository } from "./repositories/ToolRepository.js";
 import { UserRepository } from "./repositories/UserRepository.js";
 import logger from "../utils/logger.js";
-import { builtInTools } from "../handlers/index.js";
-import { Tool } from "./models/Tool.js";
+import { handlerPackages } from "../handlers/index.js";
 
 export async function syncBuiltinTools(): Promise<string[]> {
   const toolRepo = new ToolRepository();
-  const builtinTools = builtInTools.map((tool: any) => ({
-    ...tool,
-    creator: "system",
-  }));
+  const builtinTools = handlerPackages
+    .flatMap((pkg: any) => pkg.tools)
+    .map((tool: any) => ({
+      ...tool,
+      creator: "system",
+    }));
   await toolRepo.upsertMany(builtinTools);
   logger.info("Bootstrapped built-in tools into the tools collection");
 

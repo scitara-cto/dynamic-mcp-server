@@ -1,4 +1,5 @@
 import { User, IUser } from "../models/User.js";
+import { Tool } from "../models/Tool.js";
 
 export class UserRepository {
   async findByEmail(email: string): Promise<IUser | null> {
@@ -106,5 +107,23 @@ export class UserRepository {
   async removeUser(email: string): Promise<boolean> {
     const result = await User.deleteOne({ email });
     return result.deletedCount > 0;
+  }
+
+  async getUserTools(email: string): Promise<any[]> {
+    const user = await this.findByEmail(email);
+    if (!user) return [];
+    const usedTools = user.usedTools || [];
+    const userRoles = user.roles || [];
+    const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
+
+    return await Tool.find({
+      $or: [
+        { name: { $in: usedTools } },
+        { name: { $in: sharedToolNames } },
+        { rolesPermitted: { $elemMatch: { $in: userRoles } } },
+        { creator: user.email },
+        { creator: "system" },
+      ],
+    }).lean();
   }
 }

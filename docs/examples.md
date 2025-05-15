@@ -155,3 +155,77 @@ webServiceHandler.tools.push(weatherTool);
 This pattern allows you to create reusable handlers and register multiple tools that leverage the same handler logic.
 
 See [Getting Started](./getting-started.md) for more.
+
+## Web Service & Weather Handler Example (Best Practice)
+
+```js
+const weatherHandlerPackage = {
+  name: "weather-tools",
+  tools: [
+    {
+      name: "web-request",
+      description: "Make HTTP requests to web services",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "The URL to request" },
+          method: {
+            type: "string",
+            enum: ["GET", "POST", "PUT", "DELETE"],
+            default: "GET",
+          },
+          queryParams: {
+            type: "object",
+            additionalProperties: true,
+            description: "Query parameters to include in the request",
+          },
+        },
+        required: ["url"],
+      },
+      handler: { type: "weather-tools", config: {} },
+    },
+    {
+      name: "get-weather",
+      description: "Get current weather for a location",
+      inputSchema: {
+        type: "object",
+        properties: {
+          location: { type: "string", description: "City name or coordinates" },
+          units: {
+            type: "string",
+            enum: ["metric", "imperial"],
+            default: "metric",
+          },
+        },
+        required: ["location"],
+      },
+      handler: {
+        type: "weather-tools",
+        config: {
+          url: "https://api.openweathermap.org/data/2.5/weather",
+          queryParams: {
+            appid: "${OPENWEATHER_API_KEY}",
+            q: "${location}",
+            units: "${units}",
+          },
+        },
+      },
+    },
+  ],
+  handler: async (args, context, config, toolName) => {
+    // Dispatch logic based on toolName
+    const actualToolName = args.__toolName || toolName || context?.toolName;
+    if (actualToolName === "web-request") {
+      // ... web request logic ...
+    } else if (actualToolName === "get-weather") {
+      // ... weather logic ...
+    } else {
+      throw new Error(`Unknown tool: ${actualToolName}`);
+    }
+  },
+};
+
+await server.registerHandler(weatherHandlerPackage);
+```
+
+This pattern allows you to create reusable handlers and register multiple tools that leverage the same handler logic. See the [weather-server example](../examples/weather-server/index.js) for a full implementation.

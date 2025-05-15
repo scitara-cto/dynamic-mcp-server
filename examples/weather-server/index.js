@@ -2,9 +2,9 @@ import { DynamicMcpServer, logger } from "../../dist/index.js";
 import dotenv from "dotenv";
 dotenv.config();
 
-// Web Service Handler
-const webServiceHandler = {
-  name: "web-service",
+// Combined Weather Handler Package
+const weatherHandlerPackage = {
+  name: "weather-tools",
   tools: [
     {
       name: "web-request",
@@ -40,101 +40,142 @@ const webServiceHandler = {
         openWorldHint: true,
       },
       handler: {
-        type: "web-service",
+        type: "weather-tools",
         config: {},
       },
     },
+    {
+      name: "get-weather",
+      description: "Get current weather for a location",
+      inputSchema: {
+        type: "object",
+        properties: {
+          location: {
+            type: "string",
+            description: "City name or coordinates",
+          },
+          units: {
+            type: "string",
+            enum: ["metric", "imperial"],
+            default: "metric",
+          },
+        },
+        required: ["location"],
+      },
+      rolesPermitted: ["user", "power-user", "admin"],
+      annotations: {
+        title: "Weather",
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+      handler: {
+        type: "weather-tools",
+        config: {
+          url: "https://api.openweathermap.org/data/2.5/weather",
+          queryParams: {
+            appid: "${OPENWEATHER_API_KEY}",
+            q: "${location}",
+            units: "${units}",
+          },
+        },
+      },
+    },
   ],
-  handler: async (args, context, config) => {
-    const method = args.method || "GET";
-    const baseUrl = config.url || args.url;
-    // Merge query params from config and args
-    const queryParams = {
-      ...(config.queryParams || {}),
-      ...(args.queryParams || {}),
-    };
-
-    // Substitute template variables in queryParams
-    const resolvedParams = {};
-    for (const [key, value] of Object.entries(queryParams)) {
-      if (
-        typeof value === "string" &&
-        value.startsWith("${") &&
-        value.endsWith("}")
-      ) {
-        const varName = value.slice(2, -1);
-        resolvedParams[key] = args[varName] || process.env[varName] || "";
-      } else {
-        resolvedParams[key] = value;
+  handler: async (args, context, config, toolName) => {
+    // toolName is not passed by default, so infer from context if possible
+    const actualToolName = args.__toolName || toolName || context?.toolName;
+    if (actualToolName === "web-request") {
+      // Web request logic
+      const method = args.method || "GET";
+      const baseUrl = config.url || args.url;
+      // Merge query params from config and args
+      const queryParams = {
+        ...(config.queryParams || {}),
+        ...(args.queryParams || {}),
+      };
+      // Substitute template variables in queryParams
+      const resolvedParams = {};
+      for (const [key, value] of Object.entries(queryParams)) {
+        if (
+          typeof value === "string" &&
+          value.startsWith("${") &&
+          value.endsWith("}")
+        ) {
+          const varName = value.slice(2, -1);
+          resolvedParams[key] = args[varName] || process.env[varName] || "";
+        } else {
+          resolvedParams[key] = value;
+        }
       }
+      // Build URL with query params
+      const urlObj = new URL(baseUrl);
+      Object.entries(resolvedParams).forEach(([k, v]) => {
+        if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
+      });
+      const body =
+        method === "POST" || method === "PUT"
+          ? JSON.stringify(args.body)
+          : undefined;
+      const response = await fetch(urlObj.toString(), {
+        method,
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        ...(body && { body }),
+      });
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { result: data, message: "Request successful" };
+    } else if (actualToolName === "get-weather") {
+      // Weather tool logic (uses web request logic with weather config)
+      const method = "GET";
+      const baseUrl = config.url;
+      const queryParams = {
+        ...(config.queryParams || {}),
+        ...(args.queryParams || {}),
+      };
+      // Substitute template variables in queryParams
+      const resolvedParams = {};
+      for (const [key, value] of Object.entries(queryParams)) {
+        if (
+          typeof value === "string" &&
+          value.startsWith("${") &&
+          value.endsWith("}")
+        ) {
+          const varName = value.slice(2, -1);
+          resolvedParams[key] = args[varName] || process.env[varName] || "";
+        } else {
+          resolvedParams[key] = value;
+        }
+      }
+      // Build URL with query params
+      const urlObj = new URL(baseUrl);
+      Object.entries(resolvedParams).forEach(([k, v]) => {
+        if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
+      });
+      const response = await fetch(urlObj.toString(), {
+        method,
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+      });
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
+      return { result: data, message: "Weather request successful" };
+    } else {
+      throw new Error(`Unknown tool: ${actualToolName}`);
     }
-
-    // Build URL with query params
-    const urlObj = new URL(baseUrl);
-    Object.entries(resolvedParams).forEach(([k, v]) => {
-      if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
-    });
-
-    const body =
-      method === "POST" || method === "PUT"
-        ? JSON.stringify(args.body)
-        : undefined;
-    const response = await fetch(urlObj.toString(), {
-      method,
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-      },
-      ...(body && { body }),
-    });
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data = await response.json();
-    return { result: data, message: "Request successful" };
-  },
-};
-
-// Weather Tool using Web Service Handler
-const weatherTool = {
-  name: "get-weather",
-  description: "Get current weather for a location",
-  inputSchema: {
-    type: "object",
-    properties: {
-      location: {
-        type: "string",
-        description: "City name or coordinates",
-      },
-      units: {
-        type: "string",
-        enum: ["metric", "imperial"],
-        default: "metric",
-      },
-    },
-    required: ["location"],
-  },
-  rolesPermitted: ["user", "power-user", "admin"],
-  annotations: {
-    title: "Weather",
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: true,
-  },
-  handler: {
-    type: "web-service",
-    config: {
-      url: "https://api.openweathermap.org/data/2.5/weather",
-      queryParams: {
-        appid: "${OPENWEATHER_API_KEY}",
-        q: "${location}",
-        units: "${units}",
-      },
-    },
   },
 };
 
 (async () => {
-  // Setup server with web service handler
+  // Setup server with weather handler
   const server = new DynamicMcpServer({
     name: "weather-mcp",
     version: "1.0.0",
@@ -152,11 +193,8 @@ const weatherTool = {
   // Start the server (connects to MongoDB)
   await server.start();
 
-  // Register the web service handler and await registration
-  await server.registerHandler(webServiceHandler);
-
-  // Register the weather tool
-  await server.toolGenerator.addTool(weatherTool, "weather-mcp");
+  // Register the combined weather handler package
+  await server.registerHandler(weatherHandlerPackage);
 
   // Start the server HTTP listeners (if not already started in server.start)
   logger.info("Weather MCP Server started");

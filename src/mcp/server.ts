@@ -1,6 +1,6 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import logger from "../utils/logger.js";
-import { ToolGenerator } from "./toolGenerator/ToolGenerator.js";
+import { ToolService } from "../services/ToolService.js";
 import { ToolDefinition } from "./types.js";
 import { EventEmitter } from "events";
 import { AuthService, UserInfo } from "../http/mcp/middleware/AuthService.js";
@@ -10,8 +10,7 @@ import { createAuthMiddleware } from "../http/mcp/middleware/auth.js";
 import { config } from "../config/index.js";
 import { connectToDatabase } from "../db/connection.js";
 import { UserRepository } from "../db/repositories/UserRepository.js";
-import { ToolRepository } from "../db/repositories/ToolRepository.js";
-import { handlers } from "../handlers/index.js";
+import { handlerPackages } from "../handlers/index.js";
 import { syncBuiltinTools, cleanupUserToolReferences } from "../db/toolSync.js";
 
 export interface SessionInfo {
@@ -50,9 +49,9 @@ export interface Handler {
 
 export class DynamicMcpServer extends EventEmitter {
   private server: Server;
-  public toolGenerator: ToolGenerator;
+  public toolService: ToolService;
   private sessionInfo = new Map<string, SessionInfo>();
-  private handlers: Handler[] = [];
+  private handlers: Map<string, Handler> = new Map();
   private mcpHttpServer?: McpHttpServer;
   private authHttpServer?: AuthHttpServer;
   private userRepository: UserRepository;
@@ -71,64 +70,33 @@ export class DynamicMcpServer extends EventEmitter {
     });
     this.userRepository = new UserRepository();
     this.name = config.name;
-    this.toolGenerator = new ToolGenerator(
-      this.server,
-      this,
-      this.userRepository,
-    );
+    this.toolService = new ToolService(this.server, this, this.userRepository);
     // Handler registration moved to initializeHandlers() or start()
   }
 
   /**
-   * Register a new handler with the server and its tools.
-   * Only registers the given handler, no built-in logic.
+   * Register a handler package (from core or downstream app).
+   * handlerPackage: { name: string, handler: Handler, tools: ToolDefinition[] }
    */
-  public async registerHandler(handler: Handler): Promise<void> {
-    await this._registerHandlerInternal(handler);
-  }
-
-  /**
-   * Internal handler registration logic (no built-in check)
-   */
-  private async _registerHandlerInternal(handler: Handler): Promise<void> {
-    this.handlers.push(handler);
-    this.toolGenerator.registerHandlerFactory(
-      handler.name,
-      (config: any) => async (args: Record<string, any>, context: any) =>
-        handler.handler(args, context, config),
-    );
-    logger.info(`Registered handler factory for: ${handler.name}`);
-    const toolsAdded: string[] = [];
-    if (Array.isArray(handler.tools)) {
-      for (const tool of handler.tools) {
-        try {
-          await this.toolGenerator.addTool(tool, this.name);
-          toolsAdded.push(tool.name);
-        } catch (err) {
-          logger.error(
-            `Failed to register tool '${tool.name}' from handler '${handler.name}': ${err}`,
-          );
+  public async registerHandler(handlerPackage: {
+    name: string;
+    handler: Handler;
+    tools: ToolDefinition[];
+  }): Promise<void> {
+    this.handlers.set(handlerPackage.name, handlerPackage.handler);
+    // Register tools in DB
+    let toolNames: string[] = [];
+    if (Array.isArray(handlerPackage.tools)) {
+      for (const tool of handlerPackage.tools) {
+        await this.toolService.addTool(tool, this.name);
+        if (tool && tool.name) {
+          toolNames.push(tool.name);
         }
       }
-      logger.info(
-        toolsAdded.length
-          ? `Registered tools for handler ${handler.name}: ${toolsAdded.join(
-              ", ",
-            )}`
-          : `No tools registered for handler: ${handler.name}`,
-      );
     }
-  }
-
-  /**
-   * Register all built-in handlers (no guard)
-   */
-  private async _registerBuiltinHandlers(): Promise<void> {
-    for (const builtin of handlers) {
-      if (!this.handlers.some((h) => h.name === builtin.name)) {
-        await this._registerHandlerInternal(builtin);
-      }
-    }
+    const toolList =
+      toolNames.length > 0 ? ` (tools: ${toolNames.join(", ")})` : "";
+    logger.info(`Registered handler for: ${handlerPackage.name}${toolList}`);
   }
 
   /**
@@ -140,50 +108,7 @@ export class DynamicMcpServer extends EventEmitter {
   ): Promise<void> {
     sessionInfo.mcpServer = this;
     this.sessionInfo.set(sessionId, sessionInfo);
-    // Load user tools for this session
-    if (sessionInfo.user?.email) {
-      await this.loadUserToolsForSession(sessionId, sessionInfo.user.email);
-    }
-  }
-
-  /**
-   * Load tools for a user and register them for the session
-   */
-  public async loadUserToolsForSession(
-    sessionId: string,
-    userEmail: string,
-  ): Promise<void> {
-    const user = await this.userRepository.findByEmail(userEmail);
-    if (!user) {
-      logger.warn(`User not found for session ${sessionId}: ${userEmail}`);
-      return;
-    }
-    const toolRepo = new ToolRepository();
-    const availableTools = await toolRepo.getAvailableToolsForUser(
-      user,
-      this.name,
-    );
-    const usedTools = user.usedTools || [];
-    // Always include tools with alwaysUsed: true, plus those in usedTools
-    const toolsToLoad = availableTools.filter(
-      (tool) => tool.alwaysUsed || usedTools.includes(tool.name),
-    );
-    // Remove duplicates by tool name
-    const uniqueToolsToLoad = Array.from(
-      new Map(toolsToLoad.map((t) => [t.name, t])).values(),
-    );
-    if (!uniqueToolsToLoad.length) {
-      logger.info(
-        `No tools to load for session ${sessionId} (${userEmail}) (usedTools is empty or no overlap, and no alwaysUsed tools)`,
-      );
-      return;
-    }
-    for (const tool of uniqueToolsToLoad) {
-      await this.toolGenerator.publishTool(tool);
-    }
-    logger.info(
-      `Loaded ${uniqueToolsToLoad.length} tools for session ${sessionId} (${userEmail})`,
-    );
+    // No longer need to load user tools for the session; DB-backed approach is used
   }
 
   /**
@@ -220,7 +145,7 @@ export class DynamicMcpServer extends EventEmitter {
     try {
       // Remove global tool registration from here
       // Ensure the tools/list handler is registered
-      await this.toolGenerator.initialize();
+      await this.toolService.initialize();
     } catch (error) {
       logger.error("Failed to initialize MCP server:", error);
       throw error;
@@ -236,7 +161,11 @@ export class DynamicMcpServer extends EventEmitter {
       await connectToDatabase();
 
       // Register built-in handlers before anything else
-      await this._registerBuiltinHandlers();
+      for (const handlerPackage of handlerPackages) {
+        if (!this.handlers.has(handlerPackage.name)) {
+          await this.registerHandler(handlerPackage);
+        }
+      }
 
       // Admin user bootstrapping
       const adminEmail = process.env.MCP_ADMIN_EMAIL;
@@ -335,5 +264,12 @@ export class DynamicMcpServer extends EventEmitter {
 
   public getAuthHttpServer(): AuthHttpServer | undefined {
     return this.authHttpServer;
+  }
+
+  /**
+   * Get a handler by name (for tool execution)
+   */
+  public getHandler(name: string): Handler | undefined {
+    return this.handlers.get(name);
   }
 }

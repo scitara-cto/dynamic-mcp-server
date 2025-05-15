@@ -24,16 +24,41 @@ The main server class that handles tool registration, user management, and sessi
 interface DynamicMcpServerConfig {
   name: string;
   version: string;
-  port: number;
-  host: string;
+  port?: number;
+  host?: string;
+}
+
+interface HandlerPackage {
+  name: string;
+  tools: ToolDefinition[];
+  handler: (
+    args: Record<string, any>,
+    context: any,
+    config: any,
+    toolName?: string,
+  ) => Promise<any>;
 }
 
 class DynamicMcpServer {
   constructor(config: DynamicMcpServerConfig);
   start(): Promise<void>;
-  registerHandler(handler: Handler): void;
-  toolGenerator: ToolGenerator;
+  registerHandler(handlerPackage: HandlerPackage): Promise<void>;
 }
+```
+
+**Registering Tools via Handler Packages:**
+
+```js
+const myHandlerPackage = {
+  name: "my-domain",
+  tools: [
+    /* ... */
+  ],
+  handler: async (args, context, config, toolName) => {
+    /* ... */
+  },
+};
+await server.registerHandler(myHandlerPackage);
 ```
 
 ## addAuthHttpRoute

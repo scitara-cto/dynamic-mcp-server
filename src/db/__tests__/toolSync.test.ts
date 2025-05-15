@@ -5,7 +5,7 @@ import { syncBuiltinTools, cleanupUserToolReferences } from "../toolSync.js";
 import { ToolRepository } from "../repositories/ToolRepository.js";
 import { UserRepository } from "../repositories/UserRepository.js";
 import logger from "../../utils/logger.js";
-import { builtInTools } from "../../handlers/index.js";
+import { handlerPackages } from "../../handlers/index.js";
 
 // Optionally mock logger if you want to suppress output
 jest.spyOn(logger, "info").mockImplementation(() => {});
@@ -35,7 +35,9 @@ describe("syncBuiltinTools", () => {
   it("syncs built-in tools and removes stale ones", async () => {
     // Insert a stale tool and all built-in tools
     const toolRepo = new ToolRepository();
-    const builtinNames = builtInTools.map((t) => t.name);
+    const builtinNames = handlerPackages
+      .flatMap((pkg) => pkg.tools)
+      .map((t) => t.name);
     await toolRepo.upsertMany([
       ...builtinNames.map((name) => ({ name, creator: "system" })),
       { name: "toolC", creator: "system" },
@@ -53,7 +55,9 @@ describe("syncBuiltinTools", () => {
 
   it("returns empty array if no stale tools", async () => {
     const toolRepo = new ToolRepository();
-    const builtinNames = builtInTools.map((t) => t.name);
+    const builtinNames = handlerPackages
+      .flatMap((pkg) => pkg.tools)
+      .map((t) => t.name);
     await toolRepo.upsertMany(
       builtinNames.map((name) => ({ name, creator: "system" })),
     );
@@ -61,4 +65,3 @@ describe("syncBuiltinTools", () => {
     expect(removed).toEqual([]);
   });
 });
-

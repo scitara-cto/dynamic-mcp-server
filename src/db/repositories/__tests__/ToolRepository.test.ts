@@ -39,10 +39,11 @@ describe("ToolRepository", () => {
     const updated = await repo.findByName("test-tool");
     expect(updated?.description).toBe("updated");
 
-    const deleted = await repo.deleteTool("test-tool");
-    expect(deleted).toBe(true);
+    await expect(repo.deleteTool("test-tool")).resolves.toBeUndefined();
     const afterDelete = await repo.findByName("test-tool");
     expect(afterDelete).toBeNull();
+    // Should throw if tool does not exist
+    await expect(repo.deleteTool("test-tool")).rejects.toThrow(/not found/);
   });
 
   it("should upsert tools and not duplicate", async () => {

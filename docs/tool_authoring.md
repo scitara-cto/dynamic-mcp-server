@@ -1,110 +1,217 @@
-# Tool Authoring Guide
+# Extending the Server: Creating Handler & Tool Packages
 
-This guide explains how to create and register tools for the Dynamic MCP Server, including user-facing and internal/hidden tools.
-
----
-
-## Tool Definition Fields
-
-- **name** (required): Unique string identifier for the tool.
-- **description**: Short description of what the tool does.
-- **inputSchema** (required): JSON schema describing the tool's input arguments.
-- **handler** (required): Object describing the handler type and config.
-- **rolesPermitted**: Array of roles that can access this tool. See below for details.
-- **annotations**: Optional metadata for UI and documentation.
-- **creator**: String identifying the tool's creator (system, app name, or user email).
+This guide explains how to extend the Dynamic MCP Server by creating handler and tool packages. It covers the relationship between tools and handlers, how to group them, and best practices for extensibility.
 
 ---
 
-## User-Facing Tools
+## 1. What is a Tool?
 
-To make a tool available to users, specify the roles that should have access:
+A **Tool** is a JSON definition that describes a capability your server exposes. It includes:
+
+### Tool Definition Fields (Detailed)
+
+| Field            | Type     | Required | Description                                                                                     |
+| ---------------- | -------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `name`           | string   | Yes      | Unique identifier for the tool. Used to reference and invoke the tool.                          |
+| `description`    | string   | Yes      | Short, human-readable summary of what the tool does.                                            |
+| `inputSchema`    | object   | Yes      | JSON Schema describing the expected input arguments for the tool.                               |
+| `handler`        | object   | Yes      | Specifies which handler package and config to use for execution.                                |
+| `rolesPermitted` | string[] | No       | Array of user roles allowed to access this tool. Omit or set to `[]` for internal/hidden tools. |
+| `annotations`    | object   | No       | Optional metadata for UI, documentation, or hints.                                              |
+| `creator`        | string   | No       | Who created the tool (app name or user email). Defaults to the server name if omitted.          |
+
+#### Example Tool Definition
 
 ```js
-rolesPermitted: ["user", "power-user", "admin"];
-```
-
-- Only users with at least one of these roles will see and be able to use the tool.
-- There is **no automatic role inheritance**: if you want admins to have access, include "admin" explicitly.
-
----
-
-## Internal/Hidden Tools
-
-If you want to create a tool that is **not directly available to any user** (for example, a helper tool used only by other tools):
-
-- Omit the `rolesPermitted` field, or set it to an empty array:
-
-```js
-rolesPermitted: []; // or simply omit
-```
-
-- Such tools will not appear in any user's available tool list and cannot be called directly by users.
-- This is the recommended way to define internal or "hidden" tools.
-
----
-
-## Best Practices
-
-- **Be explicit**: Always specify `rolesPermitted` for user-facing tools.
-- **Use internal tools for composition**: Build complex tools by composing internal/hidden tools.
-- **Set a meaningful creator**: Use your app name for system/app tools, or an email for user-created tools.
-- **Document your tool's purpose and input schema** for easier maintenance and UI integration.
-
----
-
-## Example: User-Facing Tool
-
-```js
-const myTool = {
-  name: "do-something",
-  description: "Performs an action",
-  inputSchema: { type: "object", properties: { foo: { type: "string" } } },
-  handler: { type: "custom", config: {} },
+{
+  name: "add",
+  description: "Add two numbers",
+  inputSchema: {
+    type: "object",
+    properties: {
+      a: { type: "number", description: "First number" },
+      b: { type: "number", description: "Second number" }
+    },
+    required: ["a", "b"]
+  },
+  handler: { type: "math-tools", config: {} },
   rolesPermitted: ["user", "admin"],
-  creator: "my-app",
+  annotations: { title: "Addition Tool" },
+  creator: "my-app"
+}
+```
+
+### How inputSchema Arguments Are Passed to the Handler
+
+- The `inputSchema` defines the structure and types of arguments the tool expects.
+- When a user (or another tool) calls this tool, the arguments must match the schema.
+- The handler function receives these arguments as the `args` parameter.
+
+**Example:**
+
+If the tool's `inputSchema` is:
+
+```js
+inputSchema: {
+  type: "object",
+  properties: {
+    a: { type: "number" },
+    b: { type: "number" }
+  },
+  required: ["a", "b"]
+}
+```
+
+And the user calls the tool with `{ a: 2, b: 3 }`, then in your handler:
+
+```js
+handler: async (args, context, config, toolName) => {
+  // args = { a: 2, b: 3 }
+  return { result: args.a + args.b };
 };
 ```
 
-## Example: Internal/Hidden Tool
+- The handler can access each argument by name (e.g., `args.a`, `args.b`).
+- The `context` parameter provides session/user info, and `config` is the handler config from the tool definition.
+
+---
+
+## Mapping inputSchema Arguments to Handler Config
+
+A powerful pattern is to use template strings in the tool's handler config to map inputSchema arguments (user input) directly into handler parameters. This is especially useful for generic handlers that make API calls or perform templated actions.
+
+> **Tip:** You can also include environment variables in these mappings. For example, `${OPENWEATHER_API_KEY}` will be replaced with the value of the `OPENWEATHER_API_KEY` environment variable at runtime. The handler code will substitute template variables using tool input arguments first, and if not present, will fall back to environment variables (`process.env`).
+
+### How It Works
+
+- In the tool definition, use template strings like `"${location}"` or `"${units}"` in the handler config.
+- In your handler code, substitute these placeholders with the actual values from `args` (validated against `inputSchema`) or environment variables.
+
+### Weather Tool Example
+
+**Tool Definition:**
 
 ```js
-const helperTool = {
-  name: "helper",
-  description: "Used internally by other tools",
-  inputSchema: { type: "object", properties: { bar: { type: "number" } } },
-  handler: { type: "custom", config: {} },
-  // No rolesPermitted: hidden/internal
-  creator: "my-app",
+{
+  name: "get-weather",
+  description: "Get current weather for a location",
+  inputSchema: {
+    type: "object",
+    properties: {
+      location: { type: "string", description: "City name or coordinates" },
+      units: {
+        type: "string",
+        enum: ["metric", "imperial"],
+        default: "metric",
+      },
+    },
+    required: ["location"],
+  },
+  handler: {
+    type: "weather-tools",
+    config: {
+      url: "https://api.openweathermap.org/data/2.5/weather",
+      queryParams: {
+        appid: "${OPENWEATHER_API_KEY}",
+        q: "${location}",
+        units: "${units}",
+      },
+    },
+  },
+}
+```
+
+**Handler Implementation:**
+
+```js
+handler: async (args, context, config, toolName) => {
+  // Merge query params from config and args
+  const queryParams = {
+    ...(config.queryParams || {}),
+    ...(args.queryParams || {}),
+  };
+  const resolvedParams = {};
+  for (const [key, value] of Object.entries(queryParams)) {
+    if (
+      typeof value === "string" &&
+      value.startsWith("${") &&
+      value.endsWith("}")
+    ) {
+      const varName = value.slice(2, -1);
+      resolvedParams[key] = args[varName] || process.env[varName] || "";
+    } else {
+      resolvedParams[key] = value;
+    }
+  }
+  // Use resolvedParams to build the request (e.g., for fetch)
+  // ...
+};
+```
+
+### Why Use This Pattern?
+
+- **Separation of concerns:** Tool authors define how user input maps to handler logic, while handler code remains generic.
+- **Reusability:** The same handler can serve many tools, each with different mappings.
+- **Flexibility:** You can easily add new tools for different APIs or endpoints by just changing the config/template, not the handler code.
+
+**When to Use:**
+
+- When you want to create generic, reusable handlers (e.g., for web requests, database queries, etc.)
+- When tool authors need to control how user input is mapped to handler parameters without changing code.
+
+---
+
+## 2. What is a Handler?
+
+A **Handler** is the code that implements the functionality for one or more tools. When a tool is invoked, the server calls the handler function, passing the tool's arguments, context, and config.
+
+Handlers can:
+
+- Implement logic for a single tool, or
+- Dispatch based on the tool name to support multiple tools in one package
+
+---
+
+## 3. Creating a Handler Package
+
+A **Handler Package** groups related tools and provides the handler function that executes them. This is the recommended way to extend the server.
+
+```js
+const myHandlerPackage = {
+  name: "my-domain",
+  tools: [
+    {
+      name: "my-tool",
+      description: "A custom tool",
+      inputSchema: {
+        /* ... */
+      },
+      handler: { type: "my-domain", config: {} },
+      rolesPermitted: ["user", "admin"],
+      creator: "my-app",
+    },
+    // ...more tools...
+  ],
+  handler: async (args, context, config, toolName) => {
+    // Dispatch logic based on toolName, if needed
+  },
 };
 ```
 
 ---
 
-## Registering a Tool
+## 4. Registering a Handler Package with the Server
 
-To register a tool with the MCP server, use the `addTool` method on the server's tool generator. Pass your tool definition and a creator string (your app name or user email):
-
-> **Note:** If you haven't yet instantiated an MCP server, see the [Getting Started guide](./getting-started.md) for setup instructions.
-
-> **App Name Convention:** When you instantiate your MCP server, the `name` property is used as the default creator for tools registered by this app. Any tool registered without a creator will default to this name, making it easy to attribute and manage tools by application.
+Register your handler package with the server at startup (or dynamically at runtime):
 
 ```js
-const server = new DynamicMcpServer({
-  name: "weather-mcp",
-  version: "1.0.0",
-});
-
-// Example: Register a user-facing tool
-server.toolGenerator.addTool(myTool); // creator defaults to server name
-
-// Example: Register an internal/hidden tool
-server.toolGenerator.addTool(helperTool); // creator defaults to server name
+const server = new DynamicMcpServer({ name: "my-mcp", version: "1.0.0" });
+await server.start();
+await server.registerHandler(myHandlerPackage);
 ```
-
-- The `creator` string should be your app name for system/app tools, or an email for user-created tools.
-- You can call `addTool` at startup or dynamically at runtime.
 
 ---
 
-For more details, see the main README or reach out to the maintainers.
+## 5. Best Practices
+
+- **Be explicit**: Always specify `rolesPermitted`

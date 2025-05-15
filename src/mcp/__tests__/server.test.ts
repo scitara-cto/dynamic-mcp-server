@@ -1,10 +1,10 @@
 import { jest } from "@jest/globals";
 
 // Mock all dependencies BEFORE importing the server
-jest.doMock("../../handlers/index.js", () => ({ handlers: [] }));
+// jest.doMock("../../handlers/index.js", () => ({ handlerPackages: [] }));
 jest.mock("../../db/repositories/UserRepository.js");
 jest.mock("../../db/repositories/ToolRepository.js");
-jest.mock("../toolGenerator/ToolGenerator.js");
+// jest.mock("../toolGenerator/ToolGenerator.js");
 jest.mock("@modelcontextprotocol/sdk/server/index.js", () => ({
   Server: jest.fn().mockImplementation(() => ({
     registerCapabilities: jest.fn(),
@@ -25,7 +25,7 @@ jest.doMock("../../http/mcp/mcp-http-server.ts", () => ({
 }));
 
 describe("DynamicMcpServer (unit)", () => {
-  let DynamicMcpServer, ToolGenerator, server, registerHandlerFactorySpy;
+  let DynamicMcpServer, ToolService, server;
 
   const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
   const baseConfig = {
@@ -39,58 +39,20 @@ describe("DynamicMcpServer (unit)", () => {
     jest.clearAllMocks();
     // Dynamic import after all mocks
     ({ DynamicMcpServer } = await import("../server.js"));
-    ({ ToolGenerator } = await import("../toolGenerator/ToolGenerator.js"));
-    registerHandlerFactorySpy = jest
-      .spyOn(ToolGenerator.prototype, "registerHandlerFactory")
-      .mockImplementation(() => undefined);
+    ({ ToolService } = await import("../../services/ToolService.js"));
     server = new DynamicMcpServer(baseConfig);
     // DO NOT call server.start()
   });
 
-  afterEach(() => {
-    registerHandlerFactorySpy.mockRestore();
-  });
-
-  it("registers a handler and calls ToolGenerator.registerHandlerFactory", async () => {
-    const handler = {
-      name: "testHandler",
-      handler: async () => Promise.resolve(),
-      tools: [],
-    };
-    await server.registerHandler(handler);
-    expect(registerHandlerFactorySpy).toHaveBeenCalledWith(
-      "testHandler",
-      expect.any(Function),
-    );
-  });
-
-  it("setSessionInfo sets session and loads user tools if email present", async () => {
+  it("setSessionInfo sets session info", async () => {
     const session = {
       sessionId: "abc",
       user: { email: "user@example.com" },
       token: "tok",
       mcpServer: server,
     };
-    const loadSpy = jest
-      .spyOn(server, "loadUserToolsForSession")
-      .mockResolvedValue(undefined);
     await server.setSessionInfo("abc", session);
     expect(server["sessionInfo"].get("abc")).toBe(session);
-    expect(loadSpy).toHaveBeenCalledWith("abc", "user@example.com");
-  });
-
-  it("setSessionInfo does not load tools if no email", async () => {
-    const session = {
-      sessionId: "abc",
-      user: {},
-      token: "tok",
-      mcpServer: server,
-    };
-    const loadSpy = jest
-      .spyOn(server, "loadUserToolsForSession")
-      .mockResolvedValue(undefined);
-    await server.setSessionInfo("abc", session);
-    expect(loadSpy).not.toHaveBeenCalled();
   });
 
   it("getSessionInfo returns session if present", () => {
@@ -126,9 +88,9 @@ describe("DynamicMcpServer (unit)", () => {
     expect(server["sessionInfo"].has("abc")).toBe(false);
   });
 
-  it("initialize calls toolGenerator.initialize", async () => {
+  it("initialize calls toolService.initialize", async () => {
     const initializeSpy = jest
-      .spyOn(ToolGenerator.prototype, "initialize")
+      .spyOn(ToolService.prototype, "initialize")
       .mockImplementation(() => Promise.resolve());
     await server.initialize();
     expect(initializeSpy).toHaveBeenCalled();

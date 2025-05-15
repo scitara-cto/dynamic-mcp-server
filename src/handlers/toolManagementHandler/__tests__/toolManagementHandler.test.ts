@@ -12,7 +12,7 @@ import { ToolRepository } from "../../../db/repositories/ToolRepository.js";
 describe("ToolManagementHandler", () => {
   let handler: ToolManagementHandler;
   let mockContext: any;
-  let mockToolGenerator: any;
+  let mockToolService: any;
 
   beforeAll(() => {
     jest.spyOn(ToolRepository.prototype, "findAll").mockResolvedValue([
@@ -51,14 +51,12 @@ describe("ToolManagementHandler", () => {
 
   beforeEach(() => {
     handler = new ToolManagementHandler();
-    mockToolGenerator = {
-      getTool: jest.fn(),
+    mockToolService = {
       removeTool: jest.fn(),
-      getRegisteredToolNames: jest.fn(),
     };
     mockContext = {
       mcpServer: {
-        toolGenerator: mockToolGenerator,
+        toolService: mockToolService,
         notifyToolListChanged: jest.fn(),
       },
       user: {
@@ -74,15 +72,13 @@ describe("ToolManagementHandler", () => {
   describe("handle", () => {
     describe("delete action", () => {
       it("deletes a tool successfully", async () => {
-        mockToolGenerator.getTool.mockReturnValue({ name: "foo" });
-        mockToolGenerator.removeTool.mockResolvedValue();
         const result = await handler.handler({ name: "foo" }, mockContext, {
           action: "delete",
         });
         expect(result.result.success).toBe(true);
         expect(result.result.name).toBe("foo");
         expect(result.message).toMatch(/deleted successfully/);
-        expect(mockToolGenerator.removeTool).toHaveBeenCalledWith("foo");
+        expect(mockToolService.removeTool).toHaveBeenCalledWith("foo");
       });
 
       it("throws if tool name is missing", async () => {
@@ -92,7 +88,9 @@ describe("ToolManagementHandler", () => {
       });
 
       it("throws if tool not found", async () => {
-        mockToolGenerator.getTool.mockReturnValue(undefined);
+        mockToolService.removeTool.mockImplementation(async (name: string) => {
+          if (name === "bar") throw new Error("Tool with name 'bar' not found");
+        });
         await expect(
           handler.handler({ name: "bar" }, mockContext, { action: "delete" }),
         ).rejects.toThrow(/not found/);
@@ -109,8 +107,7 @@ describe("ToolManagementHandler", () => {
       });
 
       it("throws if removeTool throws an error", async () => {
-        mockToolGenerator.getTool.mockReturnValue({ name: "foo" });
-        mockToolGenerator.removeTool.mockRejectedValue(new Error("DB error"));
+        mockToolService.removeTool.mockRejectedValue(new Error("DB error"));
         await expect(
           handler.handler({ name: "foo" }, mockContext, { action: "delete" }),
         ).rejects.toThrow(/DB error/);

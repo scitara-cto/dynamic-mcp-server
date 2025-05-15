@@ -76,3 +76,15 @@ export interface RuntimeToolDefinition {
   handler: (...args: any[]) => Promise<any>;
   annotations?: Record<string, unknown>;
 }
+
+export type HandlerFunction = (
+  args: Record<string, any>,
+  context: any,
+  config: any,
+) => Promise<any>;
+
+export interface HandlerPackage {
+  name: string;
+  tools: ToolDefinition[];
+  handler: HandlerFunction;
+}

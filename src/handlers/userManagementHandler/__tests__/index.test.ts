@@ -1,9 +1,9 @@
-import { UserManagementHandler } from "../index.js";
+import { userManagementHandlerPackage } from "../index.js";
 import { UserRepository } from "../../../db/repositories/UserRepository.js";
 import { jest } from "@jest/globals";
 
-describe("UserManagementHandler", () => {
-  let handler: UserManagementHandler;
+describe("userManagementHandlerPackage.handler", () => {
+  const handler = userManagementHandlerPackage.handler;
   let mockUserRepo: jest.Mocked<UserRepository>;
   let context: any;
 
@@ -30,7 +30,6 @@ describe("UserManagementHandler", () => {
     jest
       .spyOn(UserRepository.prototype, "removeUser")
       .mockImplementation(mockUserRepo.removeUser);
-    handler = new UserManagementHandler();
     context = {
       user: { email: "admin@example.com" },
       mcpServer: { notifyToolListChanged: jest.fn() },
@@ -43,7 +42,7 @@ describe("UserManagementHandler", () => {
 
   it("should list users", async () => {
     mockUserRepo.list.mockResolvedValue([{ email: "a@example.com" }]);
-    const result = await handler.handler({ nameContains: "a" }, context, {
+    const result = await handler({ nameContains: "a" }, context, {
       action: "list",
     });
     expect(result.result.users).toHaveLength(1);
@@ -51,7 +50,7 @@ describe("UserManagementHandler", () => {
 
   it("should add a user", async () => {
     mockUserRepo.create.mockResolvedValue({ email: "b@example.com" });
-    const result = await handler.handler(
+    const result = await handler(
       { email: "b@example.com", name: "B" },
       context,
       { action: "add" },
@@ -61,7 +60,7 @@ describe("UserManagementHandler", () => {
 
   it("should error if adding user without email", async () => {
     await expect(
-      handler.handler({ name: "NoEmail" }, context, { action: "add" }),
+      handler({ name: "NoEmail" }, context, { action: "add" }),
     ).rejects.toThrow("Email is required");
   });
 
@@ -70,7 +69,7 @@ describe("UserManagementHandler", () => {
       email: "c@example.com",
       name: "C",
     });
-    const result = await handler.handler(
+    const result = await handler(
       { email: "c@example.com", name: "C" },
       context,
       { action: "update" },
@@ -80,22 +79,22 @@ describe("UserManagementHandler", () => {
 
   it("should error if updating user without email", async () => {
     await expect(
-      handler.handler({ name: "NoEmail" }, context, { action: "update" }),
+      handler({ name: "NoEmail" }, context, { action: "update" }),
     ).rejects.toThrow("Email is required");
   });
 
   it("should delete a user", async () => {
     mockUserRepo.removeUser.mockResolvedValue(true);
-    const result = await handler.handler({ email: "d@example.com" }, context, {
+    const result = await handler({ email: "d@example.com" }, context, {
       action: "delete",
     });
     expect(result.result.success).toBe(true);
   });
 
   it("should error if deleting user without email", async () => {
-    await expect(
-      handler.handler({}, context, { action: "delete" }),
-    ).rejects.toThrow("Email is required");
+    await expect(handler({}, context, { action: "delete" })).rejects.toThrow(
+      "Email is required",
+    );
   });
 
   it("should share a tool", async () => {
@@ -114,7 +113,7 @@ describe("UserManagementHandler", () => {
         },
       ],
     });
-    const result = await handler.handler(
+    const result = await handler(
       { email: "e@example.com", toolId: "t1", accessLevel: "read" },
       context,
       { action: "share-tool" },
@@ -134,7 +133,7 @@ describe("UserManagementHandler", () => {
       email: "f@example.com",
       sharedTools: [],
     });
-    const result = await handler.handler(
+    const result = await handler(
       { email: "f@example.com", toolId: "t2" },
       context,
       { action: "unshare-tool" },
@@ -147,7 +146,7 @@ describe("UserManagementHandler", () => {
 
   it("should error if sharing tool with missing fields", async () => {
     await expect(
-      handler.handler({ email: "g@example.com", toolId: "t3" }, context, {
+      handler({ email: "g@example.com", toolId: "t3" }, context, {
         action: "share-tool",
       }),
     ).rejects.toThrow("email, toolId, and accessLevel are required");
@@ -155,7 +154,7 @@ describe("UserManagementHandler", () => {
 
   it("should error if unsharing tool with missing fields", async () => {
     await expect(
-      handler.handler({ email: "h@example.com" }, context, {
+      handler({ email: "h@example.com" }, context, {
         action: "unshare-tool",
       }),
     ).rejects.toThrow("email and toolId are required");

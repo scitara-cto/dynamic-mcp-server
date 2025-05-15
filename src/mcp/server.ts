@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import logger from "../utils/logger.js";
 import { ToolService } from "../services/ToolService.js";
-import { ToolDefinition } from "./types.js";
+import { ToolDefinition, HandlerFunction, HandlerPackage } from "./types.js";
 import { EventEmitter } from "events";
 import { AuthService, UserInfo } from "../http/mcp/middleware/AuthService.js";
 import { McpHttpServer } from "../http/mcp/mcp-http-server.js";
@@ -34,24 +34,14 @@ export interface DynamicMcpServerConfig {
     clientId?: string;
     clientSecret?: string;
   };
-  handlers?: Handler[];
-}
-
-export interface Handler {
-  name: string;
-  handler: (
-    args: Record<string, any>,
-    context: any,
-    config: any,
-  ) => Promise<any>;
-  tools: ToolDefinition[];
+  handlers?: HandlerFunction[];
 }
 
 export class DynamicMcpServer extends EventEmitter {
   private server: Server;
   public toolService: ToolService;
   private sessionInfo = new Map<string, SessionInfo>();
-  private handlers: Map<string, Handler> = new Map();
+  private handlers: Map<string, HandlerFunction> = new Map();
   private mcpHttpServer?: McpHttpServer;
   private authHttpServer?: AuthHttpServer;
   private userRepository: UserRepository;
@@ -76,13 +66,9 @@ export class DynamicMcpServer extends EventEmitter {
 
   /**
    * Register a handler package (from core or downstream app).
-   * handlerPackage: { name: string, handler: Handler, tools: ToolDefinition[] }
+   * handlerPackage: { name: string, handler: HandlerFunction, tools: ToolDefinition[] }
    */
-  public async registerHandler(handlerPackage: {
-    name: string;
-    handler: Handler;
-    tools: ToolDefinition[];
-  }): Promise<void> {
+  public async registerHandler(handlerPackage: HandlerPackage): Promise<void> {
     this.handlers.set(handlerPackage.name, handlerPackage.handler);
     // Register tools in DB
     let toolNames: string[] = [];
@@ -269,7 +255,7 @@ export class DynamicMcpServer extends EventEmitter {
   /**
    * Get a handler by name (for tool execution)
    */
-  public getHandler(name: string): Handler | undefined {
+  public getHandler(name: string): HandlerFunction | undefined {
     return this.handlers.get(name);
   }
 }

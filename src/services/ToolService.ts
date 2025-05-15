@@ -169,7 +169,7 @@ export class ToolService {
       throw new Error(`No handler found for type: ${handlerType}`);
     }
     // Pass args, context, and handler config
-    return await handlerInstance.handler(args, context, toolDef.handler.config);
+    return await handlerInstance(args, context, toolDef.handler.config);
   }
 
   public async removeTool(toolName: string): Promise<void> {

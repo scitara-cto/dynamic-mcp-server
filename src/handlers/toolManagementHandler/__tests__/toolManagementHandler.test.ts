@@ -6,11 +6,11 @@ import {
   beforeEach,
   beforeAll,
 } from "@jest/globals";
-import { ToolManagementHandler } from "../index.js";
+import { toolManagementHandlerPackage } from "../index.js";
 import { ToolRepository } from "../../../db/repositories/ToolRepository.js";
 
-describe("ToolManagementHandler", () => {
-  let handler: ToolManagementHandler;
+describe("toolManagementHandlerPackage.handler", () => {
+  const handler = toolManagementHandlerPackage.handler;
   let mockContext: any;
   let mockToolService: any;
 
@@ -50,7 +50,6 @@ describe("ToolManagementHandler", () => {
   });
 
   beforeEach(() => {
-    handler = new ToolManagementHandler();
     mockToolService = {
       removeTool: jest.fn(),
     };
@@ -72,7 +71,7 @@ describe("ToolManagementHandler", () => {
   describe("handle", () => {
     describe("delete action", () => {
       it("deletes a tool successfully", async () => {
-        const result = await handler.handler({ name: "foo" }, mockContext, {
+        const result = await handler({ name: "foo" }, mockContext, {
           action: "delete",
         });
         expect(result.result.success).toBe(true);
@@ -83,7 +82,7 @@ describe("ToolManagementHandler", () => {
 
       it("throws if tool name is missing", async () => {
         await expect(
-          handler.handler({}, mockContext, { action: "delete" }),
+          handler({}, mockContext, { action: "delete" }),
         ).rejects.toThrow(/Tool name is required/);
       });
 
@@ -92,13 +91,13 @@ describe("ToolManagementHandler", () => {
           if (name === "bar") throw new Error("Tool with name 'bar' not found");
         });
         await expect(
-          handler.handler({ name: "bar" }, mockContext, { action: "delete" }),
+          handler({ name: "bar" }, mockContext, { action: "delete" }),
         ).rejects.toThrow(/not found/);
       });
 
       it("throws if mcpServer missing", async () => {
         await expect(
-          handler.handler(
+          handler(
             { name: "foo" },
             { token: "", user: {} },
             { action: "delete" },
@@ -109,14 +108,14 @@ describe("ToolManagementHandler", () => {
       it("throws if removeTool throws an error", async () => {
         mockToolService.removeTool.mockRejectedValue(new Error("DB error"));
         await expect(
-          handler.handler({ name: "foo" }, mockContext, { action: "delete" }),
+          handler({ name: "foo" }, mockContext, { action: "delete" }),
         ).rejects.toThrow(/DB error/);
       });
     });
 
     describe("list action", () => {
       it("lists all tools", async () => {
-        const result = await handler.handler({}, mockContext, {
+        const result = await handler({}, mockContext, {
           action: "list",
         });
         expect(result.result.availableTools).toEqual([
@@ -129,11 +128,9 @@ describe("ToolManagementHandler", () => {
       });
 
       it("filters tools by nameContains", async () => {
-        const result = await handler.handler(
-          { nameContains: "ba" },
-          mockContext,
-          { action: "list" },
-        );
+        const result = await handler({ nameContains: "ba" }, mockContext, {
+          action: "list",
+        });
         expect(result.result.availableTools).toEqual([
           { name: "bar", description: "", available: true, inUse: false },
           { name: "baz", description: "", available: true, inUse: false },
@@ -143,13 +140,13 @@ describe("ToolManagementHandler", () => {
 
       it("throws if mcpServer missing", async () => {
         await expect(
-          handler.handler({}, { token: "", user: {} }, { action: "list" }),
+          handler({}, { token: "", user: {} }, { action: "list" }),
         ).rejects.toThrow(/McpServer not available/);
       });
 
       it("returns an empty list if no tools are registered", async () => {
         jest.spyOn(ToolRepository.prototype, "findAll").mockResolvedValue([]);
-        const result = await handler.handler({}, mockContext, {
+        const result = await handler({}, mockContext, {
           action: "list",
         });
         expect(result.result.availableTools).toEqual([]);
@@ -190,7 +187,7 @@ describe("ToolManagementHandler", () => {
             updatedAt: new Date(),
           },
         ]);
-        const result = await handler.handler({}, mockContext, {
+        const result = await handler({}, mockContext, {
           action: "list",
         });
         expect(result.result.availableTools).toEqual([
@@ -204,14 +201,14 @@ describe("ToolManagementHandler", () => {
 
     it("throws on unknown action", async () => {
       await expect(
-        handler.handler({}, mockContext, { action: "unknown" }),
+        handler({}, mockContext, { action: "unknown" }),
       ).rejects.toThrow(/Unknown action/);
     });
   });
 
   describe("registerTools", () => {
     it("returns the tool management tools", () => {
-      const tools = handler.tools;
+      const tools = toolManagementHandlerPackage.tools;
       expect(Array.isArray(tools)).toBe(true);
       expect(tools.length).toBeGreaterThanOrEqual(2); // At least the core tools
       // Check for presence of key tools

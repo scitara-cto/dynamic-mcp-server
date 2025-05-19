@@ -200,7 +200,44 @@ const myHandlerPackage = {
 
 ---
 
-## 4. Registering a Handler Package with the Server
+## 4. Progress Reporting in Handlers
+
+For long-running tools, you can report progress back to the client using a progress function. The server will always pass a `progress` function as the **fourth argument** to your handler function.
+
+- **The progress function is always defined.**
+  - If the client did not request progress updates, it is a no-op (calling it does nothing).
+  - If the client requested progress (by providing a `progressToken`), calling the function will send progress notifications to the client.
+
+### Handler Signature
+
+```js
+handler: async (args, context, config, progress) => {
+  // ... your setup ...
+  for (let i = 0; i < 10; i++) {
+    // Do some work...
+    progress(i + 1, 10, `Step ${i + 1} of 10`);
+  }
+  return { result: "done" };
+};
+```
+
+- The function signature is:
+
+  ```js
+  progress(current, total, message);
+  ```
+
+  - `current`: The current progress value (number, required)
+  - `total`: The total value (number, optional)
+  - `message`: A human-readable message (string, optional)
+
+- **Best practice:** Always call the progress function, even if you don't know if the client requested progress. It will be a no-op if not needed.
+
+- **Why:** This makes your handler code simpler and more robust—no need to check if the function exists.
+
+---
+
+## 5. Registering a Handler Package with the Server
 
 Register your handler package with the server at startup (or dynamically at runtime):
 
@@ -212,6 +249,6 @@ await server.registerHandler(myHandlerPackage);
 
 ---
 
-## 5. Best Practices
+## 6. Best Practices
 
 - **Be explicit**: Always specify `rolesPermitted`

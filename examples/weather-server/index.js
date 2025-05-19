@@ -83,94 +83,48 @@ const weatherHandlerPackage = {
       },
     },
   ],
-  handler: async (args, context, config, toolName) => {
-    // toolName is not passed by default, so infer from context if possible
-    const actualToolName = args.__toolName || toolName || context?.toolName;
-    if (actualToolName === "web-request") {
-      // Web request logic
-      const method = args.method || "GET";
-      const baseUrl = config.url || args.url;
-      // Merge query params from config and args
-      const queryParams = {
-        ...(config.queryParams || {}),
-        ...(args.queryParams || {}),
-      };
-      // Substitute template variables in queryParams
-      const resolvedParams = {};
-      for (const [key, value] of Object.entries(queryParams)) {
-        if (
-          typeof value === "string" &&
-          value.startsWith("${") &&
-          value.endsWith("}")
-        ) {
-          const varName = value.slice(2, -1);
-          resolvedParams[key] = args[varName] || process.env[varName] || "";
-        } else {
-          resolvedParams[key] = value;
-        }
+  handler: async (args, _context, config, progress = () => null) => {
+    progress(0, 100, "Starting weather request...");
+    // Weather tool logic (uses web request logic with weather config)
+    const method = "GET";
+    const baseUrl = config.url;
+    const queryParams = {
+      ...(config.queryParams || {}),
+      ...(args.queryParams || {}),
+    };
+    // Substitute template variables in queryParams
+    const resolvedParams = {};
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (
+        typeof value === "string" &&
+        value.startsWith("${") &&
+        value.endsWith("}")
+      ) {
+        const varName = value.slice(2, -1);
+        resolvedParams[key] = args[varName] || process.env[varName] || "";
+      } else {
+        resolvedParams[key] = value;
       }
-      // Build URL with query params
-      const urlObj = new URL(baseUrl);
-      Object.entries(resolvedParams).forEach(([k, v]) => {
-        if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
-      });
-      const body =
-        method === "POST" || method === "PUT"
-          ? JSON.stringify(args.body)
-          : undefined;
-      const response = await fetch(urlObj.toString(), {
-        method,
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
-        ...(body && { body }),
-      });
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      return { result: data, message: "Request successful" };
-    } else if (actualToolName === "get-weather") {
-      // Weather tool logic (uses web request logic with weather config)
-      const method = "GET";
-      const baseUrl = config.url;
-      const queryParams = {
-        ...(config.queryParams || {}),
-        ...(args.queryParams || {}),
-      };
-      // Substitute template variables in queryParams
-      const resolvedParams = {};
-      for (const [key, value] of Object.entries(queryParams)) {
-        if (
-          typeof value === "string" &&
-          value.startsWith("${") &&
-          value.endsWith("}")
-        ) {
-          const varName = value.slice(2, -1);
-          resolvedParams[key] = args[varName] || process.env[varName] || "";
-        } else {
-          resolvedParams[key] = value;
-        }
-      }
-      // Build URL with query params
-      const urlObj = new URL(baseUrl);
-      Object.entries(resolvedParams).forEach(([k, v]) => {
-        if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
-      });
-      const response = await fetch(urlObj.toString(), {
-        method,
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      return { result: data, message: "Weather request successful" };
-    } else {
-      throw new Error(`Unknown tool: ${actualToolName}`);
     }
+    progress(30, 100, "Built URL and query params");
+    // Build URL with query params
+    const urlObj = new URL(baseUrl);
+    Object.entries(resolvedParams).forEach(([k, v]) => {
+      if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
+    });
+    progress(50, 100, "Sending request...");
+    const response = await fetch(urlObj.toString(), {
+      method,
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    progress(80, 100, "Received response");
+    const data = await response.json();
+    progress(100, 100, "Done");
+    return { result: data, message: "Weather request successful" };
   },
 };
 

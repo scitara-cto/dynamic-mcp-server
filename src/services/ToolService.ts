@@ -72,8 +72,18 @@ export class ToolService {
               `Tool ${name} not found or not authorized for user.`,
             );
           }
+          const progressToken = request.params._meta?.progressToken;
+          const progressFn = this.createProgressFunction(
+            extra.sessionId,
+            progressToken,
+          );
           try {
-            const result = await this.executeTool(tool, args, context);
+            const result = await this.executeTool(
+              tool,
+              args,
+              context,
+              progressFn,
+            );
             return this.formatToolOutput(result);
           } catch (error) {
             return this.createErrorResponse(error);
@@ -147,7 +157,12 @@ export class ToolService {
     await toolRepo.upsertMany([{ ...toolDef, creator: toolCreator }]);
   }
 
-  public async executeTool(toolDef: any, args: any, context: any) {
+  public async executeTool(
+    toolDef: any,
+    args: any,
+    context: any,
+    progress?: (progress: number, total?: number, message?: string) => void,
+  ) {
     if (!toolDef || !toolDef.handler || !toolDef.handler.type) {
       throw new Error("Tool definition missing handler type");
     }
@@ -168,8 +183,13 @@ export class ToolService {
     if (!handlerInstance) {
       throw new Error(`No handler found for type: ${handlerType}`);
     }
-    // Pass args, context, and handler config
-    return await handlerInstance(args, context, toolDef.handler.config);
+    // Always pass four arguments: args, context, config, progress
+    return await handlerInstance(
+      args,
+      context,
+      toolDef.handler.config,
+      progress,
+    );
   }
 
   public async removeTool(toolName: string): Promise<void> {
@@ -240,5 +260,29 @@ export class ToolService {
     logger.info(
       `[AUDIT] event=${event} user=${userEmail} tool=${toolName} status=${status}`,
     );
+  }
+
+  /**
+   * Creates a progress function for sending progress notifications to the client session.
+   */
+  private createProgressFunction(
+    sessionId: string | undefined,
+    progressToken: string | number | undefined,
+  ) {
+    if (!progressToken || typeof sessionId !== "string") {
+      // Always return a no-op function if progress is not supported
+      return () => null;
+    }
+    return (progress: number, total?: number, message?: string) => {
+      this.mcpServer.sendNotificationToSession(sessionId, {
+        method: "notifications/progress",
+        params: {
+          progressToken,
+          progress,
+          total,
+          message,
+        },
+      });
+    };
   }
 }

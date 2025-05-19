@@ -38,4 +38,64 @@ describe("ToolService", () => {
     ]);
     upsertManyMock.mockRestore();
   });
+
+  it("should provide a no-op progress function if no token or sessionId", () => {
+    const progressFn = (toolService as any).createProgressFunction(
+      undefined,
+      undefined,
+    );
+    expect(typeof progressFn).toBe("function");
+    expect(progressFn(10, 100, "msg")).toBeNull();
+  });
+
+  it("should send progress notification if token and sessionId are provided", () => {
+    const mockSend = jest.fn();
+    (toolService as any).mcpServer = { sendNotificationToSession: mockSend };
+    const progressFn = (toolService as any).createProgressFunction(
+      "mysession",
+      "ptoken",
+    );
+    progressFn(42, 100, "Halfway");
+    expect(mockSend).toHaveBeenCalledWith("mysession", {
+      method: "notifications/progress",
+      params: {
+        progressToken: "ptoken",
+        progress: 42,
+        total: 100,
+        message: "Halfway",
+      },
+    });
+  });
+
+  it("handler can call progress function during tool execution", async () => {
+    const mockSend = jest.fn();
+    const fakeHandler = jest.fn((args, context, config) => {
+      if (context.progress) context.progress(5, 10, "step");
+      return { result: "ok" };
+    });
+    (toolService as any).mcpServer = {
+      sendNotificationToSession: mockSend,
+      getHandler: () => fakeHandler,
+    };
+    const toolDef = {
+      name: "mytool",
+      handler: { type: "fake", config: {} },
+    };
+    const context = {
+      user: { email: "a@b.com" },
+      progress: (toolService as any).createProgressFunction(
+        "mysession",
+        "ptoken",
+      ),
+    };
+    jest
+      .spyOn(toolService as any, "authorizeToolCall")
+      .mockResolvedValue({ authorized: true });
+    await toolService.executeTool(toolDef, {}, context, context.progress);
+    expect(fakeHandler).toHaveBeenCalled();
+    expect(mockSend).toHaveBeenCalledWith(
+      "mysession",
+      expect.objectContaining({ method: "notifications/progress" }),
+    );
+  });
 });

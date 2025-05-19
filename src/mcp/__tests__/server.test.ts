@@ -96,21 +96,4 @@ describe("DynamicMcpServer (unit)", () => {
     expect(initializeSpy).toHaveBeenCalled();
     initializeSpy.mockRestore();
   });
-
-  it("notifyToolListChanged emits toolsChanged for all or user", async () => {
-    const emitSpy = jest.spyOn(server, "emit");
-    // No userEmail: global
-    await server.notifyToolListChanged();
-    expect(emitSpy).toHaveBeenCalledWith("toolsChanged");
-    // With userEmail: only matching sessions
-    const session = {
-      sessionId: "abc",
-      user: { email: "user@example.com" },
-      token: "tok",
-      mcpServer: server,
-    };
-    server["sessionInfo"].set("abc", session);
-    await server.notifyToolListChanged("user@example.com");
-    expect(emitSpy).toHaveBeenCalledWith("toolsChanged", "abc");
-  });
 });

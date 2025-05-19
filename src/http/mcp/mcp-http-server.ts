@@ -96,6 +96,22 @@ export class McpHttpServer {
       delete this.transports[transport.sessionId];
       this.sessionManager.removeSessionInfo(transport.sessionId);
     };
+
+    // DEBUG: Notify tool list changed after session creation
+    this.logger.debug(
+      `[MCP-DEBUG] Calling notifyToolListChanged for user: ${userInfo.email}`,
+    );
+    try {
+      await this.sessionManager.notifyToolListChanged(userInfo.email);
+      this.logger.debug(
+        `[MCP-DEBUG] notifyToolListChanged completed for user: ${userInfo.email}`,
+      );
+    } catch (err) {
+      this.logger.error(
+        `[MCP-DEBUG] notifyToolListChanged failed for user: ${userInfo.email}`,
+        err,
+      );
+    }
   }
 
   private setupRoutes(): void {
@@ -131,8 +147,8 @@ export class McpHttpServer {
       const transport = new SSEServerTransport("/messages", res);
       this.logger.info(`Transport created: ${transport.sessionId}`);
 
-      // Create session with the transport
-      this.createSession(transport, req);
+      // Create session with the transport (awaited for notification)
+      await this.createSession(transport, req);
 
       // Connect the transport to the server
       await this.mcpServer.connect(transport);

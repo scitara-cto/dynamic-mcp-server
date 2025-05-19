@@ -81,6 +81,7 @@ export type HandlerFunction = (
   args: Record<string, any>,
   context: any,
   config: any,
+  progress?: (progress: number, total?: number, message?: string) => void,
 ) => Promise<any>;
 
 export interface HandlerPackage {

@@ -1,7 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import logger from "../utils/logger.js";
 import { ToolService } from "../services/ToolService.js";
-import { ToolDefinition, HandlerFunction, HandlerPackage } from "./types.js";
+import { HandlerFunction, HandlerPackage } from "./types.js";
 import { EventEmitter } from "events";
 import { AuthService, UserInfo } from "../http/mcp/middleware/AuthService.js";
 import { McpHttpServer } from "../http/mcp/mcp-http-server.js";
@@ -234,17 +234,69 @@ export class DynamicMcpServer extends EventEmitter {
   }
 
   /**
+   * Send a JSON-RPC notification to a specific session by sessionId
+   */
+  public async sendNotificationToSession(
+    sessionId: string,
+    notification: { method: string; params?: any },
+  ): Promise<void> {
+    if (!this.mcpHttpServer) {
+      logger.warn(
+        "No mcpHttpServer instance available for sending notifications",
+      );
+      return;
+    }
+    // @ts-ignore: access private transports property
+    const transports = this.mcpHttpServer.transports;
+    const transport = transports[sessionId];
+    if (transport) {
+      await transport.send({
+        jsonrpc: "2.0",
+        ...notification,
+      });
+      logger.info(
+        `[MCP] Sent notification to session ${sessionId}: ${notification.method}`,
+      );
+    } else {
+      logger.warn(`No transport found for sessionId: ${sessionId}`);
+    }
+  }
+
+  /**
    * Notify all sessions, or only sessions for a given user email, of tool list changes
    */
   public async notifyToolListChanged(userEmail?: string): Promise<void> {
+    logger.debug(
+      `[MCP] notifyToolListChanged called for userEmail=${userEmail}`,
+    );
+    if (!this.mcpHttpServer) {
+      logger.warn(
+        "No mcpHttpServer instance available for sending notifications",
+      );
+      return;
+    }
+    // @ts-ignore: access private transports property
+    const transports = this.mcpHttpServer.transports;
     if (userEmail) {
       for (const [sessionId, sessionInfo] of this.sessionInfo.entries()) {
         if (sessionInfo.user?.email === userEmail) {
-          this.emit("toolsChanged", sessionId);
+          logger.debug(
+            `[MCP] Notifying session ${sessionId} for user ${userEmail}`,
+          );
+          await this.sendNotificationToSession(sessionId, {
+            method: "notifications/tools/list_changed",
+            params: {},
+          });
         }
       }
     } else {
-      this.emit("toolsChanged");
+      for (const sessionId in transports) {
+        logger.debug(`[MCP] Notifying session ${sessionId} (all users)`);
+        await this.sendNotificationToSession(sessionId, {
+          method: "notifications/tools/list_changed",
+          params: {},
+        });
+      }
     }
   }
 

@@ -117,12 +117,17 @@ export class UserRepository {
     const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
 
     return await Tool.find({
-      $or: [
-        { name: { $in: usedTools } },
-        { name: { $in: sharedToolNames } },
-        { rolesPermitted: { $elemMatch: { $in: userRoles } } },
-        { creator: user.email },
-        { creator: "system" },
+      $and: [
+        {
+          $or: [
+            { name: { $in: sharedToolNames } },
+            { creator: user.email },
+            { rolesPermitted: { $elemMatch: { $in: userRoles } } },
+          ],
+        },
+        {
+          $or: [{ name: { $in: usedTools } }, { alwaysUsed: true }],
+        },
       ],
     }).lean();
   }

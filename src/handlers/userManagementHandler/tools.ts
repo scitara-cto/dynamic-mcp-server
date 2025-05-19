@@ -229,13 +229,13 @@ export const userManagementTools: ToolDefinition[] = [
   {
     name: "update-usedTools",
     description:
-      "Update your in-use tool list. Use if the user asks to use an available tool, or wishes to hide a tool from their in-use list. All available tools can be viewed using the list-tools tool. Only tools in the usedTools list are available for use in a chat session.",
+      "Update your in-use tool list for the current user. Use if the user asks to use an available tool, or wishes to hide a tool from their in-use list. All available tools can be viewed using the list-tools tool. Only tools in the usedTools list are available for use in a chat session. This tool always operates on the current authenticated user.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        action: {
+        operation: {
           type: "string",
-          description: "The action to perform",
+          description: "The operation to perform",
           enum: ["add", "remove"],
         },
         toolId: {
@@ -244,7 +244,7 @@ export const userManagementTools: ToolDefinition[] = [
             "The name of the tool to add or remove from your in-use list",
         },
       },
-      required: ["action", "toolId"],
+      required: ["operation", "toolId"],
     },
     rolesPermitted: ["user", "power-user", "admin"],
     annotations: {
@@ -289,6 +289,35 @@ export const userManagementTools: ToolDefinition[] = [
       type: "user-management",
       config: {
         action: "delete",
+      },
+    },
+  },
+  {
+    name: "user-info",
+    description:
+      "Retrieve information about a user. If email is omitted, returns the current user's info. Admins get full info for any user. Non-admins get only existence and name for other users.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        email: {
+          type: "string",
+          description:
+            "User email (optional). If omitted, returns info for the current user.",
+        },
+      },
+    },
+    rolesPermitted: ["user", "power-user", "admin"],
+    annotations: {
+      title: "User Info",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+    handler: {
+      type: "user-management",
+      config: {
+        action: "user-info",
       },
     },
   },

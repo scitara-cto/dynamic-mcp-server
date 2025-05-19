@@ -20,6 +20,7 @@ const actionHandlers: Record<
   "share-tool": handleShareToolAction,
   "unshare-tool": handleUnshareToolAction,
   "update-usedTools": handleUpdateUsedToolsAction,
+  "user-info": handleUserInfoAction,
 };
 
 const handler: HandlerFunction = async (
@@ -47,11 +48,18 @@ async function handleListUsersAction(
 ): Promise<ToolOutput> {
   const { nameContains, skip, limit } = args;
   const users = await userRepository.list({ nameContains, skip, limit });
+  const minimalUsers = users.map((u: any) => ({
+    email: u.email,
+    name: u.name || null,
+  }));
   return {
-    result: { users, total: users.length },
+    result: { users: minimalUsers, total: minimalUsers.length },
     message:
-      `Found ${users.length} users` +
+      `Found ${minimalUsers.length} users` +
       (nameContains ? ` matching "${nameContains}"` : ""),
+    nextSteps: [
+      "To get more information about a specific user, use the 'user-info' tool with their email.",
+    ],
   };
 }
 
@@ -212,8 +220,39 @@ async function handleUpdateUsedToolsAction(
   };
 }
 
+async function handleUserInfoAction(
+  args: Record<string, any>,
+  context: any,
+  _handlerConfig: { action: string },
+): Promise<ToolOutput> {
+  const sessionUser = context.user;
+  const requestedEmail = args.email || sessionUser.email;
+  const isSelf = !args.email || args.email === sessionUser.email;
+  const isAdmin = sessionUser.roles && sessionUser.roles.includes("admin");
+  const user = await userRepository.findByEmail(requestedEmail);
+  if (!user) {
+    return {
+      result: null,
+      message: `User '${requestedEmail}' not found`,
+    };
+  }
+  if (isSelf || isAdmin) {
+    return {
+      result: user,
+      message: `User info for '${requestedEmail}'`,
+    };
+  } else {
+    // Non-admin requesting info for another user: only return existence and name
+    return {
+      result: { exists: true, name: user.name || null, email: user.email },
+      message: `Limited user info for '${requestedEmail}'`,
+    };
+  }
+}
+
 export const userManagementHandlerPackage: HandlerPackage = {
   name: "user-management",
   tools: userManagementTools,
   handler,
+  testScript: new URL("./test-script.md", import.meta.url).pathname,
 };

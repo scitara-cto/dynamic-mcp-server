@@ -87,4 +87,5 @@ export interface HandlerPackage {
   name: string;
   tools: ToolDefinition[];
   handler: HandlerFunction;
+  testScript?: string; // Path to a markdown test script or inline script
 }

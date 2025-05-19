@@ -154,4 +154,5 @@ export const toolManagementHandlerPackage: HandlerPackage = {
   name: "tool-management",
   handler,
   tools: toolManagementTools,
+  testScript: new URL("./test-script.md", import.meta.url).pathname,
 };

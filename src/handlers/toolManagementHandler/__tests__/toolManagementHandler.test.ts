@@ -62,7 +62,7 @@ describe("toolManagementHandlerPackage.handler", () => {
         email: "test@example.com",
         roles: ["admin"],
         sharedTools: [],
-        usedTools: [],
+        hiddenTools: [],
       },
     };
     jest.clearAllMocks();
@@ -118,10 +118,10 @@ describe("toolManagementHandlerPackage.handler", () => {
         const result = await handler({}, mockContext, {
           action: "list",
         });
-        expect(result.result.availableTools).toEqual([
-          { name: "foo", description: "", available: true, inUse: false },
-          { name: "bar", description: "", available: true, inUse: false },
-          { name: "baz", description: "", available: true, inUse: false },
+        expect(result.result.visibleTools).toEqual([
+          { name: "foo", description: "", available: true, hidden: false },
+          { name: "bar", description: "", available: true, hidden: false },
+          { name: "baz", description: "", available: true, hidden: false },
         ]);
         expect(result.result.total).toBe(3);
         expect(result.result.filtered).toBe(false);
@@ -131,9 +131,9 @@ describe("toolManagementHandlerPackage.handler", () => {
         const result = await handler({ nameContains: "ba" }, mockContext, {
           action: "list",
         });
-        expect(result.result.availableTools).toEqual([
-          { name: "bar", description: "", available: true, inUse: false },
-          { name: "baz", description: "", available: true, inUse: false },
+        expect(result.result.visibleTools).toEqual([
+          { name: "bar", description: "", available: true, hidden: false },
+          { name: "baz", description: "", available: true, hidden: false },
         ]);
         expect(result.result.filtered).toBe(true);
       });
@@ -149,7 +149,7 @@ describe("toolManagementHandlerPackage.handler", () => {
         const result = await handler({}, mockContext, {
           action: "list",
         });
-        expect(result.result.availableTools).toEqual([]);
+        expect(result.result.visibleTools).toEqual([]);
         expect(result.result.total).toBe(0);
         expect(result.result.filtered).toBe(false);
       });
@@ -190,10 +190,10 @@ describe("toolManagementHandlerPackage.handler", () => {
         const result = await handler({}, mockContext, {
           action: "list",
         });
-        expect(result.result.availableTools).toEqual([
-          { name: "foo", description: "", available: true, inUse: false },
-          { name: "foo", description: "", available: true, inUse: false },
-          { name: "bar", description: "", available: true, inUse: false },
+        expect(result.result.visibleTools).toEqual([
+          { name: "foo", description: "", available: true, hidden: false },
+          { name: "foo", description: "", available: true, hidden: false },
+          { name: "bar", description: "", available: true, hidden: false },
         ]);
         expect(result.result.total).toBe(3);
       });

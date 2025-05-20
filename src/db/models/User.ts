@@ -14,7 +14,7 @@ export interface IUser {
   updatedAt: Date;
   roles?: string[];
   sharedTools: SharedTool[];
-  usedTools?: string[];
+  hiddenTools?: string[];
   applicationAuthentication?: {
     [appKey: string]: any;
   };
@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema<IUser>(
         sharedAt: { type: Date, default: Date.now },
       },
     ],
-    usedTools: [{ type: String }],
+    hiddenTools: [{ type: String }],
     applicationAuthentication: {
       type: mongoose.Schema.Types.Mixed,
       default: undefined,

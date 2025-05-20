@@ -21,7 +21,6 @@ export const toolManagementTools: ToolDefinition[] = [
       idempotentHint: true,
       openWorldHint: true,
     },
-    alwaysUsed: true,
     handler: {
       type: "tool-management",
       config: {

@@ -76,7 +76,7 @@ async function handleListToolsAction(
   const allTools = await toolRepo.findAll();
   const userRoles = user.roles || [];
   const sharedToolNames = (user.sharedTools || []).map((t: any) => t.toolId);
-  const usedTools = user.usedTools || [];
+  const hiddenTools = user.hiddenTools || [];
   const nameContains = args.nameContains?.toLowerCase() || "";
   const filteredTools = allTools
     .filter(
@@ -91,30 +91,27 @@ async function handleListToolsAction(
         sharedToolNames.includes(tool.name) ||
         tool.creator === user.email ||
         tool.creator === "system";
-      const inUse = usedTools.includes(tool.name);
+      const hidden = hiddenTools.includes(tool.name);
       return {
         name: tool.name,
         description: tool.description,
         available,
-        inUse,
+        hidden,
       };
     });
-  // Split tools into available and in-use arrays
-  const availableTools = filteredTools.filter((t) => t.available);
-  const inUseTools = filteredTools.filter((t) => t.inUse);
+  // Only show available tools that are not hidden
+  const visibleTools = filteredTools.filter((t) => t.available && !t.hidden);
   return {
     result: {
-      availableTools,
-      inUseTools,
+      visibleTools,
       total: filteredTools.length,
       filtered: !!nameContains,
     },
     message:
-      "Tools are grouped into those available to you and those currently in use. To use a tool, add it to your in-use list.",
+      "Tools are now all visible by default unless hidden. Use the hideTool/unHideTool actions to hide or unhide tools.",
     nextSteps: [
-      "To start using an available tool, call the 'update-usedTools' tool (from user management) with the tool's name to add it to your in-use list.",
-      "You can only use tools that are in your in-use list.",
-      "To stop using a tool, remove it from your in-use list via user management.",
+      "To hide a tool, use the 'hideTool' action (to be implemented).",
+      "To unhide a tool, use the 'unHideTool' action (to be implemented).",
     ],
   };
 }

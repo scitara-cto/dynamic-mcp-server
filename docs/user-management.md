@@ -19,7 +19,7 @@ interface IUser {
   updatedAt: Date;
   roles?: string[]; // e.g., ["admin", "power-user", "user"]
   sharedTools: SharedTool[]; // Tools shared with the user, with metadata
-  usedTools?: string[]; // Tools the user has chosen to "activate" for their session (personalization only)
+  hiddenTools?: string[]; // Tools the user has chosen to hide from their session (personalization only)
 }
 ```
 
@@ -34,11 +34,13 @@ A user can access a tool if **any** of the following are true:
 
 The set of tools a user can access is called their **available tools**. This is computed dynamically and not stored on the user record.
 
-## Tool Usage (usedTools)
+## Tool Visibility (hiddenTools)
 
-- Users can "activate" (select for use) any tool from their available tools list. The set of tools a user has chosen to use is stored in the `usedTools` array.
-- The `usedTools` array is for personalization/filtering only. **It does not grant access to tools.**
-- To add a tool to your `usedTools`, use the `use-tools` action.
+- All tools are visible to users by default.
+- Users can "hide" any tool from their available tools list. The set of tools a user has chosen to hide is stored in the `hiddenTools` array.
+- The `hiddenTools` array is for personalization/filtering only. **It does not grant or restrict access to tools.**
+- To hide a tool, use the `hideTool` action.
+- To unhide a tool, use the `unHideTool` action.
 
 ## User Management Tools
 
@@ -48,17 +50,8 @@ The server provides built-in tools for user CRUD operations:
 - **Add User**: Create a new user.
 - **Delete User**: Remove a user by email.
 - **Update User**: Update user fields (name, roles, shared tools, etc.).
-- **Use Tools**: Add one or more tool IDs to a user's `usedTools` array. This allows the user to personalize their tool list. Inputs:
-  - `email` (string, required): The user's email address. If unknown, use the `list-users` tool to find users.
-  - `toolIds` (string[], required): An array of tool IDs to add. Use the `list-tools` tool to get a list of available tool IDs.
-  - Example input:
-    ```json
-    {
-      "email": "user@example.com",
-      "toolIds": ["list-tools", "weather-tool"]
-    }
-    ```
-  - This tool will not add duplicate tool IDs to the user's `usedTools` array.
+- **Hide Tool**: Add a tool to a user's `hiddenTools` array. This allows the user to personalize their tool list by hiding tools they do not wish to see.
+- **Unhide Tool**: Remove a tool from a user's `hiddenTools` array.
 
 These tools are available to users with the `admin` role.
 
@@ -71,7 +64,7 @@ These tools are available to users with the `admin` role.
 
 - Users with the `admin` role can manage users and tools.
 - Tool access is controlled via `rolesPermitted` (on the tool), `sharedTools` (on the user), and creator/system status.
-- The `usedTools` array is for personalization only and does not grant access.
+- The `hiddenTools` array is for personalization only and does not grant or restrict access.
 
 ## MongoDB Integration
 

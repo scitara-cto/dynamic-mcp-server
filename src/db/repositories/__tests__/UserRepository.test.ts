@@ -2,6 +2,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import { UserRepository } from "../UserRepository.js";
 import { User, IUser } from "../../models/User.js";
+import { Tool } from "../../models/Tool.js";
 import { jest } from "@jest/globals";
 
 describe("UserRepository", () => {
@@ -83,5 +84,35 @@ describe("UserRepository", () => {
     expect(logger.info).toHaveBeenCalledWith(
       expect.stringContaining("Admin user created"),
     );
+  });
+
+  it("should not return tools that are in hiddenTools via getUserTools", async () => {
+    const spy = jest.spyOn(Tool, "find").mockImplementation((query: any) => {
+      // Simulate three tools: 'foo', 'bar', 'baz'
+      const all = [
+        { name: "foo", rolesPermitted: ["user"], creator: "test@example.com" },
+        { name: "bar", rolesPermitted: ["user"], creator: "test@example.com" },
+        { name: "baz", rolesPermitted: ["user"], creator: "test@example.com" },
+      ];
+      // Simulate MongoDB $nin filter for hiddenTools
+      const hidden = query.$and?.[1]?.name?.$nin || [];
+      return {
+        lean: () =>
+          Promise.resolve(all.filter((t) => !hidden.includes(t.name))),
+      };
+    });
+
+    await repo.create({
+      email: "test@example.com",
+      roles: ["user"],
+      sharedTools: [],
+      hiddenTools: ["bar"],
+    });
+    const tools = await repo.getUserTools("test@example.com");
+    const toolNames = tools.map((t: any) => t.name);
+    expect(toolNames).toContain("foo");
+    expect(toolNames).toContain("baz");
+    expect(toolNames).not.toContain("bar");
+    spy.mockRestore();
   });
 });

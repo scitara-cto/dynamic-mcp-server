@@ -99,7 +99,6 @@ export class ToolRepository {
         annotations: tool.annotations,
         handler: tool.handler,
         rolesPermitted: tool.rolesPermitted,
-        alwaysUsed: tool.alwaysUsed,
       }));
   }
 }

@@ -1,6 +1,6 @@
 # API Reference
 
-## Tool Access & Usage Model
+## Tool Access & Visibility Model
 
 - A user can access a tool if:
   - Their roles overlap with the tool's `rolesPermitted` array, OR
@@ -8,11 +8,14 @@
   - They are the creator, OR
   - The tool is a built-in system tool.
 - The set of tools a user can access is called their **available tools** (computed dynamically).
-- Users can "activate" (select for use) any available tool; these are tracked in the `usedTools` array (for personalization/filtering only, not for authorization).
-- The `list-tools` action returns all tools, with `available` and `inUse` flags for each tool:
+- **All tools are visible to users by default.**
+- Users can "hide" any tool from their available tools list. The set of tools a user has chosen to hide is stored in the `hiddenTools` array on their user record.
+- The `hiddenTools` array is for personalization/filtering only. **It does not grant or restrict access to tools.**
+- The `list-tools` action returns all tools, with `available` and `hidden` flags for each tool:
   - `available`: User is permitted to use this tool.
-  - `inUse`: Tool is in the user's `usedTools` array.
-- To add a tool to your `usedTools`, use the `use-tools` action.
+  - `hidden`: Tool is in the user's `hiddenTools` array.
+- To hide a tool, use the `hide-tool` action.
+- To unhide a tool, use the `unhide-tool` action.
 
 See [User Management](./user-management.md) and [Tool Management](./tool-management.md) for more details.
 

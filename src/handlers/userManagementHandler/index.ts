@@ -19,8 +19,9 @@ const actionHandlers: Record<
   "delete": handleDeleteUserAction,
   "share-tool": handleShareToolAction,
   "unshare-tool": handleUnshareToolAction,
-  "update-usedTools": handleUpdateUsedToolsAction,
   "user-info": handleUserInfoAction,
+  "hide-tool": handleHideToolAction,
+  "unhide-tool": handleUnhideToolAction,
 };
 
 const handler: HandlerFunction = async (
@@ -185,41 +186,6 @@ async function handleUnshareToolAction(
   );
 }
 
-async function handleUpdateUsedToolsAction(
-  args: Record<string, any>,
-  context: any,
-  handlerConfig: { action: string },
-): Promise<ToolOutput> {
-  const user = context.user;
-  if (!user || !user.email) {
-    throw new Error("User context with email is required to update used tools");
-  }
-  const { operation, toolId } = args;
-  if (!toolId || typeof toolId !== "string") {
-    throw new Error("toolId must be a non-empty string");
-  }
-  if (operation !== "add" && operation !== "remove") {
-    throw new Error("operation must be 'add' or 'remove'");
-  }
-  let updatedUser;
-  if (operation === "add") {
-    updatedUser = await userRepository.addUsedTools(user.email, [toolId]);
-  } else {
-    if (!userRepository.removeUsedTools) {
-      throw new Error(
-        "removeUsedTools method not implemented in UserRepository",
-      );
-    }
-    updatedUser = await userRepository.removeUsedTools(user.email, [toolId]);
-  }
-  return {
-    result: { success: true, usedTools: updatedUser?.usedTools },
-    message: `Tool '${toolId}' has been ${
-      operation === "add" ? "added to" : "removed from"
-    } your used tools list`,
-  };
-}
-
 async function handleUserInfoAction(
   args: Record<string, any>,
   context: any,
@@ -248,6 +214,48 @@ async function handleUserInfoAction(
       message: `Limited user info for '${requestedEmail}'`,
     };
   }
+}
+
+async function handleHideToolAction(
+  args: Record<string, any>,
+  context: any,
+  _handlerConfig: { action: string },
+): Promise<ToolOutput> {
+  const user = context.user;
+  if (!user || !user.email) {
+    throw new Error("User context with email is required to hide a tool");
+  }
+  const { toolId } = args;
+  if (!toolId || typeof toolId !== "string") {
+    throw new Error("toolId must be a non-empty string");
+  }
+  const updatedUser = await userRepository.addHiddenTools(user.email, [toolId]);
+  return {
+    result: { success: true, hiddenTools: updatedUser?.hiddenTools },
+    message: `Tool '${toolId}' has been hidden for your account`,
+  };
+}
+
+async function handleUnhideToolAction(
+  args: Record<string, any>,
+  context: any,
+  _handlerConfig: { action: string },
+): Promise<ToolOutput> {
+  const user = context.user;
+  if (!user || !user.email) {
+    throw new Error("User context with email is required to unhide a tool");
+  }
+  const { toolId } = args;
+  if (!toolId || typeof toolId !== "string") {
+    throw new Error("toolId must be a non-empty string");
+  }
+  const updatedUser = await userRepository.removeHiddenTools(user.email, [
+    toolId,
+  ]);
+  return {
+    result: { success: true, hiddenTools: updatedUser?.hiddenTools },
+    message: `Tool '${toolId}' has been unhidden for your account`,
+  };
 }
 
 export const userManagementHandlerPackage: HandlerPackage = {

@@ -39,6 +39,9 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 - [Extending the Server: Creating Handler & Tool Packages](docs/tool_authoring.md)
 - [Test Patterns & Mocking Strategies](docs/test_patterns.md)
 
+> **Tool Visibility Model:**
+> All tools are visible to users by default. Users can hide tools from their view using the `hide-tool` and `unhide-tool` actions. See [User Management](./docs/user-management.md) and [Tool Management & Sharing](./docs/tool-management.md) for details.
+
 ---
 
 ## 🛠️ Quick Start

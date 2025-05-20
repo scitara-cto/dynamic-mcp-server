@@ -57,19 +57,7 @@ export class UserRepository {
     return userRoles.some((role) => toolDef.rolesPermitted!.includes(role));
   }
 
-  async addUsedTools(email: string, toolIds: string[]): Promise<IUser | null> {
-    if (!Array.isArray(toolIds) || toolIds.length === 0) {
-      throw new Error("toolIds must be a non-empty array");
-    }
-    const doc = await User.findOneAndUpdate(
-      { email },
-      { $addToSet: { usedTools: { $each: toolIds } } },
-      { new: true },
-    );
-    return doc ? doc.toJSON() : null;
-  }
-
-  async removeUsedTools(
+  async addHiddenTools(
     email: string,
     toolIds: string[],
   ): Promise<IUser | null> {
@@ -78,7 +66,22 @@ export class UserRepository {
     }
     const doc = await User.findOneAndUpdate(
       { email },
-      { $pull: { usedTools: { $in: toolIds } } },
+      { $addToSet: { hiddenTools: { $each: toolIds } } },
+      { new: true },
+    );
+    return doc ? doc.toJSON() : null;
+  }
+
+  async removeHiddenTools(
+    email: string,
+    toolIds: string[],
+  ): Promise<IUser | null> {
+    if (!Array.isArray(toolIds) || toolIds.length === 0) {
+      throw new Error("toolIds must be a non-empty array");
+    }
+    const doc = await User.findOneAndUpdate(
+      { email },
+      { $pull: { hiddenTools: { $in: toolIds } } },
       { new: true },
     );
     return doc ? doc.toJSON() : null;
@@ -112,7 +115,7 @@ export class UserRepository {
   async getUserTools(email: string): Promise<any[]> {
     const user = await this.findByEmail(email);
     if (!user) return [];
-    const usedTools = user.usedTools || [];
+    const hiddenTools = user.hiddenTools || [];
     const userRoles = user.roles || [];
     const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
 
@@ -126,7 +129,7 @@ export class UserRepository {
           ],
         },
         {
-          $or: [{ name: { $in: usedTools } }, { alwaysUsed: true }],
+          name: { $nin: hiddenTools },
         },
       ],
     }).lean();

@@ -227,42 +227,6 @@ export const userManagementTools: ToolDefinition[] = [
     },
   },
   {
-    name: "update-usedTools",
-    description:
-      "Update your in-use tool list for the current user. Use if the user asks to use an available tool, or wishes to hide a tool from their in-use list. All available tools can be viewed using the list-tools tool. Only tools in the usedTools list are available for use in a chat session. This tool always operates on the current authenticated user.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        operation: {
-          type: "string",
-          description: "The operation to perform",
-          enum: ["add", "remove"],
-        },
-        toolId: {
-          type: "string",
-          description:
-            "The name of the tool to add or remove from your in-use list",
-        },
-      },
-      required: ["operation", "toolId"],
-    },
-    rolesPermitted: ["user", "power-user", "admin"],
-    annotations: {
-      title: "Use Tools",
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: false,
-      openWorldHint: true,
-    },
-    alwaysUsed: true,
-    handler: {
-      type: "user-management",
-      config: {
-        action: "update-usedTools",
-      },
-    },
-  },
-  {
     name: "remove-user",
     description:
       "Remove (delete) a user by email. This action is irreversible. You must confirm with the user that they want to remove the user before actually calling this tool.",
@@ -318,6 +282,63 @@ export const userManagementTools: ToolDefinition[] = [
       type: "user-management",
       config: {
         action: "user-info",
+      },
+    },
+  },
+  {
+    name: "hide-tool",
+    description: "Hide a tool for the current user (adds to hiddenTools array)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        toolId: {
+          type: "string",
+          description: "The name/ID of the tool to hide.",
+        },
+      },
+      required: ["toolId"],
+    },
+    rolesPermitted: ["user", "power-user", "admin"],
+    annotations: {
+      title: "Hide Tool",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: {
+      type: "user-management",
+      config: {
+        action: "hide-tool",
+      },
+    },
+  },
+  {
+    name: "unhide-tool",
+    description:
+      "Unhide a tool for the current user (removes from hiddenTools array)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        toolId: {
+          type: "string",
+          description: "The name/ID of the tool to unhide.",
+        },
+      },
+      required: ["toolId"],
+    },
+    rolesPermitted: ["user", "power-user", "admin"],
+    annotations: {
+      title: "Unhide Tool",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    handler: {
+      type: "user-management",
+      config: {
+        action: "unhide-tool",
       },
     },
   },

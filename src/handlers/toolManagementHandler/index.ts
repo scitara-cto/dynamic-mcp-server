@@ -49,7 +49,7 @@ async function handleDeleteToolAction(
     throw new Error("Tool name is required for deletion");
   }
   // Remove tool directly; if not found, handle error in removeTool
-  await toolService.removeTool(toolName); // Will throw if not found
+  await toolService.removeTool(toolName);
   await mcpServer.notifyToolListChanged();
   return {
     result: { success: true, name: toolName },

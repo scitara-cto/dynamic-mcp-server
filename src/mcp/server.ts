@@ -250,15 +250,19 @@ export class DynamicMcpServer extends EventEmitter {
     const transports = this.mcpHttpServer.transports;
     const transport = transports[sessionId];
     if (transport) {
-      await transport.send({
-        jsonrpc: "2.0",
-        ...notification,
-      });
+      try {
+        await transport.send({
+          jsonrpc: "2.0",
+          ...notification,
+        });
+      } catch (error) {
+        logger.error(
+          `[MCP] Failed to send notification to session ${sessionId}: ${error}`,
+        );
+      }
       logger.info(
         `[MCP] Sent notification to session ${sessionId}: ${notification.method}`,
       );
-    } else {
-      logger.warn(`No transport found for sessionId: ${sessionId}`);
     }
   }
 

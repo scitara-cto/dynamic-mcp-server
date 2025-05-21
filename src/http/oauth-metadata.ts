@@ -14,7 +14,7 @@ export function handleOAuthMetadata(req: Request, res: Response): void {
 
   // Return the OAuth metadata
   res.json({
-    issuer: config.server.name,
+    issuer: baseUrl,
     authorization_endpoint: config.auth.authorizationUrl,
     token_endpoint: config.auth.tokenUrl,
     userinfo_endpoint: `${config.auth.authServerUrl}/realms/${config.auth.realm}/protocol/openid-connect/userinfo`,

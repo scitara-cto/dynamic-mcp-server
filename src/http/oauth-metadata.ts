@@ -19,7 +19,6 @@ export function handleOAuthMetadata(req: Request, res: Response): void {
     token_endpoint: config.auth.tokenUrl,
     userinfo_endpoint: `${config.auth.authServerUrl}/realms/${config.auth.realm}/protocol/openid-connect/userinfo`,
     jwks_uri: `${config.auth.authServerUrl}/realms/${config.auth.realm}/protocol/openid-connect/certs`,
-    registration_endpoint: `${baseUrl}/register`,
     response_types_supported: [
       "code",
       "token",

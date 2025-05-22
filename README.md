@@ -13,6 +13,7 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 - **Session-based, per-user tool loading**
 - **Tool sharing and fine-grained access control**
 - **Extensible HTTP and database layers for downstream projects**
+- **Single unified HTTP server for all endpoints**
 
 ---
 
@@ -24,6 +25,7 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 - **Modern Auth**: OAuth/Keycloak for authentication, MongoDB for authorization.
 - **Extensibility**: Add custom HTTP routes and MongoDB collections in downstream projects.
 - **Session-based Tool Loading**: Tools are loaded per user session, not globally.
+- **Unified HTTP Server**: All endpoints (auth, MCP, health, etc.) are served from a single process and port.
 
 ---
 
@@ -92,3 +94,9 @@ await server.registerHandler(myHandlerPackage);
 ```
 
 See [Getting Started](./docs/getting-started.md) and [Examples](./docs/examples.md) for more details.
+
+---
+
+## ⚠️ Custom Route Namespacing
+
+When registering custom HTTP routes, **do NOT include the `/custom` prefix** in your route path. The framework will automatically prepend `/custom` to any custom route you register. For example, registering `/my-feature` will make it available at `/custom/my-feature`.

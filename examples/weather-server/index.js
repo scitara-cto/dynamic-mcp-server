@@ -152,5 +152,5 @@ const weatherHandlerPackage = {
 
   // Start the server HTTP listeners (if not already started in server.start)
   logger.info("Weather MCP Server started");
-  logger.info("Available at http://localhost:3000");
+  logger.info(`Available at http://localhost:${process.env.PORT}`);
 })();

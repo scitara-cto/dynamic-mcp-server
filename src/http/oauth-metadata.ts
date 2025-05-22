@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { config } from "../../config/index.js";
-import logger from "../../utils/logger.js";
+import { config } from "../config/index.js";
+import logger from "../utils/logger.js";
 
 /**
  * Handler for the OAuth metadata endpoint
@@ -14,7 +14,7 @@ export function handleOAuthMetadata(req: Request, res: Response): void {
 
   // Return the OAuth metadata
   res.json({
-    issuer: config.server.name,
+    issuer: `${config.auth.authServerUrl}/realms/${config.auth.realm}`,
     authorization_endpoint: config.auth.authorizationUrl,
     token_endpoint: config.auth.tokenUrl,
     userinfo_endpoint: `${config.auth.authServerUrl}/realms/${config.auth.realm}/protocol/openid-connect/userinfo`,

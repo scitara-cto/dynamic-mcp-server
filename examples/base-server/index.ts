@@ -12,7 +12,7 @@ server
   .then(() => {
     logger.info("Base MCP Server started with tool management");
     logger.info(
-      `Available at http://localhost:${process.env.MCP_PORT || "4001"}`,
+      `Available at http://localhost:${process.env.PORT || "4001"}`,
     );
   })
   .catch((error) => {

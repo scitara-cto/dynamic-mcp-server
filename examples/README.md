@@ -8,8 +8,7 @@ All examples require the following environment variables to be set:
 
 ```bash
 # MCP Server Configuration
-MCP_PORT=4001        # Port for the MCP server (default: 4001)
-AUTH_PORT=4000       # Port for the authentication server (default: 4000)
+PORT=4001        # Port for the MCP server (default: 4001)
 
 # Authentication Configuration
 KEYCLOAK_AUTH_SERVER_URL=your_auth_server_url

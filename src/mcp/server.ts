@@ -3,10 +3,9 @@ import logger from "../utils/logger.js";
 import { ToolService } from "../services/ToolService.js";
 import { HandlerFunction, HandlerPackage } from "./types.js";
 import { EventEmitter } from "events";
-import { AuthService, UserInfo } from "../http/mcp/middleware/AuthService.js";
-import { McpHttpServer } from "../http/mcp/mcp-http-server.js";
-import { AuthHttpServer } from "../http/auth/auth-http-server.js";
-import { createAuthMiddleware } from "../http/mcp/middleware/auth.js";
+import { AuthService, UserInfo } from "../http/middleware/AuthService.js";
+import { HttpServer } from "../http/http-server.js";
+import { createAuthMiddleware } from "../http/middleware/auth.js";
 import { config } from "../config/index.js";
 import { connectToDatabase } from "../db/connection.js";
 import { UserRepository } from "../db/repositories/UserRepository.js";
@@ -42,8 +41,7 @@ export class DynamicMcpServer extends EventEmitter {
   public toolService: ToolService;
   private sessionInfo = new Map<string, SessionInfo>();
   private handlers: Map<string, HandlerFunction> = new Map();
-  private mcpHttpServer?: McpHttpServer;
-  private authHttpServer?: AuthHttpServer;
+  private httpServer?: HttpServer;
   private userRepository: UserRepository;
   public name: string;
 
@@ -181,10 +179,6 @@ export class DynamicMcpServer extends EventEmitter {
       // Create authentication middleware
       const authMiddleware = createAuthMiddleware(authService);
 
-      // Create and start Auth server
-      this.authHttpServer = new AuthHttpServer();
-      this.authHttpServer.start();
-
       // Register the tools capability explicitly
       this.server.registerCapabilities({
         tools: {
@@ -193,18 +187,18 @@ export class DynamicMcpServer extends EventEmitter {
       });
 
       // IMPORTANT: Pass the SDK Server instance and session manager to McpHttpServer
-      this.mcpHttpServer = new McpHttpServer(this.server, this, authMiddleware);
+      this.httpServer = new HttpServer(this.server, this, authMiddleware);
 
       // Subscribe to tool list changes and notify clients
       this.on("toolsChanged", () => {
-        this.mcpHttpServer?.notifyToolListChanged();
+        this.httpServer?.notifyToolListChanged();
       });
 
       // Initialize MCP server
       await this.initialize();
 
       // Start HTTP server
-      this.mcpHttpServer.start();
+      this.httpServer.start();
 
       // Log application startup
       logger.info(
@@ -240,14 +234,12 @@ export class DynamicMcpServer extends EventEmitter {
     sessionId: string,
     notification: { method: string; params?: any },
   ): Promise<void> {
-    if (!this.mcpHttpServer) {
-      logger.warn(
-        "No mcpHttpServer instance available for sending notifications",
-      );
+    if (!this.httpServer) {
+      logger.warn("No httpServer instance available for sending notifications");
       return;
     }
     // @ts-ignore: access private transports property
-    const transports = this.mcpHttpServer.transports;
+    const transports = this.httpServer.transports;
     const transport = transports[sessionId];
     if (transport) {
       try {
@@ -273,14 +265,12 @@ export class DynamicMcpServer extends EventEmitter {
     logger.debug(
       `[MCP] notifyToolListChanged called for userEmail=${userEmail}`,
     );
-    if (!this.mcpHttpServer) {
-      logger.warn(
-        "No mcpHttpServer instance available for sending notifications",
-      );
+    if (!this.httpServer) {
+      logger.warn("No httpServer instance available for sending notifications");
       return;
     }
     // @ts-ignore: access private transports property
-    const transports = this.mcpHttpServer.transports;
+    const transports = this.httpServer.transports;
     if (userEmail) {
       for (const [sessionId, sessionInfo] of this.sessionInfo.entries()) {
         if (sessionInfo.user?.email === userEmail) {
@@ -304,8 +294,8 @@ export class DynamicMcpServer extends EventEmitter {
     }
   }
 
-  public getAuthHttpServer(): AuthHttpServer | undefined {
-    return this.authHttpServer;
+  public getHttpServer(): HttpServer | undefined {
+    return this.httpServer;
   }
 
   /**

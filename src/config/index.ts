@@ -40,8 +40,8 @@ function createConfig(): Config {
 
   return {
     server: {
-      port: parseInt(process.env.MCP_PORT || "4001", 10),
-      name: "dlx-mcp-server",
+      port: parseInt(process.env.PORT || "4001", 10),
+      name: "dynamic-mcp-server",
       version: "1.0.0",
     },
     auth: {

@@ -11,18 +11,18 @@ import {
 import { HandlerOutput } from "./services/ToolService.js";
 import logger from "./utils/logger.js";
 
-function addAuthHttpRoute(
+function addHttpRoute(
   serverInstance: DynamicMcpServer,
   method: "get" | "post",
   path: string,
   handler: import("express").RequestHandler,
 ) {
-  const authServer = serverInstance.getAuthHttpServer();
-  if (!authServer) throw new Error("Auth server not initialized");
-  authServer.addHttpRoute(method, path, handler);
+  const httpServer = serverInstance.getHttpServer();
+  if (!httpServer) throw new Error("HTTP server not initialized");
+  httpServer.addHttpRoute(method, path, handler);
 }
 
-export { DynamicMcpServer, addAuthHttpRoute, logger };
+export { DynamicMcpServer, addHttpRoute, logger };
 export { UserRepository } from "./db/repositories/UserRepository.js";
 export type { IUser } from "./db/models/User.js";
 export type { ITool } from "./db/models/Tool.js";

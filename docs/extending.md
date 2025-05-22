@@ -2,12 +2,12 @@
 
 ## Adding Custom HTTP Routes
 
-To add a custom route (e.g., for OAuth callbacks) to the Auth server, use the exported `addAuthHttpRoute` function:
+To add a custom route (e.g., for OAuth callbacks) to the Auth server, use the exported `addHttpRoute` function:
 
 ```typescript
-import { DynamicMcpServer, addAuthHttpRoute } from "dynamic-mcp-server";
+import { DynamicMcpServer, addHttpRoute } from "dynamic-mcp-server";
 
-addAuthHttpRoute(mcpServer, "get", "/custom-callback", (req, res) => {
+addHttpRoute(mcpServer, "get", "/custom-callback", (req, res) => {
   // Handle the callback
   res.send("Custom callback handled!");
 });

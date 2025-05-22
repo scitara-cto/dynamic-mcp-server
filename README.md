@@ -92,3 +92,6 @@ await server.registerHandler(myHandlerPackage);
 ```
 
 See [Getting Started](./docs/getting-started.md) and [Examples](./docs/examples.md) for more details.
+
+---
+```

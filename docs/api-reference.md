@@ -64,12 +64,12 @@ const myHandlerPackage = {
 await server.registerHandler(myHandlerPackage);
 ```
 
-## addAuthHttpRoute
+## addHttpRoute
 
 Add a custom HTTP route to the Auth server:
 
 ```typescript
-addAuthHttpRoute(
+addHttpRoute(
   serverInstance: DynamicMcpServer,
   method: "get" | "post",
   path: string,

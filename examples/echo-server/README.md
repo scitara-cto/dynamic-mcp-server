@@ -18,8 +18,7 @@ This example demonstrates how to use the DynamicMcpServer to create a simple MCP
    KEYCLOAK_REALM=your_realm
    KEYCLOAK_CLIENT_ID=your_client_id
    KEYCLOAK_CLIENT_SECRET=your_client_secret
-   MCP_PORT=4001
-   AUTH_PORT=4000
+   PORT=4001
    ```
 
 2. Install dependencies:

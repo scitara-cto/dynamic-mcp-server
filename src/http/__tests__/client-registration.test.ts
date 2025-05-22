@@ -15,8 +15,8 @@ describe("handleClientRegistration", () => {
       default: { info: jest.fn(), error: jest.fn() },
     }));
     ({ handleClientRegistration } = await import("../client-registration.js"));
-    config = (await import("../../../config/index.js")).config;
-    logger = (await import("../../../utils/logger.js")).default;
+    config = (await import("../../config/index.js")).config;
+    logger = (await import("../../utils/logger.js")).default;
     logger.info = jest.fn();
     logger.error = jest.fn();
     req = { body: { client_name: "test-client" } };

@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import { AuthService } from "./AuthService.js";
-import logger from "../../../utils/logger.js";
+import logger from "../../utils/logger.js";
 
 export function createAuthMiddleware(authService: AuthService): RequestHandler {
   return async (req, res, next) => {

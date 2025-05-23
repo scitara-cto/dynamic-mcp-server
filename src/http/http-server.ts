@@ -133,6 +133,15 @@ export class HttpServer {
       // Create session with the transport (no notification yet)
       await this.createSession(transport, req);
 
+      // Also clean up on HTTP response close
+      res.on("close", () => {
+        this.logger.info(
+          `HTTP response closed for session: ${transport.sessionId}`,
+        );
+        delete this.transports[transport.sessionId];
+        this.sessionManager.removeSessionInfo(transport.sessionId);
+      });
+
       // Connect the transport to the server
       await this.mcpServer.connect(transport);
 

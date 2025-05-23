@@ -140,7 +140,16 @@ export class HttpServer {
         );
         delete this.transports[transport.sessionId];
         this.sessionManager.removeSessionInfo(transport.sessionId);
+        clearInterval(heartbeatInterval);
       });
+
+      // Heartbeat/keepalive to prevent connection timeout
+      const heartbeatInterval = setInterval(() => {
+        res.write(": keepalive\n\n");
+        if (typeof (res as any).flush === "function") {
+          (res as any).flush();
+        }
+      }, 25000); // every 25 seconds
 
       // Connect the transport to the server
       await this.mcpServer.connect(transport);

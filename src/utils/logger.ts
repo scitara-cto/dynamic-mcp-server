@@ -46,17 +46,6 @@ const transports: winston.transport[] = [
   new winston.transports.Console(),
 ];
 
-// Add file transport for errors in production
-if (process.env.NODE_ENV === "production") {
-  transports.push(
-    new winston.transports.File({
-      filename: "logs/error.log",
-      level: "error",
-    }),
-    new winston.transports.File({ filename: "logs/all.log" }),
-  );
-}
-
 // Create the logger
 const logger = winston.createLogger({
   level: config.logging.level, // Use the log level from config

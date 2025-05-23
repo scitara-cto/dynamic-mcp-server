@@ -2,6 +2,11 @@ import logger from "../../utils/logger.js";
 import { ToolOutput } from "../../mcp/types.js";
 import { userManagementTools } from "./tools.js";
 import { HandlerFunction, HandlerPackage } from "../../mcp/types.js";
+import { handleListUsersAction } from "./actions/list.js";
+import { handleAddUserAction } from "./actions/add.js";
+import { handleUpdateUserAction } from "./actions/update.js";
+import { handleDeleteUserAction } from "./actions/delete.js";
+import { handleResetApiKeyAction } from "./actions/resetApiKey.js";
 import { UserRepository } from "../../db/repositories/UserRepository.js";
 
 const userRepository = new UserRepository();
@@ -17,6 +22,7 @@ const actionHandlers: Record<
   "add": handleAddUserAction,
   "update": handleUpdateUserAction,
   "delete": handleDeleteUserAction,
+  "reset-api-key": handleResetApiKeyAction,
   "share-tool": handleShareToolAction,
   "unshare-tool": handleUnshareToolAction,
   "user-info": handleUserInfoAction,
@@ -41,78 +47,6 @@ const handler: HandlerFunction = async (
     throw error;
   }
 };
-
-async function handleListUsersAction(
-  args: Record<string, any>,
-  _context: any,
-  _handlerConfig: { action: string },
-): Promise<ToolOutput> {
-  const { nameContains, skip, limit } = args;
-  const users = await userRepository.list({ nameContains, skip, limit });
-  const minimalUsers = users.map((u: any) => ({
-    email: u.email,
-    name: u.name || null,
-  }));
-  return {
-    result: { users: minimalUsers, total: minimalUsers.length },
-    message:
-      `Found ${minimalUsers.length} users` +
-      (nameContains ? ` matching "${nameContains}"` : ""),
-    nextSteps: [
-      "To get more information about a specific user, use the 'user-info' tool with their email.",
-    ],
-  };
-}
-
-async function handleAddUserAction(
-  args: Record<string, any>,
-  _context: any,
-  _handlerConfig: { action: string },
-): Promise<ToolOutput> {
-  const { email, name, roles } = args;
-  if (!email) throw new Error("Email is required");
-  const user = await userRepository.create({ email, name, roles });
-  return {
-    result: {
-      email: user.email,
-      name: user.name,
-      roles: user.roles,
-      apiKey: user.apiKey,
-    },
-    message: `User '${email}' added successfully`,
-  };
-}
-
-async function handleUpdateUserAction(
-  args: Record<string, any>,
-  _context: any,
-  _handlerConfig: { action: string },
-): Promise<ToolOutput> {
-  const { email, ...updates } = args;
-  if (!email) throw new Error("Email is required");
-  const user = await userRepository.updateUser(email, updates);
-  if (!user) throw new Error(`User '${email}' not found`);
-  return {
-    result: user,
-    message: `User '${email}' updated successfully`,
-  };
-}
-
-async function handleDeleteUserAction(
-  args: Record<string, any>,
-  _context: any,
-  _handlerConfig: { action: string },
-): Promise<ToolOutput> {
-  const { email } = args;
-  if (!email) throw new Error("Email is required");
-  const deleted = await userRepository.removeUser(email);
-  return {
-    result: { success: deleted, email },
-    message: deleted
-      ? `User '${email}' deleted successfully`
-      : `User '${email}' not found or not deleted`,
-  };
-}
 
 async function updateUserToolShareState(
   action: "share" | "unshare",

@@ -342,4 +342,33 @@ export const userManagementTools: ToolDefinition[] = [
       },
     },
   },
+  {
+    name: "reset-api-key",
+    description: "Reset a user's API key and email the new key to the user.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        email: {
+          type: "string",
+          description:
+            "User email (required). If the email is unknown, use the list-users tool to find a user by name.",
+        },
+      },
+      required: ["email"],
+    },
+    rolesPermitted: ["admin"],
+    annotations: {
+      title: "Reset API Key",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    handler: {
+      type: "user-management",
+      config: {
+        action: "reset-api-key",
+      },
+    },
+  },
 ];

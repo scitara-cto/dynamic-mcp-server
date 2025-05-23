@@ -26,7 +26,7 @@ export class HttpServer {
     this.sessionManager = sessionManager;
     this.config = config;
     this.logger = logger;
-    this.setupAuthRoutes();
+    this.setupHealthCheck();
     this.setupMcpRoutes();
   }
 
@@ -70,11 +70,12 @@ export class HttpServer {
     // (Moved to /sse handler after connect)
   }
 
-  private setupAuthRoutes(): void {
+  private setupHealthCheck(): void {
     // Health check endpoint
-    this.app.get("/health", (_req: Request, res: Response) => {
+    this.app.get("/status", (_req: Request, res: Response) => {
       res.status(200).json({ status: "ok" });
     });
+    this.logger.info("Health check endpoint setup as /status");
   }
 
   private setupMcpRoutes(): void {

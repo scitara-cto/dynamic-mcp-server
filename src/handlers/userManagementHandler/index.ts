@@ -73,7 +73,12 @@ async function handleAddUserAction(
   if (!email) throw new Error("Email is required");
   const user = await userRepository.create({ email, name, roles });
   return {
-    result: user,
+    result: {
+      email: user.email,
+      name: user.name,
+      roles: user.roles,
+      apiKey: user.apiKey,
+    },
     message: `User '${email}' added successfully`,
   };
 }

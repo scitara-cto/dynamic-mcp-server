@@ -2,18 +2,20 @@
 
 ## Adding Custom HTTP Routes
 
-To add a custom route (e.g., for OAuth callbacks) to the Auth server, use the exported `addHttpRoute` function:
+To add a custom route to the server, use the exported `addHttpRoute` function:
 
 ```typescript
 import { DynamicMcpServer, addHttpRoute } from "dynamic-mcp-server";
 
-addHttpRoute(mcpServer, "get", "/custom-callback", (req, res) => {
-  // Handle the callback
-  res.send("Custom callback handled!");
+addHttpRoute(mcpServer, "get", "/custom-endpoint", (req, res) => {
+  // Handle the request
+  res.send("Custom endpoint handled!");
 });
 ```
 
 This ensures you do not overwrite core routes and provides a safe extension point.
+
+> **Note:** Authentication for all core endpoints is handled via API key as a query parameter. If you add custom endpoints that require authentication, you should manually check the apiKey in your handler.
 
 ## Adding MongoDB Collections/Repositories
 

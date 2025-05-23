@@ -20,8 +20,11 @@ interface IUser {
   roles?: string[]; // e.g., ["admin", "power-user", "user"]
   sharedTools: SharedTool[]; // Tools shared with the user, with metadata
   hiddenTools?: string[]; // Tools the user has chosen to hide from their session (personalization only)
+  apiKey: string; // Unique API key for authentication
 }
 ```
+
+> **Note:** Each user is assigned a unique `apiKey` for authentication. This key must be provided as a query parameter when connecting to the server.
 
 ## Tool Access Model
 
@@ -59,6 +62,7 @@ These tools are available to users with the `admin` role.
 
 - The admin user's email is set via the `MCP_ADMIN_EMAIL` environment variable.
 - On server start, if the admin user does not exist, it is created automatically with admin privileges.
+- **The admin user's apiKey is logged to the console at startup for easy access.**
 
 ## Roles & Authorization
 

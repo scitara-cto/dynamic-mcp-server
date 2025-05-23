@@ -1,5 +1,6 @@
 import { User, IUser } from "../models/User.js";
 import { Tool } from "../models/Tool.js";
+import { randomUUID } from "crypto";
 
 export class UserRepository {
   async findByEmail(email: string): Promise<IUser | null> {
@@ -10,6 +11,10 @@ export class UserRepository {
   async create(user: Partial<IUser>): Promise<IUser> {
     if (!user.email) {
       throw new Error("User email is required");
+    }
+    // Auto-generate apiKey if not provided
+    if (!user.apiKey) {
+      user.apiKey = randomUUID();
     }
     const newUser = new User(user);
     const saved = await newUser.save();
@@ -105,6 +110,13 @@ export class UserRepository {
     } else {
       logger.info(`Admin user exists: ${email}`);
     }
+    // Log the admin user's apiKey for admin visibility
+    const adminUser = await User.findOne({ email });
+    if (adminUser) {
+      logger.info(
+        `[AUTH] Admin user: email=${adminUser.email}, apiKey=${adminUser.apiKey}`,
+      );
+    }
   }
 
   async removeUser(email: string): Promise<boolean> {
@@ -133,5 +145,10 @@ export class UserRepository {
         },
       ],
     }).lean();
+  }
+
+  async findByApiKey(apiKey: string): Promise<IUser | null> {
+    const doc = await User.findOne({ apiKey });
+    return doc ? doc.toJSON() : null;
   }
 }

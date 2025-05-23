@@ -1,6 +1,6 @@
 # Dynamic MCP Server Framework
 
-A flexible, extensible framework for building Model Context Protocol (MCP) servers with modern authentication, user management, and dynamic tool sharing.
+A flexible, extensible framework for building Model Context Protocol (MCP) servers with modern API key authentication, user management, and dynamic tool sharing.
 
 ---
 
@@ -8,7 +8,7 @@ A flexible, extensible framework for building Model Context Protocol (MCP) serve
 
 Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. It supports:
 
-- **OAuth-based authentication** (e.g., Keycloak)
+- **API key-based authentication** (simple, compatible with all MCP clients)
 - **User management and authorization** (MongoDB-backed)
 - **Session-based, per-user tool loading**
 - **Tool sharing and fine-grained access control**
@@ -21,9 +21,19 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 - **Dynamic Tool Management**: Create, delete, and authorize tools at runtime—tools are not limited to static definitions at startup or in code. This enables true runtime extensibility and is a primary differentiator from most other MCP servers.
 - **User Management**: Add, update, delete, and list users; admin bootstrapping; role-based access.
 - **Tool Sharing**: Share tools with other users, manage access levels, and receive real-time updates.
-- **Modern Auth**: OAuth/Keycloak for authentication, MongoDB for authorization.
+- **Modern Auth**: Simple API key authentication, MongoDB for authorization.
 - **Extensibility**: Add custom HTTP routes and MongoDB collections in downstream projects.
 - **Session-based Tool Loading**: Tools are loaded per user session, not globally.
+
+---
+
+## 🔑 Authentication (API Key)
+
+- Each user is assigned a unique `apiKey` (generated automatically on user creation).
+- To authenticate, clients must provide the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`).
+- The server authenticates the user by looking up the `apiKey` in the database.
+- **Admins can view all user apiKeys in the server logs** when users connect, for easy setup and management.
+- No OAuth or external identity provider is required.
 
 ---
 
@@ -94,4 +104,7 @@ await server.registerHandler(myHandlerPackage);
 See [Getting Started](./docs/getting-started.md) and [Examples](./docs/examples.md) for more details.
 
 ---
+
+```
+
 ```

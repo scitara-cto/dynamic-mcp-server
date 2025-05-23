@@ -1,5 +1,13 @@
 # API Reference
 
+## Authentication (API Key)
+
+- All users (including admin) are assigned a unique `apiKey` for authentication.
+- Clients must provide the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`) when connecting.
+- The server authenticates users by looking up the `apiKey` in the database.
+- **Admins can view all user apiKeys in the server logs** when users connect, or at startup for the admin user.
+- No OAuth or external identity provider is required.
+
 ## Tool Access & Visibility Model
 
 - A user can access a tool if:

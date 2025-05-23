@@ -29,6 +29,14 @@ See the [Examples](./examples.md) for more advanced usage.
 
 For more details on server instantiation and configuration options, see the [API Reference](./api-reference.md).
 
+## Authentication (API Key)
+
+- Each user is assigned a unique `apiKey` when created (including the admin user).
+- To connect, clients must provide the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`).
+- The server authenticates users by looking up the `apiKey` in the database.
+- **Admins can view all user apiKeys in the server logs** when users connect, or at startup for the admin user.
+- No OAuth or external identity provider is required.
+
 ## Registering Tools via Handler Packages
 
 The recommended way to add tools is to group them in a handler package and register the package with the server:
@@ -56,3 +64,28 @@ await server.registerHandler(myHandlerPackage);
 ```
 
 See the [Examples](./examples.md) for more advanced usage and patterns.
+
+## Connecting from Cursor (or other MCP clients)
+
+To connect Cursor (or any MCP client that supports HTTP/SSE) to this server using an API key:
+
+1. **Find your API key:**
+
+   - The admin user's apiKey is logged to the console at server startup.
+   - For other users, use the `add-user` tool or check the logs when they connect.
+
+2. **Edit your `~/.cursor/mcp.json` file** to add your server with the apiKey as a query parameter:
+
+   ```json
+   {
+     "mcpServers": {
+       "my-mcp-server": {
+         "url": "http://localhost:4001/sse?apiKey=YOUR_API_KEY"
+       }
+     }
+   }
+   ```
+
+3. **Restart Cursor** and select your server from the MCP server list.
+
+> **Note:** Cursor does not currently support sending custom headers for SSE connections, so the apiKey must be included as a query parameter in the URL.

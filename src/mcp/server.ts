@@ -3,9 +3,7 @@ import logger from "../utils/logger.js";
 import { ToolService } from "../services/ToolService.js";
 import { HandlerFunction, HandlerPackage } from "./types.js";
 import { EventEmitter } from "events";
-import { AuthService, UserInfo } from "../http/middleware/AuthService.js";
 import { HttpServer } from "../http/http-server.js";
-import { createAuthMiddleware } from "../http/middleware/auth.js";
 import { config } from "../config/index.js";
 import { connectToDatabase } from "../db/connection.js";
 import { UserRepository } from "../db/repositories/UserRepository.js";
@@ -14,7 +12,7 @@ import { syncBuiltinTools, cleanupUserToolReferences } from "../db/toolSync.js";
 
 export interface SessionInfo {
   sessionId: string;
-  user: UserInfo;
+  user: any;
   token: string;
   mcpServer: DynamicMcpServer;
 }
@@ -168,17 +166,6 @@ export class DynamicMcpServer extends EventEmitter {
       const removedToolNames = await syncBuiltinTools();
       await cleanupUserToolReferences(removedToolNames);
 
-      // Initialize Auth service
-      const authService = new AuthService({
-        authServerUrl: config.auth.authServerUrl,
-        realm: config.auth.realm,
-        clientId: config.auth.clientId,
-        clientSecret: config.auth.clientSecret,
-      });
-
-      // Create authentication middleware
-      const authMiddleware = createAuthMiddleware(authService);
-
       // Register the tools capability explicitly
       this.server.registerCapabilities({
         tools: {
@@ -187,7 +174,7 @@ export class DynamicMcpServer extends EventEmitter {
       });
 
       // IMPORTANT: Pass the SDK Server instance and session manager to McpHttpServer
-      this.httpServer = new HttpServer(this.server, this, authMiddleware);
+      this.httpServer = new HttpServer(this.server, this, config, logger);
 
       // Subscribe to tool list changes and notify clients
       this.on("toolsChanged", () => {

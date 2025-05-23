@@ -21,6 +21,7 @@ export interface IUser {
   applicationAuthorization?: {
     [appKey: string]: any;
   };
+  apiKey: string; // API key for authentication
 }
 
 export const ROLES = {
@@ -53,6 +54,7 @@ const userSchema = new mongoose.Schema<IUser>(
       type: mongoose.Schema.Types.Mixed,
       default: undefined,
     },
+    apiKey: { type: String, required: true, unique: true, index: true },
   },
   { timestamps: true },
 );

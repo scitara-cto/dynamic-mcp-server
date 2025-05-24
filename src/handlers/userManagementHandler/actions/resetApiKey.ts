@@ -2,6 +2,7 @@ import { ToolOutput } from "../../../mcp/types.js";
 import { UserRepository } from "../../../db/repositories/UserRepository.js";
 import { EmailService } from "../../../services/EmailService.js";
 import { config } from "../../../config/index.js";
+import { randomUUID } from "crypto";
 
 const userRepository = new UserRepository();
 
@@ -12,8 +13,9 @@ export async function handleResetApiKeyAction(
 ): Promise<ToolOutput> {
   const { email } = args;
   if (!email) throw new Error("Email is required");
-  // Reset API key (assume repo has a method for this, or update with a new key)
-  const user = await userRepository.updateUser(email, { apiKey: undefined }); // triggers new key generation
+  // Generate a new API key and update the user
+  const newApiKey = randomUUID();
+  const user = await userRepository.updateUser(email, { apiKey: newApiKey });
   if (!user) throw new Error(`User '${email}' not found`);
 
   // Prepare config and instructions

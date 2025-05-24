@@ -106,7 +106,10 @@ export class HttpServer {
         this.logger.warn(
           `Invalid apiKey attempt: apiKey=${apiKey}, ip=${req.ip}`,
         );
-        res.status(401).json({ error: "Invalid apiKey" });
+        res.status(401).json({
+          error:
+            "Invalid apiKey. Please contact the administrator to request access or a valid API key.",
+        });
         return;
       }
       (req as any).user = user;

@@ -35,3 +35,5 @@ export type {
   ToolDefinition,
   HandlerOutput,
 };
+
+export { sendEmail, sendBulkEmail } from "./services/EmailService.js";

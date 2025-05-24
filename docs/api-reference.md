@@ -85,6 +85,65 @@ addHttpRoute(
 ): void;
 ```
 
+## Email Utilities
+
+The following functions are exported for sending email from downstream handlers or custom code:
+
+### sendEmail
+
+Send a single email to a recipient.
+
+```typescript
+import { sendEmail } from "dynamic-mcp-server";
+
+await sendEmail({
+  to: string, // Recipient email address
+  subject: string, // Email subject
+  html: string, // HTML body of the email
+});
+```
+
+- Returns a promise that resolves to a result object with a `message` property and Postmark API response fields.
+- If the email service is not configured, logs an error and returns a message.
+
+### sendBulkEmail
+
+Send a bulk email to multiple recipients (BCC), with a copy to the sender.
+
+```typescript
+import { sendBulkEmail } from "dynamic-mcp-server";
+
+await sendBulkEmail({
+  toList: string[],   // Array of recipient email addresses
+  subject: string,    // Email subject
+  html: string        // HTML body of the email
+});
+```
+
+- Sends the email as BCC to all recipients, and a copy to the sender.
+- Returns a promise that resolves to a result object with a `message` property and Postmark API response fields.
+- If the email service is not configured, logs an error and returns a message.
+
+## Logger
+
+The library exports a preconfigured Winston logger instance for use in your application, handlers, or custom routes.
+
+- Supports log levels: `error`, `warn`, `info`, `http`, `debug` (configurable via environment/config).
+- Logs to the console by default, with colorized output and timestamps.
+- The log level is controlled by the `LOG_LEVEL` environment variable or config.
+
+### Usage Example
+
+```typescript
+import { logger } from "dynamic-mcp-server";
+
+logger.info("Server started");
+logger.error("Something went wrong", { error });
+logger.debug("Debug details", { args: { foo: 1 } });
+```
+
+You can use the logger in your own code, handlers, or custom routes to output structured logs.
+
 ## Tool Registration
 
 - `publishTool(toolDef: ToolDefinition)`: Register a tool in memory (per session).

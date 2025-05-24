@@ -1,6 +1,6 @@
 import { ToolOutput } from "../../../mcp/types.js";
 import { UserRepository } from "../../../db/repositories/UserRepository.js";
-import { EmailService } from "../../../services/EmailService.js";
+import { sendEmail } from "../../../services/EmailService.js";
 import { config } from "../../../config/index.js";
 
 const userRepository = new UserRepository();
@@ -51,7 +51,7 @@ export async function handleAddUserAction(
     <p>Thank you!</p>
   `;
   try {
-    await EmailService.sendEmail({ to: user.email, subject, html });
+    await sendEmail({ to: user.email, subject, html });
   } catch (err) {
     // Log but do not block user creation
     // eslint-disable-next-line no-console

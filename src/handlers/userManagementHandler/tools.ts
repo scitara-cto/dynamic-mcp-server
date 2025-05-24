@@ -345,7 +345,7 @@ export const userManagementTools: ToolDefinition[] = [
   {
     name: "reset-api-key",
     description:
-      "Reset a user's API key and email the new key to the user. For non-admin users, the email field is ignored and your own API key will be reset.",
+      "Reset a user's API key and email the new key to the user. Always call this tool first with userConfirmed: false (or omitted). Only set userConfirmed: true after the user has explicitly confirmed. For non-admin users, the email field is ignored and your own API key will be reset.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -357,7 +357,7 @@ export const userManagementTools: ToolDefinition[] = [
         userConfirmed: {
           type: "boolean",
           description:
-            "Set to true only after the user has explicitly confirmed they want to reset their API key. The LLM should first confirm with the user before proceeding, then call this tool again with userConfirmed: true.",
+            "Always call this tool first with userConfirmed: false (or omitted). Only set userConfirmed: true after the user has explicitly confirmed they want to reset their API key. The LLM should first confirm with the user before proceeding, then call this tool again with userConfirmed: true.",
         },
       },
     },

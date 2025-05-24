@@ -11,12 +11,12 @@ export async function handleResetApiKeyAction(
   context: any,
   _handlerConfig: { action: string },
 ): Promise<ToolOutput> {
-  // Confirmation logic
+  // Stateless confirmation logic
   if (!args.userConfirmed) {
     return {
       result: null,
       message:
-        "Are you sure you want to reset your API key? This will invalidate your current key and require you to update all clients. Please confirm before proceeding.",
+        "Are you sure you want to reset your API key? This will invalidate your current key and require you to update all clients. Please confirm before proceeding. Always call this tool first with userConfirmed: false (or omitted). Only set userConfirmed: true after the user has explicitly confirmed.",
       nextSteps: [
         "Ask the user to confirm they want to reset their API key.",
         "If confirmed, call this tool again with userConfirmed: true.",

@@ -344,19 +344,24 @@ export const userManagementTools: ToolDefinition[] = [
   },
   {
     name: "reset-api-key",
-    description: "Reset a user's API key and email the new key to the user.",
+    description:
+      "Reset a user's API key and email the new key to the user. For non-admin users, the email field is ignored and your own API key will be reset.",
     inputSchema: {
       type: "object" as const,
       properties: {
         email: {
           type: "string",
           description:
-            "User email (required). If the email is unknown, use the list-users tool to find a user by name.",
+            "User email (optional, admin only). Only admins can reset another user's API key. For non-admin users, this field is ignored and your own API key will be reset.",
+        },
+        userConfirmed: {
+          type: "boolean",
+          description:
+            "Set to true only after the user has explicitly confirmed they want to reset their API key. The LLM should first confirm with the user before proceeding, then call this tool again with userConfirmed: true.",
         },
       },
-      required: ["email"],
     },
-    rolesPermitted: ["admin"],
+    rolesPermitted: ["user", "power-user", "admin"],
     annotations: {
       title: "Reset API Key",
       readOnlyHint: false,

@@ -56,7 +56,10 @@ export class UserRepository {
     );
     const toolRepo = new ToolRepository();
     const toolDef = await toolRepo.findByName(toolId);
-    if (!toolDef || !Array.isArray(toolDef.rolesPermitted)) return false;
+    if (!toolDef) return false;
+    // Check if user is the creator
+    if (toolDef.creator === user.email) return true;
+    if (!Array.isArray(toolDef.rolesPermitted)) return false;
     // Check if user has any permitted role
     const userRoles = user.roles || [];
     return userRoles.some((role) => toolDef.rolesPermitted!.includes(role));

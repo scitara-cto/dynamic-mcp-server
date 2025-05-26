@@ -25,8 +25,5 @@ export async function handleAddToolAction(
   return {
     result: { success: true, name: toolDef.name },
     message: `Tool '${toolDef.name}' added successfully`,
-    nextSteps: [
-      `To start using '${toolDef.name}', call the 'update-usedTools' tool (from user management) with this tool's name to add it to your in-use list.`,
-    ],
   };
 }

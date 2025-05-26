@@ -32,8 +32,6 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 - Each user is assigned a unique `apiKey` (generated automatically on user creation).
 - To authenticate, clients must provide the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`).
 - The server authenticates the user by looking up the `apiKey` in the database.
-- **Admins can view all user apiKeys in the server logs** when users connect, for easy setup and management.
-- No OAuth or external identity provider is required.
 
 ---
 
@@ -102,6 +100,38 @@ await server.registerHandler(myHandlerPackage);
 ```
 
 See [Getting Started](./docs/getting-started.md) and [Examples](./docs/examples.md) for more details.
+
+---
+
+## 🧩 Tool Argument Mapping (config.args)
+
+When defining a tool, you can use the `config.args` field to map user-supplied tool options (from inputSchema) to the arguments your action handler expects. This mapping supports:
+
+- Literal values (e.g., `"country": "US"`)
+- Template variables (e.g., `"city": "{{location}}"`)
+- Nested objects and arrays (all templates are resolved recursively)
+
+**Example:**
+
+```js
+handler: {
+  type: "weather-tools",
+  config: {
+    url: "https://api.openweathermap.org/data/2.5/weather",
+    args: {
+      queryParams: {
+        appid: "{{OPENWEATHER_API_KEY}}",
+        q: "{{location}}",
+        units: "{{units}}"
+      }
+    }
+  }
+}
+```
+
+When the tool is called, the system automatically resolves all `{{...}}` templates in config.args using the tool input and environment variables. The handler receives the merged and resolved arguments—no manual mapping is needed.
+
+See [Tool Authoring](./docs/tool_authoring.md) for full details and examples.
 
 ---
 

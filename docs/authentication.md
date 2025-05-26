@@ -11,8 +11,6 @@ Authentication and authorization are distinct in the dynamic-mcp-server:
 - Clients must include the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`) when connecting.
 - The server validates the `apiKey` and looks up the user in the database.
 - If the `apiKey` is valid, the user is authenticated and a session is created.
-- **Admins can view all user apiKeys in the server logs** when users connect, for easy setup and management.
-- No OAuth, Keycloak, or external identity provider is required.
 
 ## Authorization
 

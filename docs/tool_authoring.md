@@ -76,20 +76,15 @@ handler: async (args, context, config, toolName) => {
 
 ---
 
-## Mapping inputSchema Arguments to Handler Config
+## Mapping inputSchema Arguments to Handler Arguments (config.args)
 
-A powerful pattern is to use template strings in the tool's handler config to map inputSchema arguments (user input) directly into handler parameters. This is especially useful for generic handlers that make API calls or perform templated actions.
+You can use the `config.args` field in your tool definition to map user-supplied tool options (from inputSchema) to the arguments your action handler expects. This mapping supports:
 
-> **Tip:** You can also include environment variables in these mappings. For example, `${OPENWEATHER_API_KEY}` will be replaced with the value of the `OPENWEATHER_API_KEY` environment variable at runtime. The handler code will substitute template variables using tool input arguments first, and if not present, will fall back to environment variables (`process.env`).
+- Literal values (e.g., `"country": "US"`)
+- Template variables (e.g., `"city": "{{location}}"`)
+- Nested objects and arrays (all templates are resolved recursively)
 
-### How It Works
-
-- In the tool definition, use template strings like `"${location}"` or `"${units}"` in the handler config.
-- In your handler code, substitute these placeholders with the actual values from `args` (validated against `inputSchema`) or environment variables.
-
-### Weather Tool Example
-
-**Tool Definition:**
+**Example Tool Definition:**
 
 ```js
 {
@@ -99,65 +94,62 @@ A powerful pattern is to use template strings in the tool's handler config to ma
     type: "object",
     properties: {
       location: { type: "string", description: "City name or coordinates" },
-      units: {
-        type: "string",
-        enum: ["metric", "imperial"],
-        default: "metric",
-      },
+      units: { type: "string", enum: ["metric", "imperial"], default: "metric" }
     },
-    required: ["location"],
+    required: ["location"]
   },
   handler: {
     type: "weather-tools",
     config: {
       url: "https://api.openweathermap.org/data/2.5/weather",
-      queryParams: {
-        appid: "${OPENWEATHER_API_KEY}",
-        q: "${location}",
-        units: "${units}",
-      },
-    },
-  },
+      args: {
+        queryParams: {
+          appid: "{{OPENWEATHER_API_KEY}}",
+          q: "{{location}}",
+          units: "{{units}}"
+        }
+      }
+    }
+  }
 }
 ```
 
-**Handler Implementation:**
+**How It Works:**
+
+- When the tool is called with `{ location: "London", units: "metric" }`, the system will automatically resolve all `{{...}}` templates in config.args using the tool input and environment variables.
+- The handler receives:
+  ```js
+  args = {
+    location: "London",
+    units: "metric",
+    queryParams: {
+      appid: "your-api-key",
+      q: "London",
+      units: "metric",
+    },
+  };
+  ```
+- The handler can use `args.queryParams` directly—no manual template resolution is needed.
+
+**Handler Example:**
 
 ```js
-handler: async (args, context, config, toolName) => {
-  // Merge query params from config and args
-  const queryParams = {
-    ...(config.queryParams || {}),
-    ...(args.queryParams || {}),
-  };
-  const resolvedParams = {};
-  for (const [key, value] of Object.entries(queryParams)) {
-    if (
-      typeof value === "string" &&
-      value.startsWith("${") &&
-      value.endsWith("}")
-    ) {
-      const varName = value.slice(2, -1);
-      resolvedParams[key] = args[varName] || process.env[varName] || "";
-    } else {
-      resolvedParams[key] = value;
-    }
-  }
-  // Use resolvedParams to build the request (e.g., for fetch)
-  // ...
+handler: async (args, context, config) => {
+  const urlObj = new URL(config.url);
+  Object.entries(args.queryParams).forEach(([k, v]) => {
+    if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
+  });
+  // ...fetch and return result...
 };
 ```
 
-### Why Use This Pattern?
+---
 
-- **Separation of concerns:** Tool authors define how user input maps to handler logic, while handler code remains generic.
-- **Reusability:** The same handler can serve many tools, each with different mappings.
-- **Flexibility:** You can easily add new tools for different APIs or endpoints by just changing the config/template, not the handler code.
+### 💡 Summary
 
-**When to Use:**
-
-- When you want to create generic, reusable handlers (e.g., for web requests, database queries, etc.)
-- When tool authors need to control how user input is mapped to handler parameters without changing code.
+- If your tool options match the handler args, you don't need config.args.
+- If you need to map, inject, or compose arguments, use config.args with `{{...}}` templates.
+- The system resolves all mappings for you—your handler just uses the final args.
 
 ---
 

@@ -74,10 +74,12 @@ const weatherHandlerPackage = {
         type: "weather-tools",
         config: {
           url: "https://api.openweathermap.org/data/2.5/weather",
-          queryParams: {
-            appid: "${OPENWEATHER_API_KEY}",
-            q: "${location}",
-            units: "${units}",
+          args: {
+            queryParams: {
+              appid: "{{OPENWEATHER_API_KEY}}",
+              q: "{{location}}",
+              units: "{{units}}",
+            },
           },
         },
       },
@@ -85,31 +87,12 @@ const weatherHandlerPackage = {
   ],
   handler: async (args, _context, config, progress = () => null) => {
     progress(0, 100, "Starting weather request...");
-    // Weather tool logic (uses web request logic with weather config)
     const method = "GET";
     const baseUrl = config.url;
-    const queryParams = {
-      ...(config.queryParams || {}),
-      ...(args.queryParams || {}),
-    };
-    // Substitute template variables in queryParams
-    const resolvedParams = {};
-    for (const [key, value] of Object.entries(queryParams)) {
-      if (
-        typeof value === "string" &&
-        value.startsWith("${") &&
-        value.endsWith("}")
-      ) {
-        const varName = value.slice(2, -1);
-        resolvedParams[key] = args[varName] || process.env[varName] || "";
-      } else {
-        resolvedParams[key] = value;
-      }
-    }
-    progress(30, 100, "Built URL and query params");
-    // Build URL with query params
+    const queryParams = args.queryParams || {};
+    // No need to resolve template variables here; already handled by ToolService
     const urlObj = new URL(baseUrl);
-    Object.entries(resolvedParams).forEach(([k, v]) => {
+    Object.entries(queryParams).forEach(([k, v]) => {
       if (v !== undefined && v !== "") urlObj.searchParams.append(k, v);
     });
     progress(50, 100, "Sending request...");

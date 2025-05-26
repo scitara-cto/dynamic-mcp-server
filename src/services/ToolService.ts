@@ -18,6 +18,27 @@ export interface HandlerOutput {
   nextSteps?: string[];
 }
 
+function resolveArgs(
+  templateArgs: any,
+  inputArgs: any,
+  context: any = {},
+): any {
+  if (typeof templateArgs === "string") {
+    return templateArgs.replace(/{{\s*([^}]+)\s*}}/g, (_, field) => {
+      return inputArgs[field] ?? context[field] ?? process.env[field] ?? "";
+    });
+  } else if (Array.isArray(templateArgs)) {
+    return templateArgs.map((item) => resolveArgs(item, inputArgs, context));
+  } else if (typeof templateArgs === "object" && templateArgs !== null) {
+    const resolved: any = {};
+    for (const [key, value] of Object.entries(templateArgs)) {
+      resolved[key] = resolveArgs(value, inputArgs, context);
+    }
+    return resolved;
+  }
+  return templateArgs;
+}
+
 export class ToolService {
   private server: Server;
   private mcpServer: DynamicMcpServer;
@@ -183,9 +204,13 @@ export class ToolService {
     if (!handlerInstance) {
       throw new Error(`No handler found for type: ${handlerType}`);
     }
+    // Handlebars-style resolution for config.args
+    const configArgs = toolDef.handler.config?.args || {};
+    const resolvedConfigArgs = resolveArgs(configArgs, args, context);
+    const mergedArgs = { ...resolvedConfigArgs, ...args };
     // Always pass four arguments: args, context, config, progress
     return await handlerInstance(
-      args,
+      mergedArgs,
       context,
       toolDef.handler.config,
       progress,

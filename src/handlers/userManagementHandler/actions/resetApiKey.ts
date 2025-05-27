@@ -9,7 +9,6 @@ const userRepository = new UserRepository();
 export async function handleResetApiKeyAction(
   args: Record<string, any>,
   context: any,
-  _handlerConfig: { action: string },
 ): Promise<ToolOutput> {
   // Stateless confirmation logic
   if (!args.userConfirmed) {

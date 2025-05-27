@@ -73,8 +73,8 @@ const weatherHandlerPackage = {
       handler: {
         type: "weather-tools",
         config: {
-          url: "https://api.openweathermap.org/data/2.5/weather",
-          args: {
+          argMappings: {
+            url: "https://api.openweathermap.org/data/2.5/weather",
             queryParams: {
               appid: "{{OPENWEATHER_API_KEY}}",
               q: "{{location}}",
@@ -85,10 +85,10 @@ const weatherHandlerPackage = {
       },
     },
   ],
-  handler: async (args, _context, config, progress = () => null) => {
+  handler: async (args, _context, progress = () => null) => {
     progress(0, 100, "Starting weather request...");
     const method = "GET";
-    const baseUrl = config.url;
+    const baseUrl = args.url;
     const queryParams = args.queryParams || {};
     // No need to resolve template variables here; already handled by ToolService
     const urlObj = new URL(baseUrl);

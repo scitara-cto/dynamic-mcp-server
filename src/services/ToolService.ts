@@ -18,25 +18,25 @@ export interface HandlerOutput {
   nextSteps?: string[];
 }
 
-function resolveArgs(
-  templateArgs: any,
+function mapArguments(
+  argMappings: any,
   inputArgs: any,
   context: any = {},
 ): any {
-  if (typeof templateArgs === "string") {
-    return templateArgs.replace(/{{\s*([^}]+)\s*}}/g, (_, field) => {
+  if (typeof argMappings === "string") {
+    return argMappings.replace(/{{\s*([^}]+)\s*}}/g, (_, field) => {
       return inputArgs[field] ?? context[field] ?? process.env[field] ?? "";
     });
-  } else if (Array.isArray(templateArgs)) {
-    return templateArgs.map((item) => resolveArgs(item, inputArgs, context));
-  } else if (typeof templateArgs === "object" && templateArgs !== null) {
+  } else if (Array.isArray(argMappings)) {
+    return argMappings.map((item) => mapArguments(item, inputArgs, context));
+  } else if (typeof argMappings === "object" && argMappings !== null) {
     const resolved: any = {};
-    for (const [key, value] of Object.entries(templateArgs)) {
-      resolved[key] = resolveArgs(value, inputArgs, context);
+    for (const [key, value] of Object.entries(argMappings)) {
+      resolved[key] = mapArguments(value, inputArgs, context);
     }
     return resolved;
   }
-  return templateArgs;
+  return argMappings;
 }
 
 export class ToolService {
@@ -204,15 +204,14 @@ export class ToolService {
     if (!handlerInstance) {
       throw new Error(`No handler found for type: ${handlerType}`);
     }
-    // Handlebars-style resolution for config.args
-    const configArgs = toolDef.handler.config?.args || {};
-    const resolvedConfigArgs = resolveArgs(configArgs, args, context);
-    const mergedArgs = { ...resolvedConfigArgs, ...args };
+    
+    const argMappings = toolDef.handler.config?.argMappings || {};
+    const mappedArguments = mapArguments(argMappings, args, context);
+    const mergedArgs = { ...mappedArguments, ...args };
     // Always pass four arguments: args, context, config, progress
     return await handlerInstance(
       mergedArgs,
       context,
-      toolDef.handler.config,
       progress,
     );
   }

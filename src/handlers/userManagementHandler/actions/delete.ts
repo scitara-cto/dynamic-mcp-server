@@ -6,7 +6,6 @@ const userRepository = new UserRepository();
 export async function handleDeleteUserAction(
   args: Record<string, any>,
   _context: any,
-  _handlerConfig: { action: string },
 ): Promise<ToolOutput> {
   const { email } = args;
   if (!email) throw new Error("Email is required");

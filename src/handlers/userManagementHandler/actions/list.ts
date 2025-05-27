@@ -6,7 +6,6 @@ const userRepository = new UserRepository();
 export async function handleListUsersAction(
   args: Record<string, any>,
   _context: any,
-  _handlerConfig: { action: string },
 ): Promise<ToolOutput> {
   const { nameContains, skip, limit } = args;
   const users = await userRepository.list({ nameContains, skip, limit });

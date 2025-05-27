@@ -3,7 +3,6 @@ import { ToolOutput } from "../../../mcp/types.js";
 export async function handleDeleteToolAction(
   args: Record<string, any>,
   context: any,
-  handlerConfig: { action: string; tool?: string[] },
 ): Promise<ToolOutput> {
   const mcpServer = context.mcpServer;
   if (!mcpServer) {

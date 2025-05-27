@@ -8,7 +8,6 @@ const userRepository = new UserRepository();
 export async function handleAddUserAction(
   args: Record<string, any>,
   _context: any,
-  _handlerConfig: { action: string },
 ): Promise<ToolOutput> {
   const { email, name, roles } = args;
   if (!email) throw new Error("Email is required");

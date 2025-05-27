@@ -212,6 +212,7 @@ export class ToolService {
     return await handlerInstance(
       mergedArgs,
       context,
+      toolDef.handler.config,
       progress,
     );
   }

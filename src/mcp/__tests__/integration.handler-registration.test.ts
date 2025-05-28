@@ -1,8 +1,10 @@
-import { describe, it, beforeAll, afterAll } from "@jest/globals";
+import { describe, it, beforeAll, afterAll, jest } from "@jest/globals";
 import { DynamicMcpServer } from "../server.js";
 import { handlerPackages } from "../../handlers/index.js";
 import { UserRepository } from "../../db/repositories/UserRepository.js";
 import { User } from "../../db/models/User.js";
+
+jest.setTimeout(20000);
 
 // Integration test for real handler and tool registration
 

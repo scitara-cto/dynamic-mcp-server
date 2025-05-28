@@ -154,4 +154,33 @@ export class UserRepository {
     const doc = await User.findOne({ apiKey });
     return doc ? doc.toJSON() : null;
   }
+
+  /**
+   * Get the authentication parameters for a specific application key.
+   */
+  async getAppParams(email: string, appKey: string): Promise<any | null> {
+    const user = await User.findOne(
+      { email },
+      { [`applicationAuthentication.${appKey}`]: 1 },
+    );
+    return user?.applicationAuthentication?.[appKey] ?? null;
+  }
+
+  /**
+   * Set the authentication parameters for a specific application key.
+   * Only updates the specified app's auth data, preserving others.
+   */
+  async setAppParams(
+    email: string,
+    appKey: string,
+    params: any,
+  ): Promise<IUser | null> {
+    const update = { [`applicationAuthentication.${appKey}`]: params };
+    const doc = await User.findOneAndUpdate(
+      { email },
+      { $set: update },
+      { new: true },
+    );
+    return doc ? doc.toJSON() : null;
+  }
 }

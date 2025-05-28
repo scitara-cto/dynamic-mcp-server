@@ -191,6 +191,11 @@ export class ToolService {
     if (!userEmail) {
       throw new Error("User context with email is required for tool execution");
     }
+    // Always fetch the latest user record and update context.user
+    const freshUser = await this.userRepository.findByEmail(userEmail);
+    if (freshUser) {
+      context.user = freshUser;
+    }
     // Explicit authorization check
     const authResult = await this.authorizeToolCall(userEmail, toolDef.name);
     if (!authResult.authorized) {
@@ -204,7 +209,7 @@ export class ToolService {
     if (!handlerInstance) {
       throw new Error(`No handler found for type: ${handlerType}`);
     }
-    
+
     const argMappings = toolDef.handler.config?.argMappings || {};
     const mappedArguments = mapArguments(argMappings, args, context);
     const mergedArgs = { ...mappedArguments, ...args };

@@ -188,26 +188,6 @@ describe("userManagementHandlerPackage.handler", () => {
     ).rejects.toThrow("email and toolId are required");
   });
 
-  it("should hide a single tool", async () => {
-    const spy = jest
-      .spyOn(UserRepository.prototype, "addHiddenTools")
-      .mockResolvedValue({
-        email: "admin@example.com",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        sharedTools: [],
-        apiKey: "test-key",
-        hiddenTools: ["t1"],
-      });
-    const result = await handler({ toolId: "t1" }, context, {
-      action: "hide-tool",
-    });
-    expect(result.result.success).toBe(true);
-    expect(result.result.hiddenTools).toContain("t1");
-    expect(result.message).toMatch(/t1/);
-    expect(spy).toHaveBeenCalledWith("admin@example.com", ["t1"]);
-  });
-
   it("should hide multiple tools", async () => {
     const spy = jest
       .spyOn(UserRepository.prototype, "addHiddenTools")
@@ -228,30 +208,13 @@ describe("userManagementHandlerPackage.handler", () => {
     expect(spy).toHaveBeenCalledWith("admin@example.com", ["t1", "t2"]);
   });
 
-  it("should error if hide-tool called with invalid toolId", async () => {
+  it("should error if hide-tool called with non-array toolId", async () => {
+    await expect(
+      handler({ toolId: "t1" }, context, { action: "hide-tool" }),
+    ).rejects.toThrow(/toolId must be an array of strings/);
     await expect(
       handler({ toolId: 123 }, context, { action: "hide-tool" }),
-    ).rejects.toThrow(/toolId must be a string or array of strings/);
-  });
-
-  it("should unhide a single tool", async () => {
-    const spy = jest
-      .spyOn(UserRepository.prototype, "removeHiddenTools")
-      .mockResolvedValue({
-        email: "admin@example.com",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        sharedTools: [],
-        apiKey: "test-key",
-        hiddenTools: [],
-      });
-    const result = await handler({ toolId: "t1" }, context, {
-      action: "unhide-tool",
-    });
-    expect(result.result.success).toBe(true);
-    expect(result.result.hiddenTools).toEqual([]);
-    expect(result.message).toMatch(/t1/);
-    expect(spy).toHaveBeenCalledWith("admin@example.com", ["t1"]);
+    ).rejects.toThrow(/toolId must be an array of strings/);
   });
 
   it("should unhide multiple tools", async () => {
@@ -274,9 +237,12 @@ describe("userManagementHandlerPackage.handler", () => {
     expect(spy).toHaveBeenCalledWith("admin@example.com", ["t1", "t2"]);
   });
 
-  it("should error if unhide-tool called with invalid toolId", async () => {
+  it("should error if unhide-tool called with non-array toolId", async () => {
+    await expect(
+      handler({ toolId: "t1" }, context, { action: "unhide-tool" }),
+    ).rejects.toThrow(/toolId must be an array of strings/);
     await expect(
       handler({ toolId: 123 }, context, { action: "unhide-tool" }),
-    ).rejects.toThrow(/toolId must be a string or array of strings/);
+    ).rejects.toThrow(/toolId must be an array of strings/);
   });
 });

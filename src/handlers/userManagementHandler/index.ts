@@ -164,17 +164,14 @@ async function handleHideToolAction(
   if (!user || !user.email) {
     throw new Error("User context with email is required to hide a tool");
   }
-  let { toolId } = args;
-  if (!toolId || (typeof toolId !== "string" && !Array.isArray(toolId))) {
-    throw new Error("toolId must be a string or array of strings");
+  const { toolId } = args;
+  if (!Array.isArray(toolId) || toolId.some((id) => typeof id !== "string")) {
+    throw new Error("toolId must be an array of strings");
   }
-  const toolIds = Array.isArray(toolId) ? toolId : [toolId];
-  const updatedUser = await userRepository.addHiddenTools(user.email, toolIds);
+  const updatedUser = await userRepository.addHiddenTools(user.email, toolId);
   return {
     result: { success: true, hiddenTools: updatedUser?.hiddenTools },
-    message: `Tool(s) '${toolIds.join(
-      ", ",
-    )}' have been hidden for your account`,
+    message: `Tool(s) '${toolId.join(", ")}' have been hidden for your account`,
   };
 }
 
@@ -187,18 +184,17 @@ async function handleUnhideToolAction(
   if (!user || !user.email) {
     throw new Error("User context with email is required to unhide a tool");
   }
-  let { toolId } = args;
-  if (!toolId || (typeof toolId !== "string" && !Array.isArray(toolId))) {
-    throw new Error("toolId must be a string or array of strings");
+  const { toolId } = args;
+  if (!Array.isArray(toolId) || toolId.some((id) => typeof id !== "string")) {
+    throw new Error("toolId must be an array of strings");
   }
-  const toolIds = Array.isArray(toolId) ? toolId : [toolId];
   const updatedUser = await userRepository.removeHiddenTools(
     user.email,
-    toolIds,
+    toolId,
   );
   return {
     result: { success: true, hiddenTools: updatedUser?.hiddenTools },
-    message: `Tool(s) '${toolIds.join(
+    message: `Tool(s) '${toolId.join(
       ", ",
     )}' have been unhidden for your account`,
   };

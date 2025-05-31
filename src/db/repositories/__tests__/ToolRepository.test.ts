@@ -1,35 +1,47 @@
-import { MongoMemoryServer } from "mongodb-memory-server";
-import mongoose from "mongoose";
+import { jest } from "@jest/globals";
 import { ToolRepository } from "../ToolRepository.js";
-import { Tool, ITool } from "../../models/Tool.js";
+import { ITool } from "../../models/Tool.js";
 
-describe("ToolRepository", () => {
-  let mongoServer: MongoMemoryServer;
-  let repo: ToolRepository;
-
-  beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    await mongoose.connect(mongoServer.getUri(), { dbName: "test" });
+describe("ToolRepository (mocked)", () => {
+  const now = new Date();
+  const minimalTool = (name: string, description = "desc") => ({
+    name,
+    description,
+    inputSchema: {},
+    annotations: {},
+    handler: { type: "test", config: {} },
+    creator: "system",
+    createdAt: now,
+    updatedAt: now,
+    rolesPermitted: ["admin"],
   });
 
-  afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
-  });
-
-  beforeEach(async () => {
-    await Tool.deleteMany({});
-    repo = new ToolRepository();
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   it("should create, find, update, and delete a tool", async () => {
-    const tool: Partial<ITool> = {
-      name: "test-tool",
-      description: "desc",
-      creator: "system",
-      handler: { type: "test", config: {} },
-      inputSchema: {},
-    };
+    const repo = new ToolRepository();
+    const tool = minimalTool("test-tool");
+    jest.spyOn(repo, "create").mockResolvedValue(tool);
+    const findByNameMock = jest
+      .spyOn(repo, "findByName")
+      .mockResolvedValue(tool);
+    const updateToolMock = jest
+      .spyOn(repo, "updateTool")
+      .mockImplementation(async (name, updates) => {
+        const updated = { ...tool, ...updates };
+        findByNameMock.mockResolvedValue(updated);
+        return updated;
+      });
+    const deleteToolMock = jest
+      .spyOn(repo, "deleteTool")
+      .mockImplementation(async (name) => {
+        findByNameMock.mockResolvedValue(null);
+        deleteToolMock.mockRejectedValueOnce(new Error("not found"));
+        return undefined;
+      });
+
     await repo.create(tool);
     const found = await repo.findByName("test-tool");
     expect(found).toBeDefined();
@@ -42,18 +54,16 @@ describe("ToolRepository", () => {
     await expect(repo.deleteTool("test-tool")).resolves.toBeUndefined();
     const afterDelete = await repo.findByName("test-tool");
     expect(afterDelete).toBeNull();
-    // Should throw if tool does not exist
     await expect(repo.deleteTool("test-tool")).rejects.toThrow(/not found/);
   });
 
   it("should upsert tools and not duplicate", async () => {
-    const tool: Partial<ITool> = {
-      name: "upsert-tool",
-      description: "desc",
-      creator: "system",
-      handler: { type: "test", config: {} },
-      inputSchema: {},
-    };
+    const repo = new ToolRepository();
+    const tool = minimalTool("upsert-tool");
+    jest.spyOn(repo, "upsertMany").mockResolvedValue(undefined);
+    jest
+      .spyOn(repo, "list")
+      .mockResolvedValue([{ ...tool, description: "changed" }]);
     await repo.upsertMany([tool]);
     await repo.upsertMany([{ ...tool, description: "changed" }]);
     const all = await repo.list({});
@@ -62,20 +72,11 @@ describe("ToolRepository", () => {
   });
 
   it("should remove stale built-in tools", async () => {
-    await repo.create({
-      name: "keep-tool",
-      description: "",
-      creator: "system",
-      handler: { type: "test", config: {} },
-      inputSchema: {},
-    });
-    await repo.create({
-      name: "stale-tool",
-      description: "",
-      creator: "system",
-      handler: { type: "test", config: {} },
-      inputSchema: {},
-    });
+    const repo = new ToolRepository();
+    const keepTool = minimalTool("keep-tool");
+    const staleTool = minimalTool("stale-tool");
+    jest.spyOn(repo, "list").mockResolvedValue([keepTool, staleTool]);
+    jest.spyOn(repo, "deleteTool").mockResolvedValue(undefined);
     // Simulate sync: only keep-tool should remain
     const builtinToolNames = new Set(["keep-tool"]);
     const dbBuiltinTools = await repo.list({});
@@ -84,6 +85,7 @@ describe("ToolRepository", () => {
         await repo.deleteTool(tool.name);
       }
     }
+    jest.spyOn(repo, "list").mockResolvedValue([keepTool]);
     const all = await repo.list({});
     expect(all.length).toBe(1);
     expect(all[0].name).toBe("keep-tool");

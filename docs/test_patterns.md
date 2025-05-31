@@ -55,6 +55,42 @@ This document describes the recommended patterns and libraries for writing robus
   beforeEach(async () => { await mongoose.connection.db.dropDatabase(); });
   ```
 
+### **D. Repository/Class Method Mocking (Recommended for Most Tests)**
+
+- For most repository and service classes, mock methods using `jest.spyOn` on the class prototype.
+- This pattern works for both ESM and CJS, and is the most common in this codebase.
+- Example:
+
+  ```js
+  import { ToolRepository } from "../repositories/ToolRepository.js";
+  import { syncBuiltinTools } from "../toolSync.js";
+  import { jest } from "@jest/globals";
+
+  it("mocks repository methods", async () => {
+    const upsertMany = jest
+      .spyOn(ToolRepository.prototype, "upsertMany")
+      .mockResolvedValue(undefined);
+    const list = jest
+      .spyOn(ToolRepository.prototype, "list")
+      .mockResolvedValue([
+        /* ...mock tools... */
+      ]);
+    // ... your test ...
+  });
+  ```
+
+- **Note:** This pattern requires that you import the repository and code under test at the top of the file.
+
+### **Note on Running Tests in ESM/TypeScript Projects**
+
+For ESM/TypeScript projects like this one, always run tests using `npm test` or `npm run test` (which uses `node --experimental-vm-modules ...`) for ESM import support. Running `npx jest` directly will not work for ESM/TS tests in this setup. To run a single test file, use:
+
+```
+npm test -- path/to/file.test.ts
+```
+
+This ensures the correct Node flags are used and all tests will run as expected.
+
 ---
 
 ## 3. **Common Pitfalls and Solutions**

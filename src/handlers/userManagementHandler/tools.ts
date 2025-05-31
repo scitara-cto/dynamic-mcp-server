@@ -294,7 +294,8 @@ export const userManagementTools: ToolDefinition[] = [
         toolId: {
           type: "array",
           items: { type: "string" },
-          description: "An array of tool names/IDs to hide.",
+          description:
+            "An array of tool names/IDs to hide.  Always use list-tools to get a list of valid tools before executing this tool.",
         },
       },
       required: ["toolId"],
@@ -324,7 +325,8 @@ export const userManagementTools: ToolDefinition[] = [
         toolId: {
           type: "array",
           items: { type: "string" },
-          description: "An array of tool names/IDs to unhide.",
+          description:
+            "An array of tool names/IDs to unhide.  Always use list-tools to get a list of valid tools before executing this tool.",
         },
       },
       required: ["toolId"],

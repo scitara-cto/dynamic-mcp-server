@@ -8,7 +8,7 @@ import { config } from "../config/index.js";
 import { connectToDatabase } from "../db/connection.js";
 import { UserRepository } from "../db/repositories/UserRepository.js";
 import { handlerPackages } from "../handlers/index.js";
-import { syncBuiltinTools, cleanupUserToolReferences } from "../db/toolSync.js";
+import { ToolRepository } from "../db/repositories/ToolRepository.js";
 
 export interface SessionInfo {
   sessionId: string;
@@ -162,9 +162,9 @@ export class DynamicMcpServer extends EventEmitter {
       // Ensure admin user exists
       await UserRepository.ensureAdminUser(adminEmail, logger);
 
-      // --- Tool sync and user tool cleanup ---
-      const removedToolNames = await syncBuiltinTools();
-      await cleanupUserToolReferences(removedToolNames);
+      // --- Tool reset ---
+      const toolRepo = new ToolRepository();
+      await toolRepo.resetSystemTools();
 
       // Register the tools capability explicitly
       this.server.registerCapabilities({

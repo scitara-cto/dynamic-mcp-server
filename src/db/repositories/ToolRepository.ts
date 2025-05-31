@@ -1,5 +1,6 @@
 import { Tool, ITool } from "../models/Tool.js";
 import { ToolDefinition } from "../../mcp/types.js";
+import { handlerPackages } from "../../handlers/index.js";
 
 export class ToolRepository {
   async findByName(name: string): Promise<ITool | null> {
@@ -100,5 +101,19 @@ export class ToolRepository {
         handler: tool.handler,
         rolesPermitted: tool.rolesPermitted,
       }));
+  }
+
+  /**
+   * Delete all system tools and re-add the current set from handlerPackages.
+   */
+  async resetSystemTools(): Promise<void> {
+    await Tool.deleteMany({ creator: "system" });
+    const builtinTools = handlerPackages
+      .flatMap((pkg: any) => pkg.tools)
+      .map((tool: any) => ({
+        ...tool,
+        creator: "system",
+      }));
+    await this.upsertMany(builtinTools);
   }
 }

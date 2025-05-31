@@ -1,47 +1,40 @@
 import { userManagementHandlerPackage } from "../index.js";
 import { UserRepository } from "../../../db/repositories/UserRepository.js";
 import { jest } from "@jest/globals";
+import type { IUser } from "../../../db/models/User.js";
 
 describe("userManagementHandlerPackage.handler", () => {
   const handler = userManagementHandlerPackage.handler;
-  let mockUserRepo: jest.Mocked<UserRepository>;
   let context: any;
+  let baseUser: IUser;
 
   beforeEach(() => {
-    mockUserRepo = {
-      list: jest.fn(),
-      create: jest.fn(),
-      updateUser: jest.fn(),
-      findByEmail: jest.fn(),
-      removeUser: jest.fn(),
-    } as any;
-    jest
-      .spyOn(UserRepository.prototype, "list")
-      .mockImplementation(mockUserRepo.list);
-    jest
-      .spyOn(UserRepository.prototype, "create")
-      .mockImplementation(mockUserRepo.create);
-    jest
-      .spyOn(UserRepository.prototype, "updateUser")
-      .mockImplementation(mockUserRepo.updateUser);
-    jest
-      .spyOn(UserRepository.prototype, "findByEmail")
-      .mockImplementation(mockUserRepo.findByEmail);
-    jest
-      .spyOn(UserRepository.prototype, "removeUser")
-      .mockImplementation(mockUserRepo.removeUser);
+    baseUser = {
+      email: "admin@example.com",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      sharedTools: [],
+      apiKey: "test-key",
+      hiddenTools: [],
+    };
     context = {
-      user: { email: "admin@example.com" },
+      user: { ...baseUser },
       mcpServer: { notifyToolListChanged: jest.fn() },
     };
-  });
-
-  afterEach(() => {
     jest.restoreAllMocks();
   });
 
   it("should list users", async () => {
-    mockUserRepo.list.mockResolvedValue([{ email: "a@example.com" }]);
+    jest.spyOn(UserRepository.prototype, "list").mockResolvedValue([
+      {
+        email: "a@example.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sharedTools: [],
+        apiKey: "test-key",
+        hiddenTools: [],
+      },
+    ]);
     const result = await handler({ nameContains: "a" }, context, {
       action: "list",
     });
@@ -49,7 +42,14 @@ describe("userManagementHandlerPackage.handler", () => {
   });
 
   it("should add a user", async () => {
-    mockUserRepo.create.mockResolvedValue({ email: "b@example.com" });
+    jest.spyOn(UserRepository.prototype, "create").mockResolvedValue({
+      email: "b@example.com",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      sharedTools: [],
+      apiKey: "test-key",
+      hiddenTools: [],
+    });
     const result = await handler(
       { email: "b@example.com", name: "B" },
       context,
@@ -65,9 +65,14 @@ describe("userManagementHandlerPackage.handler", () => {
   });
 
   it("should update a user", async () => {
-    mockUserRepo.updateUser.mockResolvedValue({
+    jest.spyOn(UserRepository.prototype, "updateUser").mockResolvedValue({
       email: "c@example.com",
       name: "C",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      sharedTools: [],
+      apiKey: "test-key",
+      hiddenTools: [],
     });
     const result = await handler(
       { email: "c@example.com", name: "C" },
@@ -84,7 +89,7 @@ describe("userManagementHandlerPackage.handler", () => {
   });
 
   it("should delete a user", async () => {
-    mockUserRepo.removeUser.mockResolvedValue(true);
+    jest.spyOn(UserRepository.prototype, "removeUser").mockResolvedValue(true);
     const result = await handler({ email: "d@example.com" }, context, {
       action: "delete",
     });
@@ -98,20 +103,28 @@ describe("userManagementHandlerPackage.handler", () => {
   });
 
   it("should share a tool", async () => {
-    mockUserRepo.findByEmail.mockResolvedValue({
+    jest.spyOn(UserRepository.prototype, "findByEmail").mockResolvedValue({
       email: "e@example.com",
+      createdAt: new Date(),
+      updatedAt: new Date(),
       sharedTools: [],
+      apiKey: "test-key",
+      hiddenTools: [],
     });
-    mockUserRepo.updateUser.mockResolvedValue({
+    jest.spyOn(UserRepository.prototype, "updateUser").mockResolvedValue({
       email: "e@example.com",
+      createdAt: new Date(),
+      updatedAt: new Date(),
       sharedTools: [
         {
           toolId: "t1",
           sharedBy: "admin@example.com",
           accessLevel: "read",
-          sharedAt: expect.any(Date),
+          sharedAt: new Date(),
         },
       ],
+      apiKey: "test-key",
+      hiddenTools: [],
     });
     const result = await handler(
       { email: "e@example.com", toolId: "t1", accessLevel: "read" },
@@ -125,13 +138,28 @@ describe("userManagementHandlerPackage.handler", () => {
   });
 
   it("should unshare a tool", async () => {
-    mockUserRepo.findByEmail.mockResolvedValue({
+    jest.spyOn(UserRepository.prototype, "findByEmail").mockResolvedValue({
       email: "f@example.com",
-      sharedTools: [{ toolId: "t2", sharedBy: "admin@example.com" }],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      sharedTools: [
+        {
+          toolId: "t2",
+          sharedBy: "admin@example.com",
+          accessLevel: "read",
+          sharedAt: new Date(),
+        },
+      ],
+      apiKey: "test-key",
+      hiddenTools: [],
     });
-    mockUserRepo.updateUser.mockResolvedValue({
+    jest.spyOn(UserRepository.prototype, "updateUser").mockResolvedValue({
       email: "f@example.com",
+      createdAt: new Date(),
+      updatedAt: new Date(),
       sharedTools: [],
+      apiKey: "test-key",
+      hiddenTools: [],
     });
     const result = await handler(
       { email: "f@example.com", toolId: "t2" },
@@ -158,5 +186,97 @@ describe("userManagementHandlerPackage.handler", () => {
         action: "unshare-tool",
       }),
     ).rejects.toThrow("email and toolId are required");
+  });
+
+  it("should hide a single tool", async () => {
+    const spy = jest
+      .spyOn(UserRepository.prototype, "addHiddenTools")
+      .mockResolvedValue({
+        email: "admin@example.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sharedTools: [],
+        apiKey: "test-key",
+        hiddenTools: ["t1"],
+      });
+    const result = await handler({ toolId: "t1" }, context, {
+      action: "hide-tool",
+    });
+    expect(result.result.success).toBe(true);
+    expect(result.result.hiddenTools).toContain("t1");
+    expect(result.message).toMatch(/t1/);
+    expect(spy).toHaveBeenCalledWith("admin@example.com", ["t1"]);
+  });
+
+  it("should hide multiple tools", async () => {
+    const spy = jest
+      .spyOn(UserRepository.prototype, "addHiddenTools")
+      .mockResolvedValue({
+        email: "admin@example.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sharedTools: [],
+        apiKey: "test-key",
+        hiddenTools: ["t1", "t2"],
+      });
+    const result = await handler({ toolId: ["t1", "t2"] }, context, {
+      action: "hide-tool",
+    });
+    expect(result.result.success).toBe(true);
+    expect(result.result.hiddenTools).toEqual(["t1", "t2"]);
+    expect(result.message).toMatch(/t1, t2/);
+    expect(spy).toHaveBeenCalledWith("admin@example.com", ["t1", "t2"]);
+  });
+
+  it("should error if hide-tool called with invalid toolId", async () => {
+    await expect(
+      handler({ toolId: 123 }, context, { action: "hide-tool" }),
+    ).rejects.toThrow(/toolId must be a string or array of strings/);
+  });
+
+  it("should unhide a single tool", async () => {
+    const spy = jest
+      .spyOn(UserRepository.prototype, "removeHiddenTools")
+      .mockResolvedValue({
+        email: "admin@example.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sharedTools: [],
+        apiKey: "test-key",
+        hiddenTools: [],
+      });
+    const result = await handler({ toolId: "t1" }, context, {
+      action: "unhide-tool",
+    });
+    expect(result.result.success).toBe(true);
+    expect(result.result.hiddenTools).toEqual([]);
+    expect(result.message).toMatch(/t1/);
+    expect(spy).toHaveBeenCalledWith("admin@example.com", ["t1"]);
+  });
+
+  it("should unhide multiple tools", async () => {
+    const spy = jest
+      .spyOn(UserRepository.prototype, "removeHiddenTools")
+      .mockResolvedValue({
+        email: "admin@example.com",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        sharedTools: [],
+        apiKey: "test-key",
+        hiddenTools: ["t2"],
+      });
+    const result = await handler({ toolId: ["t1", "t2"] }, context, {
+      action: "unhide-tool",
+    });
+    expect(result.result.success).toBe(true);
+    expect(result.result.hiddenTools).toEqual(["t2"]);
+    expect(result.message).toMatch(/t1, t2/);
+    expect(spy).toHaveBeenCalledWith("admin@example.com", ["t1", "t2"]);
+  });
+
+  it("should error if unhide-tool called with invalid toolId", async () => {
+    await expect(
+      handler({ toolId: 123 }, context, { action: "unhide-tool" }),
+    ).rejects.toThrow(/toolId must be a string or array of strings/);
   });
 });

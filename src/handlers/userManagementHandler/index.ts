@@ -164,14 +164,17 @@ async function handleHideToolAction(
   if (!user || !user.email) {
     throw new Error("User context with email is required to hide a tool");
   }
-  const { toolId } = args;
-  if (!toolId || typeof toolId !== "string") {
-    throw new Error("toolId must be a non-empty string");
+  let { toolId } = args;
+  if (!toolId || (typeof toolId !== "string" && !Array.isArray(toolId))) {
+    throw new Error("toolId must be a string or array of strings");
   }
-  const updatedUser = await userRepository.addHiddenTools(user.email, [toolId]);
+  const toolIds = Array.isArray(toolId) ? toolId : [toolId];
+  const updatedUser = await userRepository.addHiddenTools(user.email, toolIds);
   return {
     result: { success: true, hiddenTools: updatedUser?.hiddenTools },
-    message: `Tool '${toolId}' has been hidden for your account`,
+    message: `Tool(s) '${toolIds.join(
+      ", ",
+    )}' have been hidden for your account`,
   };
 }
 
@@ -184,16 +187,20 @@ async function handleUnhideToolAction(
   if (!user || !user.email) {
     throw new Error("User context with email is required to unhide a tool");
   }
-  const { toolId } = args;
-  if (!toolId || typeof toolId !== "string") {
-    throw new Error("toolId must be a non-empty string");
+  let { toolId } = args;
+  if (!toolId || (typeof toolId !== "string" && !Array.isArray(toolId))) {
+    throw new Error("toolId must be a string or array of strings");
   }
-  const updatedUser = await userRepository.removeHiddenTools(user.email, [
-    toolId,
-  ]);
+  const toolIds = Array.isArray(toolId) ? toolId : [toolId];
+  const updatedUser = await userRepository.removeHiddenTools(
+    user.email,
+    toolIds,
+  );
   return {
     result: { success: true, hiddenTools: updatedUser?.hiddenTools },
-    message: `Tool '${toolId}' has been unhidden for your account`,
+    message: `Tool(s) '${toolIds.join(
+      ", ",
+    )}' have been unhidden for your account`,
   };
 }
 

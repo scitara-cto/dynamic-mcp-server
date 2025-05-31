@@ -287,13 +287,21 @@ export const userManagementTools: ToolDefinition[] = [
   },
   {
     name: "hide-tool",
-    description: "Hide a tool for the current user (adds to hiddenTools array)",
+    description: "Hide one or more tools for the current user",
     inputSchema: {
       type: "object" as const,
       properties: {
         toolId: {
-          type: "string",
-          description: "The name/ID of the tool to hide.",
+          oneOf: [
+            { type: "string", description: "The name/ID of the tool to hide." },
+            {
+              type: "array",
+              items: { type: "string" },
+              description: "An array of tool names/IDs to hide.",
+            },
+          ],
+          description:
+            "The name/ID of the tool to hide, or an array of tool names/IDs.",
         },
       },
       required: ["toolId"],
@@ -316,13 +324,24 @@ export const userManagementTools: ToolDefinition[] = [
   {
     name: "unhide-tool",
     description:
-      "Unhide a tool for the current user (removes from hiddenTools array)",
+      "Unhide one or more tools for the current user (removes from hiddenTools array)",
     inputSchema: {
       type: "object" as const,
       properties: {
         toolId: {
-          type: "string",
-          description: "The name/ID of the tool to unhide.",
+          oneOf: [
+            {
+              type: "string",
+              description: "The name/ID of the tool to unhide.",
+            },
+            {
+              type: "array",
+              items: { type: "string" },
+              description: "An array of tool names/IDs to unhide.",
+            },
+          ],
+          description:
+            "The name/ID of the tool to unhide, or an array of tool names/IDs.",
         },
       },
       required: ["toolId"],

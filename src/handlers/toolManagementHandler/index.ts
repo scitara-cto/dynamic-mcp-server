@@ -5,6 +5,7 @@ import { HandlerFunction, HandlerPackage } from "../../mcp/types.js";
 import { handleDeleteToolAction } from "./actions/delete.js";
 import { handleListToolsAction } from "./actions/list.js";
 import { handleAddToolAction } from "./actions/add.js";
+import { handleUpdateToolAction } from "./actions/update.js";
 
 const actionHandlers: Record<
   string,
@@ -17,6 +18,7 @@ const actionHandlers: Record<
   delete: handleDeleteToolAction,
   list: handleListToolsAction,
   add: handleAddToolAction,
+  update: handleUpdateToolAction,
 };
 
 const handler: HandlerFunction = async (

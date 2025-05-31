@@ -52,6 +52,7 @@ describe("toolManagementHandlerPackage.handler", () => {
   beforeEach(() => {
     mockToolService = {
       removeTool: jest.fn(),
+      updateTool: jest.fn(),
     };
     mockContext = {
       mcpServer: {
@@ -109,6 +110,72 @@ describe("toolManagementHandlerPackage.handler", () => {
         mockToolService.removeTool.mockRejectedValue(new Error("DB error"));
         await expect(
           handler({ name: "foo" }, mockContext, { action: "delete" }),
+        ).rejects.toThrow(/DB error/);
+      });
+    });
+
+    describe("update action", () => {
+      beforeEach(() => {
+        mockToolService.updateTool = jest.fn();
+      });
+
+      it("updates a tool successfully", async () => {
+        mockToolService.updateTool.mockResolvedValue({
+          name: "foo",
+          description: "updated",
+        });
+        const result = await handler(
+          { name: "foo", updates: { description: "updated" } },
+          mockContext,
+          {
+            action: "update",
+          },
+        );
+        expect(result.result.success).toBe(true);
+        expect(result.result.name).toBe("foo");
+        expect(result.result.updated).toEqual({
+          name: "foo",
+          description: "updated",
+        });
+        expect(result.message).toMatch(/updated successfully/);
+        expect(mockToolService.updateTool).toHaveBeenCalledWith("foo", {
+          description: "updated",
+        });
+        expect(mockContext.mcpServer.notifyToolListChanged).toHaveBeenCalled();
+      });
+
+      it("throws if tool name is missing", async () => {
+        await expect(
+          handler({ updates: { description: "updated" } }, mockContext, {
+            action: "update",
+          }),
+        ).rejects.toThrow(/tool name/i);
+      });
+
+      it("throws if updates object is missing", async () => {
+        await expect(
+          handler({ name: "foo" }, mockContext, { action: "update" }),
+        ).rejects.toThrow(/updates object/i);
+      });
+
+      it("throws if mcpServer missing", async () => {
+        await expect(
+          handler(
+            { name: "foo", updates: { description: "updated" } },
+            { token: "", user: {} },
+            { action: "update" },
+          ),
+        ).rejects.toThrow(/McpServer not available/);
+      });
+
+      it("throws if updateTool throws an error", async () => {
+        mockToolService.updateTool.mockRejectedValue(new Error("DB error"));
+        await expect(
+          handler(
+            { name: "foo", updates: { description: "updated" } },
+            mockContext,
+            { action: "update" },
+          ),
         ).rejects.toThrow(/DB error/);
       });
     });

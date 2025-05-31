@@ -315,4 +315,12 @@ export class ToolService {
       });
     };
   }
+
+  public async updateTool(
+    toolName: string,
+    updates: Partial<ToolDefinition>,
+  ): Promise<any> {
+    const toolRepo = new ToolRepository();
+    return await toolRepo.updateTool(toolName, updates);
+  }
 }

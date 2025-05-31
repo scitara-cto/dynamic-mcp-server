@@ -36,6 +36,7 @@ export interface ToolDefinition {
     };
   };
   rolesPermitted?: string[];
+  alwaysVisible?: boolean;
 }
 
 // Extended tool schema that includes annotations

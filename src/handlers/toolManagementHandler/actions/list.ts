@@ -33,7 +33,10 @@ export async function handleListToolsAction(
         sharedToolNames.includes(tool.name) ||
         tool.creator === user.email ||
         tool.creator === "system";
-      const hidden = hiddenTools.includes(tool.name);
+      // Tools with alwaysVisible: true are never hidden
+      const hidden = tool.alwaysVisible
+        ? false
+        : hiddenTools.includes(tool.name);
       return {
         name: tool.name,
         description: tool.description,

@@ -4,6 +4,7 @@ export const toolManagementTools: ToolDefinition[] = [
   {
     name: "list-tools",
     description: "List all tools",
+    alwaysVisible: true,
     inputSchema: {
       type: "object" as const,
       properties: {

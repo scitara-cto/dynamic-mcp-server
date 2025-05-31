@@ -319,6 +319,7 @@ export const userManagementTools: ToolDefinition[] = [
     name: "unhide-tool",
     description:
       "Unhide one or more tools for the current user (removes from hiddenTools array)",
+    alwaysVisible: true,
     inputSchema: {
       type: "object" as const,
       properties: {

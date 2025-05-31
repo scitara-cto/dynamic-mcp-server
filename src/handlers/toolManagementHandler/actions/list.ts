@@ -43,14 +43,23 @@ export async function handleListToolsAction(
     });
   // Only show available tools that are not hidden
   const visibleTools = filteredTools.filter((t) => t.available && !t.hidden);
+  // List of all hidden tools (by name) for this user
+  const hiddenToolNames = filteredTools
+    .filter((t) => t.hidden)
+    .map((t) => t.name);
   return {
     result: {
       visibleTools,
       total: filteredTools.length,
       filtered: !!nameContains,
+      hiddenTools: hiddenToolNames,
     },
     message:
-      "Tools are now all visible by default unless hidden. Use the hideTool/unHideTool actions to hide or unhide tools.",
+      hiddenToolNames.length > 0
+        ? `The following tools are currently hidden: ${hiddenToolNames.join(
+            ", ",
+          )}. Use the hideTool/unHideTool actions to hide or unhide tools.`
+        : "No tools are currently hidden. Use the hideTool/unHideTool actions to hide or unhide tools.",
     nextSteps: [
       "To hide a tool, use the 'hideTool' action (to be implemented).",
       "To unhide a tool, use the 'unHideTool' action (to be implemented).",

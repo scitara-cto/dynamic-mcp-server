@@ -1,5 +1,6 @@
 import { ToolOutput } from "../../../mcp/types.js";
 import { UserRepository } from "../../../db/repositories/UserRepository.js";
+import logger from "../../../utils/logger.js";
 
 const userRepository = new UserRepository();
 
@@ -19,8 +20,7 @@ export async function handleAddUserAction(
     await userRepository.sendConnectionInstructionsEmail(user, customMessage);
   } catch (err) {
     // Log but do not block user creation
-    // eslint-disable-next-line no-console
-    console.error(`Failed to send onboarding email to ${user.email}:`, err);
+    logger.error(`Failed to send onboarding email to ${user.email}:`, err);
   }
 
   return {

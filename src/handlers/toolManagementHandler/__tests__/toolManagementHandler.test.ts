@@ -8,45 +8,22 @@ import {
 } from "@jest/globals";
 import { toolManagementHandlerPackage } from "../index.js";
 import { ToolRepository } from "../../../db/repositories/ToolRepository.js";
+import { UserRepository } from "../../../db/repositories/UserRepository.js";
 
 describe("toolManagementHandlerPackage.handler", () => {
   const handler = toolManagementHandlerPackage.handler;
   let mockContext: any;
   let mockToolService: any;
+  let getUserToolsSpy;
 
   beforeAll(() => {
-    jest.spyOn(ToolRepository.prototype, "findAll").mockResolvedValue([
-      {
-        name: "foo",
-        description: "",
-        rolesPermitted: ["admin"],
-        creator: "system",
-        inputSchema: {},
-        handler: { type: "test", config: {} },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        name: "bar",
-        description: "",
-        rolesPermitted: ["admin"],
-        creator: "system",
-        inputSchema: {},
-        handler: { type: "test", config: {} },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        name: "baz",
-        description: "",
-        rolesPermitted: ["admin"],
-        creator: "system",
-        inputSchema: {},
-        handler: { type: "test", config: {} },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ]);
+    getUserToolsSpy = jest
+      .spyOn(UserRepository.prototype, "getUserTools")
+      .mockResolvedValue([
+        { name: "foo", description: "", available: true, hidden: false },
+        { name: "bar", description: "", available: true, hidden: false },
+        { name: "baz", description: "", available: true, hidden: false },
+      ]);
   });
 
   beforeEach(() => {
@@ -195,6 +172,10 @@ describe("toolManagementHandlerPackage.handler", () => {
       });
 
       it("filters tools by nameContains", async () => {
+        getUserToolsSpy.mockResolvedValue([
+          { name: "bar", description: "", available: true, hidden: false },
+          { name: "baz", description: "", available: true, hidden: false },
+        ]);
         const result = await handler({ nameContains: "ba" }, mockContext, {
           action: "list",
         });
@@ -212,7 +193,7 @@ describe("toolManagementHandlerPackage.handler", () => {
       });
 
       it("returns an empty list if no tools are registered", async () => {
-        jest.spyOn(ToolRepository.prototype, "findAll").mockResolvedValue([]);
+        getUserToolsSpy.mockResolvedValue([]);
         const result = await handler({}, mockContext, {
           action: "list",
         });
@@ -222,37 +203,10 @@ describe("toolManagementHandlerPackage.handler", () => {
       });
 
       it("handles duplicate tool names gracefully", async () => {
-        jest.spyOn(ToolRepository.prototype, "findAll").mockResolvedValue([
-          {
-            name: "foo",
-            description: "",
-            rolesPermitted: ["admin"],
-            creator: "system",
-            inputSchema: {},
-            handler: { type: "test", config: {} },
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          {
-            name: "foo",
-            description: "",
-            rolesPermitted: ["admin"],
-            creator: "system",
-            inputSchema: {},
-            handler: { type: "test", config: {} },
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          {
-            name: "bar",
-            description: "",
-            rolesPermitted: ["admin"],
-            creator: "system",
-            inputSchema: {},
-            handler: { type: "test", config: {} },
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
+        getUserToolsSpy.mockResolvedValue([
+          { name: "foo", description: "", available: true, hidden: false },
+          { name: "foo", description: "", available: true, hidden: false },
+          { name: "bar", description: "", available: true, hidden: false },
         ]);
         const result = await handler({}, mockContext, {
           action: "list",

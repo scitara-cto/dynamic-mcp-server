@@ -12,44 +12,22 @@ export async function handleListToolsAction(
   if (!user) {
     throw new Error("User context is required to list tools");
   }
-  const toolRepo = new (
-    await import("../../../db/repositories/ToolRepository.js")
-  ).ToolRepository();
-  const allTools = await toolRepo.findAll();
-  const userRoles = user.roles || [];
-  const sharedToolNames = (user.sharedTools || []).map((t: any) => t.toolId);
-  const hiddenTools = user.hiddenTools || [];
+  const userRepo = new (
+    await import("../../../db/repositories/UserRepository.js")
+  ).UserRepository();
+  const allUserTools = await userRepo.getUserTools(user.email);
   const nameContains = args.nameContains?.toLowerCase() || "";
-  const filteredTools = allTools
-    .filter(
-      (tool) => !nameContains || tool.name.toLowerCase().includes(nameContains),
-    )
-    .map((tool) => {
-      const available =
-        (tool.rolesPermitted &&
-          tool.rolesPermitted.some((role: string) =>
-            userRoles.includes(role),
-          )) ||
-        sharedToolNames.includes(tool.name) ||
-        tool.creator === user.email ||
-        tool.creator === "system";
-      // Tools with alwaysVisible: true are never hidden
-      const hidden = tool.alwaysVisible
-        ? false
-        : hiddenTools.includes(tool.name);
-      return {
-        name: tool.name,
-        description: tool.description,
-        available,
-        hidden,
-      };
-    });
-  // Only show available tools that are not hidden
-  const visibleTools = filteredTools.filter((t) => t.available && !t.hidden);
-  // List of all hidden tools (by name) for this user
+  const filteredTools = nameContains
+    ? allUserTools.filter((tool: any) =>
+        tool.name.toLowerCase().includes(nameContains),
+      )
+    : allUserTools;
+  const visibleTools = filteredTools.filter(
+    (t: any) => t.available && !t.hidden,
+  );
   const hiddenToolNames = filteredTools
-    .filter((t) => t.hidden)
-    .map((t) => t.name);
+    .filter((t: any) => t.hidden)
+    .map((t: any) => t.name);
   return {
     result: {
       visibleTools,

@@ -134,20 +134,36 @@ export class UserRepository {
     const userRoles = user.roles || [];
     const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
 
-    return await Tool.find({
-      $and: [
-        {
-          $or: [
-            { name: { $in: sharedToolNames } },
-            { creator: user.email },
-            { rolesPermitted: { $elemMatch: { $in: userRoles } } },
-          ],
-        },
-        {
-          name: { $nin: hiddenTools },
-        },
+    // Find all tools the user could have access to
+    const allCandidateTools = await Tool.find({
+      $or: [
+        { name: { $in: sharedToolNames } },
+        { creator: user.email },
+        { rolesPermitted: { $elemMatch: { $in: userRoles } } },
       ],
     }).lean();
+
+    // Return a rich tool object for each tool
+    return allCandidateTools.map((tool: any) => {
+      const available =
+        (tool.rolesPermitted &&
+          tool.rolesPermitted.some((role: string) =>
+            userRoles.includes(role),
+          )) ||
+        sharedToolNames.includes(tool.name) ||
+        tool.creator === user.email ||
+        tool.creator === "system";
+      const alwaysVisible = !!tool.alwaysVisible;
+      const hidden = alwaysVisible ? false : hiddenTools.includes(tool.name);
+      return {
+        name: tool.name,
+        description: tool.description,
+        available,
+        hidden,
+        alwaysVisible,
+        // Optionally include other properties as needed
+      };
+    });
   }
 
   async findByApiKey(apiKey: string): Promise<IUser | null> {

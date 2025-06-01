@@ -22,9 +22,14 @@ export async function handleListToolsAction(
         tool.name.toLowerCase().includes(nameContains),
       )
     : allUserTools;
-  const visibleTools = filteredTools.filter(
-    (t: any) => t.available && !t.hidden,
-  );
+  const visibleTools = filteredTools
+    .filter((t: any) => !t.hidden)
+    .map((t: any) => ({
+      name: t.name,
+      description: t.description,
+      hidden: t.hidden,
+      alwaysVisible: t.alwaysVisible,
+    }));
   const hiddenToolNames = filteredTools
     .filter((t: any) => t.hidden)
     .map((t: any) => t.name);

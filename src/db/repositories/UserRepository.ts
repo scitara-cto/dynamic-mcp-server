@@ -135,33 +135,23 @@ export class UserRepository {
     const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
 
     // Find all tools the user could have access to
-    const allCandidateTools = await Tool.find({
+    const allUserTools = await Tool.find({
       $or: [
         { name: { $in: sharedToolNames } },
         { creator: user.email },
+        { creator: "system" },
         { rolesPermitted: { $elemMatch: { $in: userRoles } } },
       ],
     }).lean();
 
-    // Return a rich tool object for each tool
-    return allCandidateTools.map((tool: any) => {
-      const available =
-        (tool.rolesPermitted &&
-          tool.rolesPermitted.some((role: string) =>
-            userRoles.includes(role),
-          )) ||
-        sharedToolNames.includes(tool.name) ||
-        tool.creator === user.email ||
-        tool.creator === "system";
+    // Return tool objects without the 'available' field
+    return allUserTools.map((tool: any) => {
       const alwaysVisible = !!tool.alwaysVisible;
       const hidden = alwaysVisible ? false : hiddenTools.includes(tool.name);
       return {
-        name: tool.name,
-        description: tool.description,
-        available,
+        ...tool, // includes all DB fields: name, description, inputSchema, handler, rolesPermitted, annotations, etc.
         hidden,
         alwaysVisible,
-        // Optionally include other properties as needed
       };
     });
   }

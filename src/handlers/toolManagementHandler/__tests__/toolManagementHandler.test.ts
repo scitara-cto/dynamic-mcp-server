@@ -20,9 +20,9 @@ describe("toolManagementHandlerPackage.handler", () => {
     getUserToolsSpy = jest
       .spyOn(UserRepository.prototype, "getUserTools")
       .mockResolvedValue([
-        { name: "foo", description: "", available: true, hidden: false },
-        { name: "bar", description: "", available: true, hidden: false },
-        { name: "baz", description: "", available: true, hidden: false },
+        { name: "foo", description: "", hidden: false },
+        { name: "bar", description: "", hidden: false },
+        { name: "baz", description: "", hidden: false },
       ]);
   });
 
@@ -163,9 +163,9 @@ describe("toolManagementHandlerPackage.handler", () => {
           action: "list",
         });
         expect(result.result.visibleTools).toEqual([
-          { name: "foo", description: "", available: true, hidden: false },
-          { name: "bar", description: "", available: true, hidden: false },
-          { name: "baz", description: "", available: true, hidden: false },
+          { name: "foo", description: "", hidden: false },
+          { name: "bar", description: "", hidden: false },
+          { name: "baz", description: "", hidden: false },
         ]);
         expect(result.result.total).toBe(3);
         expect(result.result.filtered).toBe(false);
@@ -173,15 +173,15 @@ describe("toolManagementHandlerPackage.handler", () => {
 
       it("filters tools by nameContains", async () => {
         getUserToolsSpy.mockResolvedValue([
-          { name: "bar", description: "", available: true, hidden: false },
-          { name: "baz", description: "", available: true, hidden: false },
+          { name: "bar", description: "", hidden: false },
+          { name: "baz", description: "", hidden: false },
         ]);
         const result = await handler({ nameContains: "ba" }, mockContext, {
           action: "list",
         });
         expect(result.result.visibleTools).toEqual([
-          { name: "bar", description: "", available: true, hidden: false },
-          { name: "baz", description: "", available: true, hidden: false },
+          { name: "bar", description: "", hidden: false },
+          { name: "baz", description: "", hidden: false },
         ]);
         expect(result.result.filtered).toBe(true);
       });
@@ -204,17 +204,17 @@ describe("toolManagementHandlerPackage.handler", () => {
 
       it("handles duplicate tool names gracefully", async () => {
         getUserToolsSpy.mockResolvedValue([
-          { name: "foo", description: "", available: true, hidden: false },
-          { name: "foo", description: "", available: true, hidden: false },
-          { name: "bar", description: "", available: true, hidden: false },
+          { name: "foo", description: "", hidden: false },
+          { name: "foo", description: "", hidden: false },
+          { name: "bar", description: "", hidden: false },
         ]);
         const result = await handler({}, mockContext, {
           action: "list",
         });
         expect(result.result.visibleTools).toEqual([
-          { name: "foo", description: "", available: true, hidden: false },
-          { name: "foo", description: "", available: true, hidden: false },
-          { name: "bar", description: "", available: true, hidden: false },
+          { name: "foo", description: "", hidden: false },
+          { name: "foo", description: "", hidden: false },
+          { name: "bar", description: "", hidden: false },
         ]);
         expect(result.result.total).toBe(3);
       });

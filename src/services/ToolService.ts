@@ -70,9 +70,11 @@ export class ToolService {
             return { tools: [], total: 0 };
           }
           const tools = await this.userRepository.getUserTools(userEmail);
+          // Only return tools that are not hidden (unless alwaysVisible)
+          const visibleTools = tools.filter((t: any) => !t.hidden);
           return {
-            tools,
-            total: tools.length,
+            tools: visibleTools,
+            total: visibleTools.length,
           };
         },
       );

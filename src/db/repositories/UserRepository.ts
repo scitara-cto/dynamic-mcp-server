@@ -1,6 +1,8 @@
 import { User, IUser } from "../models/User.js";
 import { Tool } from "../models/Tool.js";
 import { randomUUID } from "crypto";
+import { sendEmail } from "../../services/EmailService.js";
+import { config } from "../../config/index.js";
 
 export class UserRepository {
   async findByEmail(email: string): Promise<IUser | null> {
@@ -110,6 +112,16 @@ export class UserRepository {
         { upsert: true, new: true },
       );
       logger.info(`Admin user created: ${email}`);
+      // Send connection instructions email to the admin
+      const adminUser = await User.findOne({ email });
+      if (adminUser) {
+        // Use the instance method, so create a temp instance
+        const repo = new UserRepository();
+        await repo.sendConnectionInstructionsEmail(
+          adminUser,
+          "Welcome! Your admin account has been created. Here are your credentials and instructions to connect to the MCP server.",
+        );
+      }
     } else {
       logger.info(`Admin user exists: ${email}`);
     }
@@ -188,5 +200,52 @@ export class UserRepository {
       { new: true },
     );
     return doc ? doc.toJSON() : null;
+  }
+
+  /**
+   * Send an email to the user with MCP server connection details and a custom message.
+   * @param user The user object (must have email, name, apiKey)
+   * @param customMessage A custom message to display at the top of the email
+   */
+  async sendConnectionInstructionsEmail(
+    user: { email: string; name?: string; apiKey: string },
+    customMessage: string,
+  ) {
+    const mcpName = config.server.mcpName;
+    const serverUrl =
+      config.server.url || "http(s)://<your-mcp-server-host>:<port>";
+    const apiKey = user.apiKey;
+    const clientConfig = `{
+  "mcpServers": {
+    "${mcpName}": {
+      "url": "${serverUrl.replace(/\/?$/, "/sse")}?apiKey=${apiKey}"
+    }
+  }
+}`;
+    const adminEmail = config.server.adminEmail;
+    const contactLine = adminEmail
+      ? `please contact your administrator at <a href=\"mailto:${adminEmail}\">${adminEmail}</a>.`
+      : "please contact your administrator.";
+
+    const subject = `Your MCP Server Connection Details for ${mcpName}`;
+    const html = `
+      <h2>${mcpName} MCP Server Connection</h2>
+      <p>${customMessage}</p>
+      <ul>
+        <li><strong>Email:</strong> ${user.email}</li>
+        <li><strong>API Key:</strong> ${user.apiKey}</li>
+      </ul>
+      <p>To connect an MCP client, configure it with the following:</p>
+      <ul>
+        <li><strong>Server URL:</strong> <code>${serverUrl}</code></li>
+        <li><strong>Email:</strong> <code>${user.email}</code></li>
+        <li><strong>API Key:</strong> <code>${user.apiKey}</code></li>
+      </ul>
+      <p>Typical MCP client configuration:</p>
+      <pre><code>${clientConfig}</code></pre>
+      <p>If you have any questions, ${contactLine}</p>
+      <p>Thank you!</p>
+    `;
+    await sendEmail({ to: user.email, subject, html });
   }
 }

@@ -3,6 +3,7 @@ import { UserRepository } from "../../../db/repositories/UserRepository.js";
 import { sendEmail } from "../../../services/EmailService.js";
 import { config } from "../../../config/index.js";
 import { randomUUID } from "crypto";
+import { canActOnUser } from "../authz.js";
 
 const userRepository = new UserRepository();
 
@@ -23,15 +24,17 @@ export async function handleResetApiKeyAction(
     };
   }
 
-  // Determine the email to use based on user role
   const sessionUser = context.user;
-  const isAdmin = sessionUser?.roles?.includes("admin");
-  let targetEmail: string;
-  if (isAdmin && args.email) {
-    targetEmail = args.email;
-  } else {
-    targetEmail = sessionUser?.email;
+  const requestedEmail = args.email;
+  const targetEmail =
+    sessionUser?.roles?.includes("admin") && requestedEmail
+      ? requestedEmail
+      : sessionUser?.email;
+
+  if (!canActOnUser(sessionUser, targetEmail)) {
+    throw new Error("Not authorized to reset this user's API key");
   }
+
   if (!targetEmail) throw new Error("No user email found in session context");
 
   // Generate a new API key and update the user

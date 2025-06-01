@@ -74,6 +74,7 @@ describe("userManagementHandlerPackage.handler", () => {
       apiKey: "test-key",
       hiddenTools: [],
     });
+    context.user.roles = ["admin"];
     const result = await handler(
       { email: "c@example.com", name: "C" },
       context,

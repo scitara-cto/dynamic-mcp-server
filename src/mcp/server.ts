@@ -1,6 +1,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import logger from "../utils/logger.js";
 import { ToolService } from "../services/ToolService.js";
+import { PromptService } from "../services/PromptService.js";
 import { HandlerFunction, HandlerPackage } from "./types.js";
 import { EventEmitter } from "events";
 import { HttpServer } from "../http/http-server.js";
@@ -9,6 +10,7 @@ import { connectToDatabase } from "../db/connection.js";
 import { UserRepository } from "../db/repositories/UserRepository.js";
 import { handlerPackages } from "../handlers/index.js";
 import { ToolRepository } from "../db/repositories/ToolRepository.js";
+import { PromptRepository } from "../db/repositories/PromptRepository.js";
 
 export interface SessionInfo {
   sessionId: string;
@@ -37,6 +39,7 @@ export interface DynamicMcpServerConfig {
 export class DynamicMcpServer extends EventEmitter {
   private server: Server;
   public toolService: ToolService;
+  public promptService: PromptService;
   private sessionInfo = new Map<string, SessionInfo>();
   private handlers: Map<string, HandlerFunction> = new Map();
   private httpServer?: HttpServer;
@@ -52,20 +55,25 @@ export class DynamicMcpServer extends EventEmitter {
         tools: {
           listChanged: true,
         },
+        prompts: {
+          listChanged: true,
+        },
       },
     });
     this.userRepository = new UserRepository();
     this.name = config.name;
     this.toolService = new ToolService(this.server, this, this.userRepository);
+    this.promptService = new PromptService(this.server, this, this.userRepository);
     // Handler registration moved to initializeHandlers() or start()
   }
 
   /**
    * Register a handler package (from core or downstream app).
-   * handlerPackage: { name: string, handler: HandlerFunction, tools: ToolDefinition[] }
+   * handlerPackage: { name: string, handler: HandlerFunction, tools: ToolDefinition[], prompts?: PromptDefinition[] }
    */
   public async registerHandler(handlerPackage: HandlerPackage): Promise<void> {
     this.handlers.set(handlerPackage.name, handlerPackage.handler);
+    
     // Register tools in DB
     let toolNames: string[] = [];
     if (Array.isArray(handlerPackage.tools)) {
@@ -76,9 +84,12 @@ export class DynamicMcpServer extends EventEmitter {
         }
       }
     }
-    const toolList =
-      toolNames.length > 0 ? ` (tools: ${toolNames.join(", ")})` : "";
-    logger.info(`Registered handler for: ${handlerPackage.name}${toolList}`);
+    
+    const toolList = toolNames.length > 0 ? ` (tools: ${toolNames.join(", ")})` : "";
+    const promptList = handlerPackage.prompts && handlerPackage.prompts.length > 0
+      ? ` (prompts: ${handlerPackage.prompts.map(p => p.name).join(", ")})`
+      : "";
+    logger.info(`Registered handler for: ${handlerPackage.name}${toolList}${promptList}`);
   }
 
   /**
@@ -121,13 +132,13 @@ export class DynamicMcpServer extends EventEmitter {
   }
 
   /**
-   * Initialize the MCP server by registering all tools from handlers
+   * Initialize the MCP server by registering all tools and prompts from handlers
    */
   async initialize(): Promise<void> {
     try {
-      // Remove global tool registration from here
-      // Ensure the tools/list handler is registered
+      // Initialize tool and prompt services
       await this.toolService.initialize();
+      await this.promptService.initialize();
     } catch (error) {
       logger.error("Failed to initialize MCP server:", error);
       throw error;
@@ -142,13 +153,6 @@ export class DynamicMcpServer extends EventEmitter {
       // Connect to MongoDB
       await connectToDatabase();
 
-      // Register built-in handlers before anything else
-      for (const handlerPackage of handlerPackages) {
-        if (!this.handlers.has(handlerPackage.name)) {
-          await this.registerHandler(handlerPackage);
-        }
-      }
-
       // Admin user bootstrapping
       const adminEmail = process.env.MCP_ADMIN_EMAIL;
       if (!adminEmail) {
@@ -162,13 +166,26 @@ export class DynamicMcpServer extends EventEmitter {
       // Ensure admin user exists
       await UserRepository.ensureAdminUser(adminEmail, logger);
 
-      // --- Tool reset ---
+      // --- Tool and Prompt reset ---
       const toolRepo = new ToolRepository();
       await toolRepo.resetSystemTools();
+      
+      const promptRepo = new PromptRepository();
+      await promptRepo.resetSystemPrompts();
 
-      // Register the tools capability explicitly
+      // Register built-in handlers after reset
+      for (const handlerPackage of handlerPackages) {
+        if (!this.handlers.has(handlerPackage.name)) {
+          await this.registerHandler(handlerPackage);
+        }
+      }
+
+      // Register the tools and prompts capabilities explicitly
       this.server.registerCapabilities({
         tools: {
+          listChanged: true,
+        },
+        prompts: {
           listChanged: true,
         },
       });
@@ -275,6 +292,42 @@ export class DynamicMcpServer extends EventEmitter {
         logger.debug(`[MCP] Notifying session ${sessionId} (all users)`);
         await this.sendNotificationToSession(sessionId, {
           method: "notifications/tools/list_changed",
+          params: {},
+        });
+      }
+    }
+  }
+
+  /**
+   * Notify all sessions, or only sessions for a given user email, of prompt list changes
+   */
+  public async notifyPromptListChanged(userEmail?: string): Promise<void> {
+    logger.debug(
+      `[MCP] notifyPromptListChanged called for userEmail=${userEmail}`,
+    );
+    if (!this.httpServer) {
+      logger.warn("No httpServer instance available for sending notifications");
+      return;
+    }
+    // @ts-ignore: access private transports property
+    const transports = this.httpServer.transports;
+    if (userEmail) {
+      for (const [sessionId, sessionInfo] of this.sessionInfo.entries()) {
+        if (sessionInfo.user?.email === userEmail) {
+          logger.debug(
+            `[MCP] Notifying session ${sessionId} for user ${userEmail}`,
+          );
+          await this.sendNotificationToSession(sessionId, {
+            method: "notifications/prompts/list_changed",
+            params: {},
+          });
+        }
+      }
+    } else {
+      for (const sessionId in transports) {
+        logger.debug(`[MCP] Notifying session ${sessionId} (all users)`);
+        await this.sendNotificationToSession(sessionId, {
+          method: "notifications/prompts/list_changed",
           params: {},
         });
       }

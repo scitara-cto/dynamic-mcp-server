@@ -77,6 +77,61 @@ export interface RuntimeToolDefinition {
   annotations?: Record<string, unknown>;
 }
 
+/**
+ * Represents a prompt argument definition
+ */
+export interface PromptArgumentDefinition {
+  /** The name of the argument */
+  name: string;
+  /** A human-readable description of the argument */
+  description?: string;
+  /** Whether this argument must be provided */
+  required?: boolean;
+}
+
+/**
+ * Represents a prompt definition for handlers
+ */
+export interface PromptDefinition {
+  /** The name of the prompt */
+  name: string;
+  /** An optional description of what this prompt provides */
+  description?: string;
+  /** A list of arguments to use for templating the prompt */
+  arguments?: PromptArgumentDefinition[];
+  /** Handler configuration for this prompt */
+  handler: {
+    type: string;
+    config: {
+      [key: string]: any;
+    };
+  };
+  /** Roles permitted to use this prompt */
+  rolesPermitted?: string[];
+  /** Whether this prompt is always visible regardless of user permissions */
+  alwaysVisible?: boolean;
+}
+
+/**
+ * Represents the output format for prompt handlers
+ */
+export interface PromptOutput {
+  /** Optional description for the prompt */
+  description?: string;
+  /** Array of messages that make up the prompt */
+  messages: Array<{
+    role: "user" | "assistant";
+    content: {
+      type: "text";
+      text: string;
+    } | {
+      type: "image";
+      data: string;
+      mimeType: string;
+    };
+  }>;
+}
+
 export type HandlerFunction = (
   args: Record<string, any>,
   context: any,
@@ -87,6 +142,7 @@ export type HandlerFunction = (
 export interface HandlerPackage {
   name: string;
   tools: ToolDefinition[];
+  prompts?: PromptDefinition[];
   handler: HandlerFunction;
   testScript?: string; // Path to a markdown test script or inline script
 }

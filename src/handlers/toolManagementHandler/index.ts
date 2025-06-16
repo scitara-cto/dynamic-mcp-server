@@ -1,6 +1,7 @@
 import logger from "../../utils/logger.js";
 import { ToolOutput } from "../../mcp/types.js";
 import { toolManagementTools } from "./tools.js";
+import { toolManagementPrompts } from "./prompts.js";
 import { HandlerFunction, HandlerPackage } from "../../mcp/types.js";
 import { handleDeleteToolAction } from "./actions/delete.js";
 import { handleListToolsAction } from "./actions/list.js";
@@ -43,5 +44,6 @@ export const toolManagementHandlerPackage: HandlerPackage = {
   name: "tool-management",
   handler,
   tools: toolManagementTools,
+  prompts: toolManagementPrompts,
   testScript: new URL("./test-script.md", import.meta.url).pathname,
 };

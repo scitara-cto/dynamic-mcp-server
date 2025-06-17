@@ -1,6 +1,6 @@
 import logger from "../../utils/logger.js";
-import { PromptOutput } from "../../mcp/types.js";
-import { promptManagementPrompts } from "./prompts.js";
+import { ToolOutput } from "../../mcp/types.js";
+import { promptManagementTools } from "./tools.js";
 import { HandlerFunction, HandlerPackage } from "../../mcp/types.js";
 import { handleListPromptsAction } from "./actions/list.js";
 import { handleAddPromptAction } from "./actions/add.js";
@@ -12,8 +12,8 @@ const actionHandlers: Record<
   (
     args: Record<string, any>,
     context: any,
-    handlerConfig: { action: string; prompt?: string[] },
-  ) => Promise<PromptOutput>
+    handlerConfig: { action: string; tool?: string[] },
+  ) => Promise<ToolOutput>
 > = {
   list: handleListPromptsAction,
   add: handleAddPromptAction,
@@ -24,7 +24,7 @@ const actionHandlers: Record<
 const handler: HandlerFunction = async (
   args: Record<string, any>,
   context: any,
-  handlerConfig: { action: string; prompt?: string[] },
+  handlerConfig: { action: string; tool?: string[] },
 ) => {
   try {
     const action = handlerConfig.action;
@@ -42,6 +42,6 @@ const handler: HandlerFunction = async (
 export const promptManagementHandlerPackage: HandlerPackage = {
   name: "prompt-management",
   handler,
-  tools: [], // No tools for this handler, only prompts
-  prompts: promptManagementPrompts,
+  tools: promptManagementTools,
+  prompts: [], // No prompts for this handler, only tools
 };

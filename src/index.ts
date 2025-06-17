@@ -7,6 +7,9 @@ import {
   HandlerFunction,
   HandlerPackage,
   ToolDefinition,
+  PromptDefinition,
+  PromptArgumentDefinition,
+  PromptOutput,
 } from "./mcp/types.js";
 import { HandlerOutput } from "./services/ToolService.js";
 import logger from "./utils/logger.js";
@@ -33,6 +36,9 @@ export type {
   DynamicMcpServerConfig,
   SessionInfo,
   ToolDefinition,
+  PromptDefinition,
+  PromptArgumentDefinition,
+  PromptOutput,
   HandlerOutput,
 };
 

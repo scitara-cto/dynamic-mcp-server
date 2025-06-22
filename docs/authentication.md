@@ -8,9 +8,29 @@ Authentication and authorization are distinct in the dynamic-mcp-server:
 ## Authentication (API Key)
 
 - Users authenticate via a unique `apiKey` assigned to them on creation.
-- Clients must include the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`) when connecting.
+- Clients must include the `apiKey` as a query parameter when connecting:
+  - **SSE Transport (Legacy)**: `/sse?apiKey=...`
+  - **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...`
 - The server validates the `apiKey` and looks up the user in the database.
 - If the `apiKey` is valid, the user is authenticated and a session is created.
+
+## Transport Protocols
+
+The server supports two MCP transport protocols simultaneously:
+
+### Streamable HTTP Transport (2025-03-26)
+- **Endpoint**: `/mcp`
+- **Method**: Single endpoint handles all MCP operations
+- **Authentication**: Query parameter `?apiKey=your-key`
+- **Features**: Modern, efficient, recommended for new clients
+
+### SSE Transport (2024-11-05)
+- **Endpoints**: `/sse` for connection, `/messages` for communication
+- **Method**: Server-Sent Events with separate message endpoint
+- **Authentication**: Query parameter `?apiKey=your-key`
+- **Features**: Legacy support, backwards compatible
+
+Both transports use identical authentication and authorization systems.
 
 ## Authorization
 

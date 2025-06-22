@@ -32,10 +32,30 @@ For more details on server instantiation and configuration options, see the [API
 ## Authentication (API Key)
 
 - Each user is assigned a unique `apiKey` when created (including the admin user).
-- To connect, clients must provide the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`).
+- To connect, clients must provide the `apiKey` as a query parameter when connecting.
+- **SSE Transport (Legacy)**: `/sse?apiKey=...`
+- **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...`
 - The server authenticates users by looking up the `apiKey` in the database.
 - **Admins can view all user apiKeys in the server logs** when users connect, or at startup for the admin user.
 - No OAuth or external identity provider is required.
+
+## Transport Protocols
+
+The server supports both modern and legacy MCP transport protocols:
+
+### Streamable HTTP Transport (Recommended)
+- **Endpoint**: `/mcp`
+- **Protocol Version**: 2025-03-26
+- **Features**: Single endpoint, efficient communication
+- **Best for**: New integrations and modern MCP clients
+
+### SSE Transport (Legacy Support)
+- **Endpoints**: `/sse` (connection) + `/messages` (communication)
+- **Protocol Version**: 2024-11-05
+- **Features**: Server-Sent Events based communication
+- **Best for**: Existing integrations requiring backwards compatibility
+
+Both transports share the same authentication system and provide identical functionality.
 
 ## Registering Tools via Handler Packages
 

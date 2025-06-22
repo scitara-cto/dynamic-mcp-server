@@ -3,10 +3,33 @@
 ## Authentication (API Key)
 
 - All users (including admin) are assigned a unique `apiKey` for authentication.
-- Clients must provide the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`) when connecting.
+- Clients must provide the `apiKey` as a query parameter when connecting:
+  - **SSE Transport (Legacy)**: `/sse?apiKey=...`
+  - **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...`
 - The server authenticates users by looking up the `apiKey` in the database.
 - **Admins can view all user apiKeys in the server logs** when users connect, or at startup for the admin user.
 - No OAuth or external identity provider is required.
+
+## Transport Protocols
+
+### Streamable HTTP Transport (Recommended)
+- **Protocol Version**: 2025-03-26
+- **Endpoint**: `/mcp`
+- **Methods**: GET (capabilities), POST (requests), DELETE (cleanup)
+- **Authentication**: `?apiKey=your-api-key`
+- **Session Management**: Automatic session creation and cleanup
+- **Features**: Single endpoint, efficient, modern MCP standard
+
+### SSE Transport (Legacy)
+- **Protocol Version**: 2024-11-05
+- **Endpoints**:
+  - `/sse` - Server-Sent Events connection
+  - `/messages` - Message posting endpoint
+- **Authentication**: `?apiKey=your-api-key`
+- **Session Management**: Manual session lifecycle
+- **Features**: Backwards compatible, established protocol
+
+Both transports provide identical tool execution and user management capabilities.
 
 ## Tool Access & Visibility Model
 

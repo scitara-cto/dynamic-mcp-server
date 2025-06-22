@@ -30,14 +30,39 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 ## 🔑 Authentication (API Key)
 
 - Each user is assigned a unique `apiKey` (generated automatically on user creation).
-- To authenticate, clients must provide the `apiKey` as a query parameter (e.g., `/sse?apiKey=...`).
+- To authenticate, clients must provide the `apiKey` as a query parameter when connecting.
+- **SSE Transport (Legacy)**: `/sse?apiKey=...`
+- **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...`
 - The server authenticates the user by looking up the `apiKey` in the database.
 
 ---
 
-## 📚 Documentation
+## 🚀 Transport Protocols
+
+Dynamic MCP Server supports both legacy and modern MCP transport protocols:
+
+### Streamable HTTP Transport (Recommended)
+- **Protocol Version**: 2025-03-26
+- **Endpoint**: `/mcp`
+- **Features**: Modern, efficient, single-endpoint design
+- **Authentication**: `?apiKey=your-api-key`
+- **Usage**: Recommended for new integrations
+
+### SSE Transport (Legacy)
+- **Protocol Version**: 2024-11-05
+- **Endpoints**: `/sse` (connection) + `/messages` (communication)
+- **Features**: Server-Sent Events based, backwards compatible
+- **Authentication**: `?apiKey=your-api-key`
+- **Usage**: Maintained for existing integrations
+
+Both transports work simultaneously and share the same authentication, user management, and tool execution systems.
+
+---
+
+## � Documentation
 
 - [Getting Started](./docs/getting-started.md)
+- [Transport Protocols](./docs/transport-protocols.md)
 - [User Management](./docs/user-management.md)
 - [Tool Management & Sharing](./docs/tool-management.md)
 - [Authentication & Authorization](./docs/authentication.md)

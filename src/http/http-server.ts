@@ -1,203 +1,66 @@
-import express, { Request, Response } from "express";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import express from "express";
 import { config as realConfig } from "../config/index.js";
 import realLogger from "../utils/logger.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { DynamicMcpServer } from "../mcp/server.js";
-import { UserRepository } from "../db/repositories/UserRepository.js";
+import { SessionManager } from "./services/session-manager.js";
+import { createHealthRoutes } from "./routes/health.js";
+import { createDebugRoutes } from "./routes/debug.js";
+import { createSSERoutes } from "./routes/sse.js";
+import { createStreamableHttpRoutes } from "./routes/streamable-http.js";
 
 export class HttpServer {
   private app: express.Application;
   private registeredRoutes: Set<string> = new Set();
   private mcpServer: Server;
-  private sessionManager: DynamicMcpServer;
-  private transports: { [sessionId: string]: SSEServerTransport } = {};
+  private sessionManager: SessionManager;
+  private dynamicMcpServer: DynamicMcpServer;
   private config: typeof realConfig;
   private logger: typeof realLogger;
 
   constructor(
     mcpServer: Server,
-    sessionManager: DynamicMcpServer,
+    dynamicMcpServer: DynamicMcpServer,
     config = realConfig,
     logger = realLogger,
   ) {
     this.app = express();
     this.mcpServer = mcpServer;
-    this.sessionManager = sessionManager;
+    this.dynamicMcpServer = dynamicMcpServer;
+    this.sessionManager = new SessionManager(dynamicMcpServer);
     this.config = config;
     this.logger = logger;
-    this.setupHealthCheck();
-    this.setupMcpRoutes();
+    this.setupMiddleware();
+    this.setupRoutes();
   }
 
-  /**
-   * Creates a new session with the given transport and request
-   */
-  private async createSession(
-    transport: SSEServerTransport,
-    req: Request,
-  ): Promise<void> {
-    // Use user info from API key auth logic
-    const userInfo = (req as any).user;
-    if (!userInfo) {
-      this.logger.warn("No user info found in request during session creation");
-      return;
-    }
-    this.logger.debug(`Extracted user info for session: ${userInfo.email}`);
-
-    // Create session info with user
-    const sessionInfo = {
-      sessionId: transport.sessionId,
-      user: userInfo,
-      token: userInfo.apiKey,
-      mcpServer: this.sessionManager,
-    };
-
-    // Store auth info in session manager
-    this.sessionManager.setSessionInfo(transport.sessionId, sessionInfo);
-
-    // Store the transport
-    this.transports[transport.sessionId] = transport;
-
-    // Clean up when the connection closes
-    transport.onclose = () => {
-      this.logger.info(`Transport closed: ${transport.sessionId}`);
-      delete this.transports[transport.sessionId];
-      this.sessionManager.removeSessionInfo(transport.sessionId);
-    };
-
-    // DEBUG: Notify tool list changed after session creation
-    // (Moved to /sse handler after connect)
-  }
-
-  private setupHealthCheck(): void {
-    // Health check endpoint
-    this.app.get("/status", (_req: Request, res: Response) => {
-      res.status(200).json({ status: "ok" });
-    });
-    this.logger.info("Health check endpoint setup as /status");
-  }
-
-  private setupMcpRoutes(): void {
+  private setupMiddleware(): void {
     // Parse JSON bodies
     this.app.use(express.json());
+  }
 
-    // SSE endpoint with inline API key authentication
-    this.app.get("/sse", async (req: Request, res: Response) => {
-      // Debug: Log query and headers
-      this.logger.info(
-        `[DEBUG] /sse called. Query: ${JSON.stringify(
-          req.query,
-        )}, Headers: ${JSON.stringify(req.headers)}`,
-      );
-      // API key authentication logic
-      const apiKey =
-        req.query.apiKey ||
-        req.query.apikey ||
-        req.headers["x-apikey"] ||
-        req.headers["apikey"];
-      if (!apiKey) {
-        res.status(401).json({ error: "Missing apiKey" });
-        return;
-      }
-      const userRepo = new UserRepository();
-      const user = await userRepo.findByApiKey(apiKey as string);
-      if (!user) {
-        this.logger.warn(
-          `Invalid apiKey attempt: apiKey=${apiKey}, ip=${req.ip}`,
-        );
-        res.status(401).json({
-          error:
-            "Invalid apiKey. Please contact the administrator to request access or a valid API key.",
-        });
-        return;
-      }
-      (req as any).user = user;
+  private setupRoutes(): void {
+    // Health check routes
+    this.app.use(createHealthRoutes());
 
-      // Log authenticated user and apiKey for admin visibility
-      this.logger.info(
-        `[AUTH] User authenticated: email=${user.email}, apiKey=${user.apiKey}`,
-      );
+    // Debug routes
+    this.app.use(createDebugRoutes(this.sessionManager));
 
-      // Debug logging
-      this.logger.debug(`SSE endpoint called`);
-      this.logger.debug(`Query parameters: ${JSON.stringify(req.query)}`);
-      this.logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
+    // Legacy SSE routes
+    this.app.use(createSSERoutes(
+      this.mcpServer,
+      this.sessionManager,
+      this.dynamicMcpServer
+    ));
 
-      // Set headers for SSE
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Connection", "keep-alive");
+    // Modern Streamable HTTP routes
+    this.app.use(createStreamableHttpRoutes(
+      this.mcpServer,
+      this.sessionManager,
+      this.dynamicMcpServer
+    ));
 
-      // Create a new SSE transport
-      const transport = new SSEServerTransport("/messages", res);
-      this.logger.info(`Transport created: ${transport.sessionId}`);
-
-      // Create session with the transport (no notification yet)
-      await this.createSession(transport, req);
-
-      // Also clean up on HTTP response close
-      res.on("close", () => {
-        this.logger.info(
-          `HTTP response closed for session: ${transport.sessionId}`,
-        );
-        delete this.transports[transport.sessionId];
-        this.sessionManager.removeSessionInfo(transport.sessionId);
-        clearInterval(heartbeatInterval);
-      });
-
-      // Heartbeat/keepalive to prevent connection timeout
-      const heartbeatInterval = setInterval(() => {
-        res.write(": keepalive\n\n");
-        if (typeof (res as any).flush === "function") {
-          (res as any).flush();
-        }
-      }, 25000); // every 25 seconds
-
-      // Connect the transport to the server
-      await this.mcpServer.connect(transport);
-
-      // Now notify tool list changed (after connection is ready)
-      await this.sessionManager.notifyToolListChanged(user.email);
-
-      // Add debug logging for messages
-      const originalOnMessage = transport.onmessage;
-      transport.onmessage = (message: any) => {
-        this.logger.debug(`SSE message for ${transport.sessionId}:`, message);
-        originalOnMessage?.(message);
-      };
-    });
-
-    // Message endpoint for handling MCP messages (no auth middleware)
-    this.app.post("/messages", async (req: Request, res: Response) => {
-      const sessionId = req.query.sessionId as string;
-      this.logger.info(
-        `Message for session: ${sessionId}, ${
-          req?.body?.method || "no method provided"
-        }`,
-      );
-
-      const transport = this.transports[sessionId];
-      if (transport) {
-        await transport.handlePostMessage(req, res, req.body);
-      } else {
-        this.logger.error(`No transport found for sessionId: ${sessionId}`);
-        res.status(400).send("No transport found for sessionId");
-      }
-    });
-
-    // Debug endpoint to list active sessions (no auth middleware)
-    this.app.get("/sessions", (_req: Request, res: Response) => {
-      res.json({
-        activeSessions: Object.keys(this.transports),
-        count: Object.keys(this.transports).length,
-      });
-    });
-
-    // Health check endpoint
-    this.app.get("/health", (_req: Request, res: Response) => {
-      res.status(200).json({ status: "ok" });
-    });
+    this.logger.info("All HTTP routes configured");
   }
 
   public start(): void {
@@ -206,6 +69,11 @@ export class HttpServer {
         this.logger.info(
           `MCP server started on port ${this.config.server.port}`,
         );
+        this.logger.info("Available endpoints:");
+        this.logger.info("  - Health: GET /status, GET /health");
+        this.logger.info("  - Debug: GET /sessions");
+        this.logger.info("  - Legacy SSE: GET /sse, POST /messages");
+        this.logger.info("  - Streamable HTTP: ALL /mcp");
       });
     } catch (error) {
       this.logger.error(`Failed to start MCP server: ${error}`);
@@ -233,24 +101,41 @@ export class HttpServer {
   }
 
   public async notifyToolListChanged(): Promise<void> {
-    for (const sessionId in this.transports) {
-      const transport = this.transports[sessionId];
-      try {
-        await transport.send({
-          jsonrpc: "2.0",
-          method: "notifications/tools/list_changed",
-          params: {},
-        });
-        this.logger.info(`Notified client ${sessionId} of tool changes`);
-      } catch (error) {
-        this.logger.warn(
-          `Failed to notify client ${sessionId} of tool changes: ${error}`,
-        );
-      }
-    }
+    await this.sessionManager.notifyAllSessions();
   }
 
   public getApp(): express.Application {
     return this.app;
+  }
+
+  /**
+   * Get session manager for accessing transports (used by DynamicMcpServer)
+   */
+  public getSessionManager(): SessionManager {
+    return this.sessionManager;
+  }
+
+  /**
+   * Get transports for backward compatibility (used by DynamicMcpServer)
+   */
+  public get transports(): { [sessionId: string]: any } {
+    // Create a proxy object that provides access to transports via session manager
+    return new Proxy({} as { [sessionId: string]: any }, {
+      get: (target, prop) => {
+        if (typeof prop === 'string') {
+          return this.sessionManager.getTransport(prop);
+        }
+        return undefined;
+      },
+      has: (target, prop) => {
+        if (typeof prop === 'string') {
+          return this.sessionManager.getTransport(prop) !== undefined;
+        }
+        return false;
+      },
+      ownKeys: (target) => {
+        return this.sessionManager.getActiveSessions();
+      }
+    });
   }
 }

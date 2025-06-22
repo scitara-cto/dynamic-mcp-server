@@ -42,7 +42,7 @@ export class PromptService {
     // Register prompts/list handler
     this.server.setRequestHandler(
       ListPromptsRequestSchema,
-      async (request: ListPromptsRequest, extra: RequestHandlerExtra) => {
+      async (request: ListPromptsRequest, extra: RequestHandlerExtra<any, any>) => {
         try {
           const sessionInfo = this.mcpServer.getSessionInfo(extra.sessionId);
           const userEmail = sessionInfo?.user?.email;
@@ -78,7 +78,7 @@ export class PromptService {
     // Register prompts/get handler
     this.server.setRequestHandler(
       GetPromptRequestSchema,
-      async (request: GetPromptRequest, extra: RequestHandlerExtra) => {
+      async (request: GetPromptRequest, extra: RequestHandlerExtra<any, any>) => {
         try {
           const sessionInfo = this.mcpServer.getSessionInfo(extra.sessionId);
           const userEmail = sessionInfo?.user?.email;

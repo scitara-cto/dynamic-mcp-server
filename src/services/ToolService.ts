@@ -63,7 +63,7 @@ export class ToolService {
     try {
       this.server.setRequestHandler(
         ListToolsRequestSchema,
-        async (request: ListToolsRequest, extra: RequestHandlerExtra) => {
+        async (request: ListToolsRequest, extra: RequestHandlerExtra<any, any>) => {
           const context = this.mcpServer.getSessionInfo(extra.sessionId);
           const userEmail = context.user?.email;
           if (!userEmail) {
@@ -81,7 +81,7 @@ export class ToolService {
 
       this.server.setRequestHandler(
         CallToolRequestSchema,
-        async (request: CallToolRequest, extra: RequestHandlerExtra) => {
+        async (request: CallToolRequest, extra: RequestHandlerExtra<any, any>) => {
           const context = this.mcpServer.getSessionInfo(extra.sessionId);
           const userEmail = context.user?.email;
           if (!userEmail) {

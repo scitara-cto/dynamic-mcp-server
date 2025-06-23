@@ -5,7 +5,6 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { DynamicMcpServer } from "../mcp/server.js";
 import { SessionManager } from "./services/session-manager.js";
 import { createHealthRoutes } from "./routes/health.js";
-import { createDebugRoutes } from "./routes/debug.js";
 import { createSSERoutes } from "./routes/sse.js";
 import { createStreamableHttpRoutes } from "./routes/streamable-http.js";
 
@@ -44,7 +43,7 @@ export class HttpServer {
     this.app.use(createHealthRoutes());
 
     // Debug routes
-    this.app.use(createDebugRoutes(this.sessionManager));
+    
 
     // Legacy SSE routes
     this.app.use(createSSERoutes(

@@ -38,16 +38,6 @@ describe("HttpServer", () => {
     });
   });
 
-  describe("Debug Endpoints", () => {
-    it("GET /sessions returns session information", async () => {
-      const res = await supertest(app).get("/sessions");
-      expect(res.status).toBe(200);
-      expect(res.body).toHaveProperty("activeSessions");
-      expect(res.body).toHaveProperty("count");
-      expect(Array.isArray(res.body.activeSessions)).toBe(true);
-      expect(typeof res.body.count).toBe("number");
-    });
-  });
 
   describe("SSE Transport", () => {
     it("GET /sse without API key returns 401", async () => {

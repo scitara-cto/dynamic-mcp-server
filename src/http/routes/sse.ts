@@ -1,6 +1,5 @@
 import { Request, Response, Router } from "express";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { DynamicMcpServer } from "../../mcp/server.js";
 import { SessionManager } from "../services/session-manager.js";

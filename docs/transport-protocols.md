@@ -110,7 +110,6 @@ src/http/
 │   └── session-manager.ts # Unified session management
 └── routes/
     ├── health.ts         # Health check endpoints
-    ├── debug.ts          # Debug endpoints
     ├── sse.ts           # SSE transport routes
     └── streamable-http.ts # Streamable HTTP routes
 ```
@@ -182,7 +181,6 @@ Both transports work with standard MCP client libraries:
 Both transports support health monitoring:
 - `GET /health` - Basic health check
 - `GET /status` - Detailed status information
-- `GET /sessions` - Active session information (debug)
 
 ### Logging
 Comprehensive logging for both transports:

@@ -8,9 +8,11 @@ Authentication and authorization are distinct in the dynamic-mcp-server:
 ## Authentication (API Key)
 
 - Users authenticate via a unique `apiKey` assigned to them on creation.
-- Clients must include the `apiKey` as a query parameter when connecting:
-  - **SSE Transport (Legacy)**: `/sse?apiKey=...`
-  - **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...`
+- Clients must include the `apiKey` via query parameter OR header when connecting:
+  - **Query Parameter**: `?apiKey=your-key` or `?apikey=your-key`
+  - **Header**: `x-apikey: your-key` or `apikey: your-key`
+- **SSE Transport (Legacy)**: `/sse?apiKey=...` or `/sse` with header
+- **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...` or `/mcp` with header
 - The server validates the `apiKey` and looks up the user in the database.
 - If the `apiKey` is valid, the user is authenticated and a session is created.
 

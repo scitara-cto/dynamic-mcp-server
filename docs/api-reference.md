@@ -3,9 +3,11 @@
 ## Authentication (API Key)
 
 - All users (including admin) are assigned a unique `apiKey` for authentication.
-- Clients must provide the `apiKey` as a query parameter when connecting:
-  - **SSE Transport (Legacy)**: `/sse?apiKey=...`
-  - **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...`
+- Clients must provide the `apiKey` via query parameter OR header when connecting:
+  - **Query Parameter**: `?apiKey=your-key` or `?apikey=your-key`
+  - **Header**: `x-apikey: your-key` or `apikey: your-key`
+- **SSE Transport (Legacy)**: `/sse?apiKey=...` or `/sse` with header
+- **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...` or `/mcp` with header
 - The server authenticates users by looking up the `apiKey` in the database.
 - **Admins can view all user apiKeys in the server logs** when users connect, or at startup for the admin user.
 - No OAuth or external identity provider is required.
@@ -16,7 +18,7 @@
 - **Protocol Version**: 2025-03-26
 - **Endpoint**: `/mcp`
 - **Methods**: GET (capabilities), POST (requests), DELETE (cleanup)
-- **Authentication**: `?apiKey=your-api-key`
+- **Authentication**: Query parameter `?apiKey=your-key` OR header `x-apikey: your-key`
 - **Session Management**: Automatic session creation and cleanup
 - **Features**: Single endpoint, efficient, modern MCP standard
 
@@ -25,7 +27,7 @@
 - **Endpoints**:
   - `/sse` - Server-Sent Events connection
   - `/messages` - Message posting endpoint
-- **Authentication**: `?apiKey=your-api-key`
+- **Authentication**: Query parameter `?apiKey=your-key` OR header `x-apikey: your-key`
 - **Session Management**: Manual session lifecycle
 - **Features**: Backwards compatible, established protocol
 

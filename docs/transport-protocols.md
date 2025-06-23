@@ -15,7 +15,7 @@ Both transports share the same authentication, user management, tool execution, 
 ### Protocol Details
 - **Version**: 2025-03-26
 - **Endpoint**: `/mcp`
-- **Authentication**: `?apiKey=your-api-key`
+- **Authentication**: Query parameter `?apiKey=your-key` OR header `x-apikey: your-key`
 
 ### HTTP Methods
 - **GET `/mcp`**: Retrieve server capabilities and initialize session
@@ -30,6 +30,8 @@ Both transports share the same authentication, user management, tool execution, 
 - Better error handling and debugging
 
 ### Example Usage
+
+**Using Query Parameter:**
 ```bash
 # Initialize connection and get capabilities
 curl "http://localhost:4001/mcp?apiKey=your-api-key"
@@ -40,14 +42,27 @@ curl -X POST "http://localhost:4001/mcp?apiKey=your-api-key" \
   -d '{"method": "tools/call", "params": {"name": "weather", "arguments": {"location": "Boston"}}}'
 ```
 
+**Using Header:**
+```bash
+# Initialize connection and get capabilities
+curl "http://localhost:4001/mcp" \
+  -H "x-apikey: your-api-key"
+
+# Execute a tool
+curl -X POST "http://localhost:4001/mcp" \
+  -H "Content-Type: application/json" \
+  -H "x-apikey: your-api-key" \
+  -d '{"method": "tools/call", "params": {"name": "weather", "arguments": {"location": "Boston"}}}'
+```
+
 ## SSE Transport (Legacy)
 
 ### Protocol Details
 - **Version**: 2024-11-05
-- **Endpoints**: 
+- **Endpoints**:
   - `/sse` - Server-Sent Events connection
   - `/messages` - Message posting
-- **Authentication**: `?apiKey=your-api-key`
+- **Authentication**: Query parameter `?apiKey=your-key` OR header `x-apikey: your-key`
 
 ### Features
 - Server-Sent Events for real-time communication
@@ -56,6 +71,8 @@ curl -X POST "http://localhost:4001/mcp?apiKey=your-api-key" \
 - Maintained for backwards compatibility
 
 ### Example Usage
+
+**Using Query Parameter:**
 ```bash
 # Connect to SSE stream
 curl "http://localhost:4001/sse?apiKey=your-api-key"
@@ -63,6 +80,19 @@ curl "http://localhost:4001/sse?apiKey=your-api-key"
 # Send messages via separate endpoint
 curl -X POST "http://localhost:4001/messages?apiKey=your-api-key" \
   -H "Content-Type: application/json" \
+  -d '{"method": "tools/call", "params": {"name": "weather", "arguments": {"location": "Boston"}}}'
+```
+
+**Using Header:**
+```bash
+# Connect to SSE stream
+curl "http://localhost:4001/sse" \
+  -H "x-apikey: your-api-key"
+
+# Send messages via separate endpoint
+curl -X POST "http://localhost:4001/messages" \
+  -H "Content-Type: application/json" \
+  -H "x-apikey: your-api-key" \
   -d '{"method": "tools/call", "params": {"name": "weather", "arguments": {"location": "Boston"}}}'
 ```
 
@@ -93,11 +123,22 @@ Both transports use a unified session management system:
 - Backwards compatibility maintained through proxy patterns
 
 ### Authentication
-Both transports use identical API key authentication:
-- API key provided as query parameter
-- User lookup and validation in MongoDB
-- Session creation with user context
-- Role-based authorization for tool access
+Both transports use identical API key authentication with flexible options:
+
+**Supported Methods:**
+- **Query Parameter**: `?apiKey=your-key` or `?apikey=your-key` (case variations supported)
+- **Header**: `x-apikey: your-key` or `apikey: your-key` (multiple header formats supported)
+
+**Authentication Flow:**
+1. API key provided via query parameter OR header
+2. User lookup and validation in MongoDB
+3. Session creation with user context
+4. Role-based authorization for tool access
+
+**Security Considerations:**
+- Headers are generally more secure than query parameters (not logged in URLs)
+- Query parameters are simpler for testing and debugging
+- Both methods provide identical security when used over HTTPS
 
 ## Migration Guide
 

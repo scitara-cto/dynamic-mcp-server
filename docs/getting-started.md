@@ -32,9 +32,11 @@ For more details on server instantiation and configuration options, see the [API
 ## Authentication (API Key)
 
 - Each user is assigned a unique `apiKey` when created (including the admin user).
-- To connect, clients must provide the `apiKey` as a query parameter when connecting.
-- **SSE Transport (Legacy)**: `/sse?apiKey=...`
-- **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...`
+- To connect, clients must provide the `apiKey` via query parameter OR header:
+  - **Query Parameter**: `?apiKey=your-key` or `?apikey=your-key`
+  - **Header**: `x-apikey: your-key` or `apikey: your-key`
+- **SSE Transport (Legacy)**: `/sse?apiKey=...` or `/sse` with header
+- **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...` or `/mcp` with header
 - The server authenticates users by looking up the `apiKey` in the database.
 - **Admins can view all user apiKeys in the server logs** when users connect, or at startup for the admin user.
 - No OAuth or external identity provider is required.

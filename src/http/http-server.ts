@@ -42,8 +42,6 @@ export class HttpServer {
     // Health check routes
     this.app.use(createHealthRoutes());
 
-    // Debug routes
-    
 
     // Legacy SSE routes
     this.app.use(createSSERoutes(
@@ -70,7 +68,6 @@ export class HttpServer {
         );
         this.logger.info("Available endpoints:");
         this.logger.info("  - Health: GET /status, GET /health");
-        this.logger.info("  - Debug: GET /sessions");
         this.logger.info("  - Legacy SSE: GET /sse, POST /messages");
         this.logger.info("  - Streamable HTTP: ALL /mcp");
       });

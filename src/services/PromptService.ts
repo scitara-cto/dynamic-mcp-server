@@ -142,7 +142,6 @@ export class PromptService {
   async addPrompt(promptDef: PromptDefinition, createdBy: string): Promise<void> {
     try {
       await this.promptRepository.addPrompt(promptDef, createdBy);
-      logger.info(`Added prompt '${promptDef.name}' created by ${createdBy}`);
       
       // Notify clients of prompt list change
       await this.mcpServer.notifyPromptListChanged();

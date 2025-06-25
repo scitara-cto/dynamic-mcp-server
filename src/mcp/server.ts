@@ -85,10 +85,19 @@ export class DynamicMcpServer extends EventEmitter {
       }
     }
     
+    // Register prompts in DB
+    let promptNames: string[] = [];
+    if (Array.isArray(handlerPackage.prompts)) {
+      for (const prompt of handlerPackage.prompts) {
+        await this.promptService.addPrompt(prompt, this.name);
+        if (prompt && prompt.name) {
+          promptNames.push(prompt.name);
+        }
+      }
+    }
+    
     const toolList = toolNames.length > 0 ? ` (tools: ${toolNames.join(", ")})` : "";
-    const promptList = handlerPackage.prompts && handlerPackage.prompts.length > 0
-      ? ` (prompts: ${handlerPackage.prompts.map(p => p.name).join(", ")})`
-      : "";
+    const promptList = promptNames.length > 0 ? ` (prompts: ${promptNames.join(", ")})` : "";
     logger.info(`Registered handler for: ${handlerPackage.name}${toolList}${promptList}`);
   }
 

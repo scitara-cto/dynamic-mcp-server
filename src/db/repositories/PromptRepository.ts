@@ -27,8 +27,6 @@ export class PromptRepository {
         },
         { upsert: true }
       );
-
-      logger.info(`Prompt '${promptDef.name}' added/updated in database`);
     } catch (error) {
       logger.error(`Error adding prompt '${promptDef.name}' to database:`, error);
       throw error;

@@ -7,7 +7,6 @@ import {
   beforeAll,
 } from "@jest/globals";
 import { toolManagementHandlerPackage } from "../index.js";
-import { ToolRepository } from "../../../db/repositories/ToolRepository.js";
 import { UserRepository } from "../../../db/repositories/UserRepository.js";
 
 describe("toolManagementHandlerPackage.handler", () => {
@@ -217,6 +216,66 @@ describe("toolManagementHandlerPackage.handler", () => {
           { name: "bar", description: "", hidden: false },
         ]);
         expect(result.result.total).toBe(3);
+      });
+
+      it("warns about tools with duplicate base names", async () => {
+        getUserToolsSpy.mockResolvedValue([
+          {
+            name: "list-users",
+            namespacedName: "user-management:list-users",
+            description: "Built-in user management tool",
+            hidden: false
+          },
+          {
+            name: "list-users",
+            namespacedName: "my-app:list-users",
+            description: "Custom user listing tool",
+            hidden: false
+          },
+          {
+            name: "unique-tool",
+            namespacedName: "user@example.com:unique-tool",
+            description: "A unique tool",
+            hidden: false
+          },
+        ]);
+        const result = await handler({}, mockContext, {
+          action: "list",
+        });
+        
+        expect(result.result.duplicateBaseNames).toEqual([
+          {
+            baseName: "list-users",
+            namespacedNames: ["user-management:list-users", "my-app:list-users"]
+          }
+        ]);
+        expect(result.message).toContain("⚠️  WARNING: You have tools with duplicate base names");
+        expect(result.message).toContain('"list-users" (user-management:list-users, my-app:list-users)');
+        expect(result.message).toContain("the system will prioritize your own tools over shared tools");
+      });
+
+      it("does not warn when no duplicate base names exist", async () => {
+        getUserToolsSpy.mockResolvedValue([
+          {
+            name: "list-users",
+            namespacedName: "user-management:list-users",
+            description: "Built-in user management tool",
+            hidden: false
+          },
+          {
+            name: "delete-tool",
+            namespacedName: "tool-management:delete-tool",
+            description: "Built-in tool management",
+            hidden: false
+          },
+        ]);
+        const result = await handler({}, mockContext, {
+          action: "list",
+        });
+        
+        expect(result.result.duplicateBaseNames).toBeUndefined();
+        expect(result.message).not.toContain("⚠️  WARNING");
+        expect(result.message).not.toContain("duplicate base names");
       });
     });
 

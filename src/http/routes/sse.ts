@@ -3,7 +3,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { DynamicMcpServer } from "../../mcp/server.js";
 import { SessionManager } from "../services/session-manager.js";
-import { AuthService } from "../services/auth.js";
+import { TransportHandler } from "../services/transport-handler.js";
 import logger from "../../utils/logger.js";
 
 export function createSSERoutes(
@@ -23,7 +23,11 @@ export function createSSERoutes(
     );
 
     // API key authentication logic
-    const authResult = await AuthService.authenticateRequest(req);
+    const authResult = await new TransportHandler({
+      mcpServer,
+      sessionManager,
+      dynamicMcpServer
+    }).authenticateRequest(req);
     if (!authResult.success) {
       res.status(401).json({ error: authResult.error });
       return;

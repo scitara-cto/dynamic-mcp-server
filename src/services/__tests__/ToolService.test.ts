@@ -18,7 +18,10 @@ describe("ToolService", () => {
       registerCapabilities: jest.fn(),
     } as any;
     mockMcpServer = {} as any;
-    mockUserRepo = { findByEmail: jest.fn() } as any;
+    mockUserRepo = {
+      findByEmail: jest.fn(),
+      getUserTools: jest.fn()
+    } as any;
     toolService = new ToolService(mockServer, mockMcpServer, mockUserRepo);
   });
 
@@ -69,7 +72,7 @@ describe("ToolService", () => {
 
   it("handler can call progress function during tool execution", async () => {
     const mockSend = jest.fn();
-    const fakeHandler = jest.fn((args, context, config) => {
+    const fakeHandler = jest.fn((args: any, context: any, config: any) => {
       if (context.progress) context.progress(5, 10, "step");
       return { result: "ok" };
     });
@@ -88,6 +91,16 @@ describe("ToolService", () => {
         "ptoken",
       ),
     };
+    // Mock getUserTools to return the tool
+    jest.spyOn(mockUserRepo, 'getUserTools').mockResolvedValue([{
+      name: "mytool",
+      creator: "a@b.com",
+      handler: { type: "fake", config: {} },
+      description: "Test tool",
+      inputSchema: { type: "object", properties: {} }
+    }] as any);
+    
+    
     jest
       .spyOn(toolService as any, "authorizeToolCall")
       .mockResolvedValue({ authorized: true });

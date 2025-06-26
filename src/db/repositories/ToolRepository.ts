@@ -122,11 +122,10 @@ export class ToolRepository {
   async resetSystemTools(): Promise<void> {
     await Tool.deleteMany({ creator: "system" });
     const builtinTools = handlerPackages
-      .flatMap((pkg: any) => pkg.tools)
-      .map((tool: any) => ({
+      .flatMap((pkg: any) => pkg.tools.map((tool: any) => ({
         ...tool,
-        creator: "system",
-      }));
+        creator: pkg.name,
+      })));
     await this.upsertMany(builtinTools);
   }
 }

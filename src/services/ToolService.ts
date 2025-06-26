@@ -178,7 +178,7 @@ export class ToolService {
       );
     }
     // rolesPermitted may be missing or empty for internal/hidden tools
-    const toolCreator = creator || "system";
+    const toolCreator = creator || this.mcpServer.name;
     const toolRepo = new ToolRepository();
     await toolRepo.upsertMany([{ ...toolDef, creator: toolCreator }]);
   }

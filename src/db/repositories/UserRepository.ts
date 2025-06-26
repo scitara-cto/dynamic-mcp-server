@@ -74,9 +74,18 @@ export class UserRepository {
     if (!Array.isArray(toolIds) || toolIds.length === 0) {
       throw new Error("toolIds must be a non-empty array");
     }
+    
+    // toolIds come in as simple names, need to resolve to namespacedName
+    const userTools = await this.getUserToolsInternal(email);
+    
+    const namespacedToolIds = toolIds.map(simpleName => {
+      const tool = userTools.find(t => t.name === simpleName);
+      return tool ? `${tool.creator}:${tool.name}` : simpleName;
+    });
+    
     const doc = await User.findOneAndUpdate(
       { email },
-      { $addToSet: { hiddenTools: { $each: toolIds } } },
+      { $addToSet: { hiddenTools: { $each: namespacedToolIds } } },
       { new: true },
     );
     return doc ? doc.toJSON() : null;
@@ -89,9 +98,18 @@ export class UserRepository {
     if (!Array.isArray(toolIds) || toolIds.length === 0) {
       throw new Error("toolIds must be a non-empty array");
     }
+    
+    // toolIds come in as simple names, need to resolve to namespacedName
+    const userTools = await this.getUserToolsInternal(email);
+    
+    const namespacedToolIds = toolIds.map(simpleName => {
+      const tool = userTools.find(t => t.name === simpleName);
+      return tool ? `${tool.creator}:${tool.name}` : simpleName;
+    });
+    
     const doc = await User.findOneAndUpdate(
       { email },
-      { $pull: { hiddenTools: { $in: toolIds } } },
+      { $pull: { hiddenTools: { $in: namespacedToolIds } } },
       { new: true },
     );
     return doc ? doc.toJSON() : null;
@@ -139,10 +157,9 @@ export class UserRepository {
     return result.deletedCount > 0;
   }
 
-  async getUserTools(email: string): Promise<any[]> {
+  async getUserToolsInternal(email: string): Promise<any[]> {
     const user = await this.findByEmail(email);
     if (!user) return [];
-    const hiddenTools = user.hiddenTools || [];
     const userRoles = user.roles || [];
     const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
 
@@ -156,14 +173,47 @@ export class UserRepository {
       ],
     }).lean();
 
-    // Return tool objects without the 'available' field
+    return allUserTools;
+  }
+
+  async getUserTools(email: string): Promise<any[]> {
+    const user = await this.findByEmail(email);
+    if (!user) return [];
+    const hiddenTools = user.hiddenTools || []; // Contains namespacedName values
+    const allUserTools = await this.getUserToolsInternal(email);
+
+    // Detect conflicts by grouping by simple name
+    const toolsByName: { [key: string]: any[] } = {};
+    allUserTools.forEach((tool: any) => {
+      if (!toolsByName[tool.name]) {
+        toolsByName[tool.name] = [];
+      }
+      toolsByName[tool.name].push(tool);
+    });
+
+    const conflicts: { [key: string]: { count: number; creators: string[] } } = {};
+    Object.entries(toolsByName).forEach(([name, toolList]) => {
+      if (toolList.length > 1) {
+        conflicts[name] = {
+          count: toolList.length,
+          creators: toolList.map((t: any) => t.creator)
+        };
+      }
+    });
+
+    // Return tool objects with conflict information
     return allUserTools.map((tool: any) => {
+      const namespacedName = `${tool.creator}:${tool.name}`;
       const alwaysVisible = !!tool.alwaysVisible;
-      const hidden = alwaysVisible ? false : hiddenTools.includes(tool.name);
+      const hidden = alwaysVisible ? false : hiddenTools.includes(namespacedName);
+      
       return {
         ...tool, // includes all DB fields: name, description, inputSchema, handler, rolesPermitted, annotations, etc.
+        namespacedName,
         hidden,
         alwaysVisible,
+        hasConflict: !!conflicts[tool.name],
+        conflictInfo: conflicts[tool.name]
       };
     });
   }
@@ -247,5 +297,47 @@ export class UserRepository {
       <p>Thank you!</p>
     `;
     await sendEmail({ to: user.email, subject, html });
+  }
+  /**
+   * Remove a tool from hiddenTools arrays of users who had access to it.
+   * This should be called when a tool is deleted to prevent confusion
+   * if a tool with the same name is created later.
+   *
+   * @param toolName - The name of the tool being deleted
+   * @param toolCreator - The creator of the tool being deleted
+   * @param rolesPermitted - The roles that had access to the tool
+   */
+  async removeToolFromHiddenToolsForAuthorizedUsers(
+    toolName: string,
+    toolCreator: string,
+    rolesPermitted?: string[]
+  ): Promise<void> {
+    const namespacedName = `${toolCreator}:${toolName}`;
+    
+    // Build query to find users who had access to this tool
+    const accessQuery: any = {
+      $or: [
+        // Users who created the tool
+        { email: toolCreator },
+        // Users who had the tool shared with them
+        { "sharedTools.toolId": toolName }
+      ]
+    };
+
+    // If the tool had role-based permissions, include users with those roles
+    if (rolesPermitted && rolesPermitted.length > 0) {
+      accessQuery.$or.push({ roles: { $in: rolesPermitted } });
+    }
+
+    // Only update users who both had access AND had hidden the tool (using namespacedName)
+    await User.updateMany(
+      {
+        $and: [
+          accessQuery,
+          { hiddenTools: namespacedName }
+        ]
+      },
+      { $pull: { hiddenTools: namespacedName } }
+    );
   }
 }

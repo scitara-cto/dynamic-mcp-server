@@ -8,6 +8,19 @@ export class ToolRepository {
     return doc ? doc.toJSON() : null;
   }
 
+  async findByNameAndCreator(name: string, creator: string): Promise<ITool | null> {
+    const doc = await Tool.findOne({ name, creator });
+    return doc ? doc.toJSON() : null;
+  }
+
+  async findByNamespacedName(namespacedName: string): Promise<ITool | null> {
+    const [creator, name] = namespacedName.split(':');
+    if (!creator || !name) return null;
+    
+    const doc = await Tool.findOne({ name, creator });
+    return doc ? doc.toJSON() : null;
+  }
+
   async create(tool: Partial<ITool>): Promise<ITool> {
     if (!tool.name) {
       throw new Error("Tool name is required");
@@ -54,7 +67,7 @@ export class ToolRepository {
   async upsertMany(tools: Partial<ITool>[]): Promise<void> {
     for (const tool of tools) {
       await Tool.updateOne(
-        { name: tool.name },
+        { name: tool.name, creator: tool.creator },
         { $set: tool },
         { upsert: true },
       );

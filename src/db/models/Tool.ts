@@ -19,7 +19,7 @@ export interface ITool {
 
 const toolSchema = new mongoose.Schema<ITool>(
   {
-    name: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
     description: { type: String },
     inputSchema: { type: Object, required: true },
     annotations: { type: Object },
@@ -34,6 +34,14 @@ const toolSchema = new mongoose.Schema<ITool>(
   },
   { timestamps: true },
 );
+
+// Compound unique index on (name, creator) instead of global name uniqueness
+toolSchema.index({ name: 1, creator: 1 }, { unique: true });
+
+// Virtual field for namespaced name
+toolSchema.virtual("namespacedName").get(function (this: any) {
+  return `${this.creator}:${this.name}`;
+});
 
 toolSchema.virtual("id").get(function (this: any) {
   return this._id.toString();

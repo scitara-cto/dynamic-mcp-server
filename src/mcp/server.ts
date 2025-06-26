@@ -78,7 +78,7 @@ export class DynamicMcpServer extends EventEmitter {
     let toolNames: string[] = [];
     if (Array.isArray(handlerPackage.tools)) {
       for (const tool of handlerPackage.tools) {
-        await this.toolService.addTool(tool, this.name);
+        await this.toolService.addTool(tool, handlerPackage.name);
         if (tool && tool.name) {
           toolNames.push(tool.name);
         }

@@ -166,6 +166,9 @@ export class ToolService {
     if (!toolDef.name) {
       throw new Error("Tool definition missing required field: name");
     }
+    if (toolDef.name.includes(':')) {
+      throw new Error("Tool names cannot contain ':' character");
+    }
     if (!toolDef.handler) {
       throw new Error(`Tool '${toolDef.name}' missing required field: handler`);
     }
@@ -175,7 +178,7 @@ export class ToolService {
       );
     }
     // rolesPermitted may be missing or empty for internal/hidden tools
-    const toolCreator = creator || this.mcpServer.name;
+    const toolCreator = creator || "system";
     const toolRepo = new ToolRepository();
     await toolRepo.upsertMany([{ ...toolDef, creator: toolCreator }]);
   }
@@ -198,35 +201,94 @@ export class ToolService {
     if (freshUser) {
       context.user = freshUser;
     }
-    // Explicit authorization check
-    const authResult = await this.authorizeToolCall(userEmail, toolDef.name);
+
+    // Resolve the actual tool to execute (handle conflicts)
+    const actualTool = await this.resolveToolForExecution(toolDef.name, userEmail);
+    
+    // Explicit authorization check using the resolved tool
+    const authResult = await this.authorizeToolCall(userEmail, actualTool.name);
     if (!authResult.authorized) {
       throw new Error(
         authResult.error ||
-          `User is not authorized to execute tool: ${toolDef.name}`,
+          `User is not authorized to execute tool: ${actualTool.name}`,
       );
     }
-    const handlerType = toolDef.handler.type;
+    const handlerType = actualTool.handler.type;
     const handlerInstance = this.mcpServer.getHandler(handlerType);
     if (!handlerInstance) {
       throw new Error(`No handler found for type: ${handlerType}`);
     }
 
-    const argMappings = toolDef.handler.config?.argMappings || {};
+    const argMappings = actualTool.handler.config?.argMappings || {};
     const mappedArguments = mapArguments(argMappings, args, context);
     const mergedArgs = { ...mappedArguments, ...args };
     // Always pass four arguments: args, context, config, progress
     return await handlerInstance(
       mergedArgs,
       context,
-      toolDef.handler.config,
+      actualTool.handler.config,
       progress,
     );
   }
 
-  public async removeTool(toolName: string): Promise<void> {
+  private async resolveToolForExecution(toolName: string, userEmail: string): Promise<any> {
+    const tools = await this.userRepository.getUserTools(userEmail);
+    
+    // Find tools matching the simple name
+    const matchingTools = tools.filter((t: any) => t.name === toolName);
+    
+    if (matchingTools.length === 0) {
+      throw new Error(`Tool ${toolName} not found or not authorized for user.`);
+    }
+    
+    if (matchingTools.length === 1) {
+      return matchingTools[0];
+    }
+    
+    // Resolve conflict: owned > shared > role-based
+    return this.resolveToolConflict(matchingTools, userEmail);
+  }
+
+  private resolveToolConflict(tools: any[], userEmail: string): any {
+    // Priority: owned > shared > role-based
+    const ownedTool = tools.find((t: any) => t.creator === userEmail);
+    if (ownedTool) return ownedTool;
+    
+    const sharedTool = tools.find((t: any) => t.creator !== userEmail && t.creator !== 'system');
+    if (sharedTool) return sharedTool;
+    
+    return tools[0]; // Fallback to first available
+  }
+
+  public async removeTool(toolName: string, creator?: string): Promise<void> {
     const toolRepo = new ToolRepository();
+    
+    let tool;
+    if (creator) {
+      // If creator is specified, find by name and creator
+      tool = await toolRepo.findByNameAndCreator(toolName, creator);
+    } else if (toolName.includes(':')) {
+      // If toolName is namespaced, parse it
+      tool = await toolRepo.findByNamespacedName(toolName);
+    } else {
+      // Fallback to original behavior for backward compatibility
+      tool = await toolRepo.findByName(toolName);
+    }
+    
+    if (!tool) {
+      throw new Error(`Tool with name '${toolName}' not found`);
+    }
+    
+    // Delete the tool from the database
     await toolRepo.deleteTool(toolName);
+    
+    // Remove the tool from hiddenTools arrays of users who had access to it
+    // This prevents confusion if a tool with the same name is created later
+    await this.userRepository.removeToolFromHiddenToolsForAuthorizedUsers(
+      tool.name,
+      tool.creator,
+      tool.rolesPermitted
+    );
   }
 
   private async authorizeToolCall(

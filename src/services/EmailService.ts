@@ -6,6 +6,8 @@ function getPostmarkClient(): Client | null {
   const token = config.email.postmarkApiToken;
   const from = config.email.from;
 
+  logger.debug(`EmailService: Initializing Postmark client. Token: '${token}', From: '${from}'`);
+
   if (token && from) {
     return new Client(token);
   }

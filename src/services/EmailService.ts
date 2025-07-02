@@ -6,7 +6,6 @@ function getPostmarkClient(): Client | null {
   const token = config.email.postmarkApiToken;
   const from = config.email.from;
 
-  logger.debug(`EmailService: Initializing Postmark client. Token: '${token}', From: '${from}'`);
 
   if (token && from) {
     return new Client(token);
@@ -47,14 +46,15 @@ export async function sendEmail({
     });
 
     if (result.ErrorCode) {
-      logger.error(
-        `EmailService: Failed to send email to ${to}:`,
-        result.Message,
-      );
-    } else {
-      logger.info(`Email sent successfully to ${to} with subject: ${subject}`);
+      const errorMessage = `EmailService: Failed to send email to ${to}: ${result.Message}`;
+      logger.error(errorMessage);
+      return {
+        ...result,
+        message: errorMessage,
+      };
     }
 
+    logger.info(`Email sent successfully to ${to} with subject: ${subject}`);
     return {
       ...result,
       message: `An email to ${to} was sent successfully`,
@@ -98,13 +98,17 @@ export async function sendBulkEmail({
     });
 
     if (result.ErrorCode) {
-      logger.error(`EmailService: Failed to send bulk email:`, result.Message);
-    } else {
-      logger.info(
-        `Bulk email sent successfully to ${toList.length} recipients with subject: ${subject}`,
-      );
+      const errorMessage = `EmailService: Failed to send bulk email: ${result.Message}`;
+      logger.error(errorMessage);
+      return {
+        ...result,
+        message: errorMessage,
+      };
     }
 
+    logger.info(
+      `Bulk email sent successfully to ${toList.length} recipients with subject: ${subject}`,
+    );
     return {
       ...result,
       message: `An email was sent successfully to ${toList.length} recipients. A copy was also sent to the sender.`,

@@ -1,5 +1,6 @@
 import { Client } from "postmark";
 import { config } from "../config/index.js";
+import logger from "../utils/logger.js";
 
 const POSTMARK_API_TOKEN = config.email.postmarkApiToken;
 const FROM_EMAIL: string = config.email.from;
@@ -8,8 +9,7 @@ let postmarkClient: Client | null = null;
 if (POSTMARK_API_TOKEN && FROM_EMAIL) {
   postmarkClient = new Client(POSTMARK_API_TOKEN);
 } else {
-  // eslint-disable-next-line no-console
-  console.error(
+  logger.error(
     "EmailService: POSTMARK_API_TOKEN or SMTP_FROM is not set. Emails will not be sent.",
   );
 }
@@ -24,8 +24,7 @@ export async function sendEmail({
   html: string;
 }) {
   if (!postmarkClient || !FROM_EMAIL) {
-    // eslint-disable-next-line no-console
-    console.error(
+    logger.error(
       `EmailService: Cannot send email to ${to} because email service is not configured. Subject: ${subject}`,
     );
     return {
@@ -39,11 +38,12 @@ export async function sendEmail({
     HtmlBody: html,
   });
   if (result.ErrorCode) {
-    // eslint-disable-next-line no-console
-    console.error(
+    logger.error(
       `EmailService: Failed to send email to ${to}:`,
       result.Message,
     );
+  } else {
+    logger.info(`Email sent successfully to ${to} with subject: ${subject}`);
   }
   return {
     ...result,
@@ -61,8 +61,7 @@ export async function sendBulkEmail({
   html: string;
 }) {
   if (!postmarkClient || !FROM_EMAIL) {
-    // eslint-disable-next-line no-console
-    console.error(
+    logger.error(
       `EmailService: Cannot send bulk email to ${toList.join(
         ",",
       )} because email service is not configured. Subject: ${subject}`,
@@ -79,8 +78,11 @@ export async function sendBulkEmail({
     HtmlBody: html,
   });
   if (result.ErrorCode) {
-    // eslint-disable-next-line no-console
-    console.error(`EmailService: Failed to send bulk email:`, result.Message);
+    logger.error(`EmailService: Failed to send bulk email:`, result.Message);
+  } else {
+    logger.info(
+      `Bulk email sent successfully to ${toList.length} recipients with subject: ${subject}`,
+    );
   }
   return {
     ...result,

@@ -2,16 +2,17 @@ import { Client } from "postmark";
 import { config } from "../config/index.js";
 import logger from "../utils/logger.js";
 
-const POSTMARK_API_TOKEN = config.email.postmarkApiToken;
-const FROM_EMAIL: string = config.email.from;
+function getPostmarkClient(): Client | null {
+  const token = config.email.postmarkApiToken;
+  const from = config.email.from;
 
-let postmarkClient: Client | null = null;
-if (POSTMARK_API_TOKEN && FROM_EMAIL) {
-  postmarkClient = new Client(POSTMARK_API_TOKEN);
-} else {
+  if (token && from) {
+    return new Client(token);
+  }
   logger.error(
-    "EmailService: POSTMARK_API_TOKEN or SMTP_FROM is not set. Emails will not be sent.",
+    "EmailService: POSTMARK_API_TOKEN or SMTP_FROM is not set in config. Emails will not be sent.",
   );
+  return null;
 }
 
 export async function sendEmail({
@@ -23,7 +24,10 @@ export async function sendEmail({
   subject: string;
   html: string;
 }) {
-  if (!postmarkClient || !FROM_EMAIL) {
+  const postmarkClient = getPostmarkClient();
+  const fromEmail = config.email.from;
+
+  if (!postmarkClient || !fromEmail) {
     logger.error(
       `EmailService: Cannot send email to ${to} because email service is not configured. Subject: ${subject}`,
     );
@@ -31,24 +35,32 @@ export async function sendEmail({
       message: `Email service not configured. Email to ${to} not sent.`,
     };
   }
-  const result = await postmarkClient.sendEmail({
-    To: to,
-    From: FROM_EMAIL,
-    Subject: subject,
-    HtmlBody: html,
-  });
-  if (result.ErrorCode) {
-    logger.error(
-      `EmailService: Failed to send email to ${to}:`,
-      result.Message,
-    );
-  } else {
-    logger.info(`Email sent successfully to ${to} with subject: ${subject}`);
+
+  try {
+    const result = await postmarkClient.sendEmail({
+      To: to,
+      From: fromEmail,
+      Subject: subject,
+      HtmlBody: html,
+    });
+
+    if (result.ErrorCode) {
+      logger.error(
+        `EmailService: Failed to send email to ${to}:`,
+        result.Message,
+      );
+    } else {
+      logger.info(`Email sent successfully to ${to} with subject: ${subject}`);
+    }
+
+    return {
+      ...result,
+      message: `An email to ${to} was sent successfully`,
+    };
+  } catch (error: any) {
+    logger.error(`EmailService: Exception when sending email to ${to}:`, error);
+    throw error;
   }
-  return {
-    ...result,
-    message: `An email to ${to} was sent successfully`,
-  };
 }
 
 export async function sendBulkEmail({
@@ -60,7 +72,10 @@ export async function sendBulkEmail({
   subject: string;
   html: string;
 }) {
-  if (!postmarkClient || !FROM_EMAIL) {
+  const postmarkClient = getPostmarkClient();
+  const fromEmail = config.email.from;
+
+  if (!postmarkClient || !fromEmail) {
     logger.error(
       `EmailService: Cannot send bulk email to ${toList.join(
         ",",
@@ -70,22 +85,30 @@ export async function sendBulkEmail({
       message: `Email service not configured. Bulk email not sent.`,
     };
   }
-  const result = await postmarkClient.sendEmail({
-    To: FROM_EMAIL, // send a copy to sender
-    From: FROM_EMAIL,
-    Bcc: toList.join(","),
-    Subject: subject,
-    HtmlBody: html,
-  });
-  if (result.ErrorCode) {
-    logger.error(`EmailService: Failed to send bulk email:`, result.Message);
-  } else {
-    logger.info(
-      `Bulk email sent successfully to ${toList.length} recipients with subject: ${subject}`,
-    );
+
+  try {
+    const result = await postmarkClient.sendEmail({
+      To: fromEmail, // send a copy to sender
+      From: fromEmail,
+      Bcc: toList.join(","),
+      Subject: subject,
+      HtmlBody: html,
+    });
+
+    if (result.ErrorCode) {
+      logger.error(`EmailService: Failed to send bulk email:`, result.Message);
+    } else {
+      logger.info(
+        `Bulk email sent successfully to ${toList.length} recipients with subject: ${subject}`,
+      );
+    }
+
+    return {
+      ...result,
+      message: `An email was sent successfully to ${toList.length} recipients. A copy was also sent to the sender.`,
+    };
+  } catch (error: any) {
+    logger.error(`EmailService: Exception when sending bulk email:`, error);
+    throw error;
   }
-  return {
-    ...result,
-    message: `An email was sent successfully to ${toList.length} recipients. A copy was also sent to the sender.`,
-  };
 }

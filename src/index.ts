@@ -10,6 +10,7 @@ import {
   PromptDefinition,
   PromptArgumentDefinition,
   PromptOutput,
+  AuthRoute,
 } from "./mcp/types.js";
 import { HandlerOutput } from "./services/ToolService.js";
 import logger from "./utils/logger.js";
@@ -40,6 +41,7 @@ export type {
   PromptArgumentDefinition,
   PromptOutput,
   HandlerOutput,
+  AuthRoute,
 };
 
 export { sendEmail, sendBulkEmail } from "./services/EmailService.js";

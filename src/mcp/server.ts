@@ -99,6 +99,18 @@ export class DynamicMcpServer extends EventEmitter {
     const toolList = toolNames.length > 0 ? ` (tools: ${toolNames.join(", ")})` : "";
     const promptList = promptNames.length > 0 ? ` (prompts: ${promptNames.join(", ")})` : "";
     logger.info(`Registered handler for: ${handlerPackage.name}${toolList}${promptList}`);
+
+    // If the handler has an init method, call it
+    if (handlerPackage.init) {
+      await handlerPackage.init();
+    }
+
+    // If the handler has auth routes, register them
+    if (this.httpServer && Array.isArray(handlerPackage.authRoutes)) {
+      for (const route of handlerPackage.authRoutes) {
+        this.httpServer.addHttpRoute(route.method, route.path, route.handler);
+      }
+    }
   }
 
   /**

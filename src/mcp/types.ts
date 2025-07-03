@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { Request, Response } from "express";
+import { DynamicMcpServer } from "./server.js";
 
 /**
  * Represents the standard output format for all tools
@@ -139,10 +141,18 @@ export type HandlerFunction = (
   progress?: (progress: number, total?: number, message?: string) => void,
 ) => Promise<any>;
 
+export interface AuthRoute {
+  path: string;
+  method: "get" | "post" | "put" | "delete" | "patch";
+  handler: (req: Request, res: Response) => void;
+}
+
 export interface HandlerPackage {
   name: string;
   tools: ToolDefinition[];
   prompts?: PromptDefinition[];
   handler: HandlerFunction;
   testScript?: string; // Path to a markdown test script or inline script
+  authRoutes?: AuthRoute[];
+  init?: () => Promise<void>;
 }

@@ -2,20 +2,45 @@
 
 ## Adding Custom HTTP Routes
 
-To add a custom route to the server, use the exported `addHttpRoute` function:
+Custom HTTP routes can be added to the server by defining them in a `HandlerPackage`. The `authRoutes` property should be an array of `AuthRoute` objects, each with a `path`, `method`, and `handler` function.
 
 ```typescript
-import { DynamicMcpServer, addHttpRoute } from "dynamic-mcp-server";
+import { HandlerPackage } from "dynamic-mcp-server";
 
-addHttpRoute(mcpServer, "get", "/custom-endpoint", (req, res) => {
-  // Handle the request
-  res.send("Custom endpoint handled!");
-});
+const myHandlerPackage: HandlerPackage = {
+  name: "my-handler",
+  tools: [],
+  handler: async () => {},
+  authRoutes: [
+    {
+      path: "/custom-endpoint",
+      method: "get",
+      handler: (req, res) => {
+        // Handle the request
+        res.send("Custom endpoint handled!");
+      },
+    },
+  ],
+};
 ```
 
-This ensures you do not overwrite core routes and provides a safe extension point.
+## Initialization Logic
 
-> **Note:** Authentication for all core endpoints is handled via API key as a query parameter. If you add custom endpoints that require authentication, you should manually check the apiKey in your handler.
+If a handler requires some initialization logic to be run when it is registered, you can provide an `init` method in the `HandlerPackage`.
+
+```typescript
+import { HandlerPackage } from "dynamic-mcp-server";
+
+const myHandlerPackage: HandlerPackage = {
+  name: "my-handler",
+  tools: [],
+  handler: async () => {},
+  init: async () => {
+    // Perform initialization logic here
+    console.log("Initializing my-handler");
+  },
+};
+```
 
 ## Adding MongoDB Collections/Repositories
 

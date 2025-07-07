@@ -160,18 +160,29 @@ export class UserRepository {
   async getUserToolsInternal(email: string): Promise<any[]> {
     const user = await this.findByEmail(email);
     if (!user) return [];
+
+    // Admins get all tools
+    if (user.roles?.includes("admin")) {
+      return Tool.find({}).lean();
+    }
+
     const userRoles = user.roles || [];
     const sharedToolNames = (user.sharedTools || []).map((t) => t.toolId);
 
-    // Find all tools the user could have access to
-    const allUserTools = await Tool.find({
+    const query: any = {
       $or: [
         { name: { $in: sharedToolNames } },
         { creator: user.email },
         { creator: "system" },
-        { rolesPermitted: { $elemMatch: { $in: userRoles } } },
       ],
-    }).lean();
+    };
+
+    if (userRoles.length > 0) {
+      query.$or.push({ rolesPermitted: { $in: userRoles } });
+    }
+
+    // Find all tools the user could have access to
+    const allUserTools = await Tool.find(query).lean();
 
     return allUserTools;
   }

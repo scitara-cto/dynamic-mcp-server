@@ -68,7 +68,7 @@ export const promptManagementTools: ToolDefinition[] = [
         rolesPermitted: {
           type: "array",
           description: "Array of roles permitted to use this prompt",
-          items: { type: "string" },
+          items: { type: "string", enum: ["user", "power-user", "admin"] },
         },
         alwaysVisible: {
           type: "boolean",
@@ -127,7 +127,7 @@ export const promptManagementTools: ToolDefinition[] = [
             },
             rolesPermitted: {
               type: "array",
-              items: { type: "string" },
+              items: { type: "string", enum: ["user", "power-user", "admin"] },
             },
             alwaysVisible: { type: "boolean" },
           },

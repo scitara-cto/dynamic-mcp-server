@@ -43,7 +43,7 @@ export const userManagementTools: ToolDefinition[] = [
         name: { type: "string", description: "User name" },
         roles: {
           type: "array",
-          items: { type: "string" },
+          items: { type: "string", enum: ["user", "power-user", "admin"] },
           description: "User roles",
         },
       },
@@ -78,7 +78,7 @@ export const userManagementTools: ToolDefinition[] = [
         name: { type: "string", description: "User name" },
         roles: {
           type: "array",
-          items: { type: "string" },
+          items: { type: "string", enum: ["user", "power-user", "admin"] },
           description: "User roles",
         },
         sharedTools: {

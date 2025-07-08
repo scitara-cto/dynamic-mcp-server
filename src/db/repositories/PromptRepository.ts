@@ -222,4 +222,13 @@ export class PromptRepository {
       throw error;
     }
   }
+  async deletePromptsByCreator(
+    creator: string,
+  ): Promise<{ deletedCount?: number }> {
+    if (!creator) {
+      throw new Error("Creator is required to delete prompts");
+    }
+    const result = await Prompt.deleteMany({ createdBy: creator });
+    return { deletedCount: result.deletedCount };
+  }
 }

@@ -16,8 +16,6 @@ import { DynamicMcpServer } from "dynamic-mcp-server";
 const server = new DynamicMcpServer({
   name: "my-mcp-server",
   version: "1.0.0",
-  port: 3000,
-  host: "localhost",
 });
 
 server.start().then(() => {
@@ -111,3 +109,31 @@ To connect Cursor (or any MCP client that supports HTTP/SSE) to this server usin
 3. **Restart Cursor** and select your server from the MCP server list.
 
 > **Note:** Cursor does not currently support sending custom headers for SSE connections, so the apiKey must be included as a query parameter in the URL.
+
+## Omitting Handlers at Startup
+
+In some advanced scenarios, you may want to prevent the server from loading certain built-in handlers. This can be useful if you are running multiple MCP servers that share a common client and you want to avoid duplicate tool registrations.
+
+You can control which handlers are loaded by setting the `OMIT_HANDLERS` environment variable. This variable accepts a comma-separated list of handler names to omit.
+
+**Examples:**
+
+*   To omit the `user-management` handler:
+    ```
+    OMIT_HANDLERS="user-management"
+    ```
+
+*   To omit both the `tool-management` and `prompt-management` handlers:
+    ```
+    OMIT_HANDLERS="tool-management,prompt-management"
+    ```
+
+*   To omit all built-in "native" handlers, you can use the special `native` keyword:
+    ```
+    OMIT_HANDLERS="native"
+    ```
+
+*   You can also combine the `native` keyword with other handler names:
+    ```
+    OMIT_HANDLERS="native,my-custom-handler"
+    ```

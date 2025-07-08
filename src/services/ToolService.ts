@@ -183,6 +183,13 @@ export class ToolService {
     await toolRepo.upsertMany([{ ...toolDef, creator: toolCreator }]);
   }
 
+  public async deleteToolsByCreator(
+    creator: string,
+  ): Promise<{ deletedCount?: number }> {
+    const toolRepo = new ToolRepository();
+    return await toolRepo.deleteToolsByCreator(creator);
+  }
+
   public async executeTool(
     toolDef: any,
     args: any,

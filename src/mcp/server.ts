@@ -45,12 +45,26 @@ export class DynamicMcpServer extends EventEmitter {
   private httpServer?: HttpServer;
   private userRepository: UserRepository;
   public name: string;
+  private handlersToOmit: Set<string> = new Set();
+  private serverConfig: DynamicMcpServerConfig;
 
-  constructor(config: DynamicMcpServerConfig) {
+  constructor(serverConfig: DynamicMcpServerConfig) {
     super();
+    this.serverConfig = serverConfig;
+
+    const omitHandlers: string[] = config.server.omitHandlers || [];
+    if (omitHandlers.length > 0) {
+      if (omitHandlers.includes("native")) {
+        handlerPackages.forEach((h) => this.handlersToOmit.add(h.name));
+      }
+      omitHandlers
+        .filter((h: string) => h !== "native")
+        .forEach((h: string) => this.handlersToOmit.add(h));
+    }
+
     this.server = new Server({
-      name: config.name,
-      version: config.version,
+      name: serverConfig.name,
+      version: serverConfig.version,
       capabilities: {
         tools: {
           listChanged: true,
@@ -61,7 +75,7 @@ export class DynamicMcpServer extends EventEmitter {
       },
     });
     this.userRepository = new UserRepository();
-    this.name = config.name;
+    this.name = serverConfig.name;
     this.toolService = new ToolService(this.server, this, this.userRepository);
     this.promptService = new PromptService(this.server, this, this.userRepository);
     // Handler registration moved to initializeHandlers() or start()
@@ -72,6 +86,24 @@ export class DynamicMcpServer extends EventEmitter {
    * handlerPackage: { name: string, handler: HandlerFunction, tools: ToolDefinition[], prompts?: PromptDefinition[] }
    */
   public async registerHandler(handlerPackage: HandlerPackage): Promise<void> {
+    if (this.handlersToOmit.has(handlerPackage.name)) {
+      logger.debug(`Omitting handler: ${handlerPackage.name}`);
+      const { deletedCount: deletedTools } =
+        await this.toolService.deleteToolsByCreator(handlerPackage.name);
+      if (deletedTools && deletedTools > 0) {
+        logger.info(
+          `Removed ${deletedTools} orphaned tools for omitted handler: ${handlerPackage.name}`,
+        );
+      }
+      const { deletedCount: deletedPrompts } =
+        await this.promptService.deletePromptsByCreator(handlerPackage.name);
+      if (deletedPrompts && deletedPrompts > 0) {
+        logger.info(
+          `Removed ${deletedPrompts} orphaned prompts for omitted handler: ${handlerPackage.name}`,
+        );
+      }
+      return;
+    }
     this.handlers.set(handlerPackage.name, handlerPackage.handler);
     
     // Register tools in DB
@@ -227,7 +259,7 @@ export class DynamicMcpServer extends EventEmitter {
 
       // Log application startup
       logger.info(
-        `MCP server started: ${config.server.name} v${config.server.version}`,
+        `MCP server started: ${this.serverConfig.name} v${this.serverConfig.version}`,
       );
     } catch (error) {
       logger.error("Failed to start MCP server:", error);

@@ -151,6 +151,12 @@ export class PromptService {
     }
   }
 
+  async deletePromptsByCreator(
+    creator: string,
+  ): Promise<{ deletedCount?: number }> {
+    return await this.promptRepository.deletePromptsByCreator(creator);
+  }
+
   /**
    * Remove a prompt from the database
    */

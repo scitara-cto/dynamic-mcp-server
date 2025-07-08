@@ -12,6 +12,7 @@ export interface Config {
     url: string;
     adminEmail: string;
     mcpName: string;
+    omitHandlers: string[];
   };
   logging: {
     level: string;
@@ -36,6 +37,9 @@ function createConfig(): Config {
         process.env.MCP_SERVER_NAME ||
         process.env.SERVER_NAME ||
         "dynamic-mcp-server",
+      omitHandlers: process.env.OMIT_HANDLERS
+        ? process.env.OMIT_HANDLERS.split(",").map((h) => h.trim())
+        : [],
     },
     logging: {
       level: process.env.LOG_LEVEL || "info",

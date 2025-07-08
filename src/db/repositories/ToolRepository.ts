@@ -64,6 +64,16 @@ export class ToolRepository {
     }
   }
 
+  async deleteToolsByCreator(
+    creator: string,
+  ): Promise<{ deletedCount?: number }> {
+    if (!creator) {
+      throw new Error("Creator is required to delete tools");
+    }
+    const result = await Tool.deleteMany({ creator });
+    return { deletedCount: result.deletedCount };
+  }
+
   async upsertMany(tools: Partial<ITool>[]): Promise<void> {
     for (const tool of tools) {
       await Tool.updateOne(

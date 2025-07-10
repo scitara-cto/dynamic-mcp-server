@@ -28,8 +28,8 @@ export class TransportHandler {
    * Enhanced logging for both transport types
    */
   logRequest(req: Request, transportType: 'SSE' | 'StreamableHTTP'): void {
-    logger.info(
-      `[DEBUG] ${transportType} ${req.method} called. Query: ${JSON.stringify(
+    logger.debug(
+      `[SSE] ${transportType} ${req.method} called. Query: ${JSON.stringify(
         req.query,
       )}, Headers: ${JSON.stringify(req.headers)}`,
     );
@@ -37,8 +37,8 @@ export class TransportHandler {
     // Log request body for POST requests (but limit size for security)
     if (req.method === 'POST' && req.body) {
       const bodyPreview = JSON.stringify(req.body).substring(0, 200);
-      logger.info(`[${transportType}] Request body preview: ${bodyPreview}${JSON.stringify(req.body).length > 200 ? '...' : ''}`);
-      logger.info(`[${transportType}] Request method: ${req.body.method || 'no method'}`);
+      logger.debug(`[${transportType}] Request body preview: ${bodyPreview}${JSON.stringify(req.body).length > 200 ? '...' : ''}`);
+      logger.debug(`[${transportType}] Request method: ${req.body.method || 'no method'}`);
     }
   }
 

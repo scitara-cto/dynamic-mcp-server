@@ -16,8 +16,8 @@ export function createSSERoutes(
   // SSE endpoint with inline API key authentication
   router.get("/sse", async (req: Request, res: Response) => {
     // Debug: Log query and headers
-    logger.info(
-      `[DEBUG] /sse called. Query: ${JSON.stringify(
+    logger.debug(
+      `/sse called. Query: ${JSON.stringify(
         req.query,
       )}, Headers: ${JSON.stringify(req.headers)}`,
     );

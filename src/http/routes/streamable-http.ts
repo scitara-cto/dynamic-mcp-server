@@ -18,8 +18,8 @@ export function createStreamableHttpRoutes(
   // Handle all MCP Streamable HTTP requests (GET, POST, DELETE) on a single endpoint
   router.all('/mcp', async (req: Request, res: Response) => {
     // Enhanced logging similar to SSE transport
-    logger.info(
-      `[DEBUG] /mcp ${req.method} called. Query: ${JSON.stringify(
+    logger.debug(
+      `[MCP] /mcp ${req.method} called. Query: ${JSON.stringify(
         req.query,
       )}, Headers: ${JSON.stringify(req.headers)}`,
     );
@@ -27,8 +27,8 @@ export function createStreamableHttpRoutes(
     // Log request body for POST requests (but limit size for security)
     if (req.method === 'POST' && req.body) {
       const bodyPreview = JSON.stringify(req.body).substring(0, 200);
-      logger.info(`[MCP] Request body preview: ${bodyPreview}${JSON.stringify(req.body).length > 200 ? '...' : ''}`);
-      logger.info(`[MCP] Request method: ${req.body.method || 'no method'}`);
+      logger.debug(`[MCP] Request body preview: ${bodyPreview}${JSON.stringify(req.body).length > 200 ? '...' : ''}`);
+      logger.debug(`[MCP] Request method: ${req.body.method || 'no method'}`);
     }
     
     try {

@@ -28,7 +28,7 @@ export class AuthService {
       };
     }
 
-    logger.info(`[AUTH] User authenticated: email=${user.email}, apiKey=${user.apiKey}`);
+    logger.debug(`[AUTH] User authenticated: email=${user.email}, apiKey=${user.apiKey}`);
     return { success: true, user };
   }
 }

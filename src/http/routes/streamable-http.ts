@@ -49,7 +49,7 @@ export function createStreamableHttpRoutes(
 
     // Note: Using legacy method here because GET/DELETE requests don't provide client info
     const latestSessionId = sessionManager.getLatestSessionForUser(authResult.user.email);
-    logger.info(`[SESSION] Using latest session for user ${authResult.user.email}: ${latestSessionId} (requested: ${sessionId})`);
+    logger.debug(`[SESSION] Using latest session for user ${authResult.user.email}: ${latestSessionId} (requested: ${sessionId})`);
     const transport = latestTransport;
     
     try {
@@ -105,7 +105,7 @@ export function createStreamableHttpRoutes(
             latestTransport = clientAwareTransport;
             const latestSessionId = sessionManager.getLatestSessionForUserAndClient(authResult.user.email, sessionMetadata.clientInfo);
             sessionManager.updateLastActivity(latestSessionId!);
-            logger.info(`[SESSION] Using latest session for user ${authResult.user.email}, client ${sessionManager.createClientId(sessionMetadata.clientInfo)}: ${latestSessionId} (requested: ${sessionId})`);
+            logger.debug(`[SESSION] Using latest session for user ${authResult.user.email}, client ${sessionManager.createClientId(sessionMetadata.clientInfo)}: ${latestSessionId} (requested: ${sessionId})`);
           }
         } else {
           // Fallback to legacy method for sessions without client info
@@ -114,7 +114,7 @@ export function createStreamableHttpRoutes(
             latestTransport = legacyTransport;
             const latestSessionId = sessionManager.getLatestSessionForUser(authResult.user.email);
             sessionManager.updateLastActivity(latestSessionId!);
-            logger.info(`[SESSION] Using latest session for user ${authResult.user.email} (legacy lookup): ${latestSessionId} (requested: ${sessionId})`);
+            logger.debug(`[SESSION] Using latest session for user ${authResult.user.email} (legacy lookup): ${latestSessionId} (requested: ${sessionId})`);
           }
         }
         
@@ -152,7 +152,7 @@ export function createStreamableHttpRoutes(
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (sessionId: string) => {
             logger.info(`[SESSION] StreamableHTTP session initialized with ID: ${sessionId} for user: ${authResult.user.email}`);
-            logger.info(`[SESSION] Transport created at: ${new Date().toISOString()}`);
+            logger.debug(`[SESSION] Transport created at: ${new Date().toISOString()}`);
             sessionManager.storeTransport(sessionId, newTransport);
             
             // Store user info in session manager with client info (this will automatically track as latest session for this client)

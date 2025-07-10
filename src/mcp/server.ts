@@ -309,7 +309,7 @@ export class DynamicMcpServer extends EventEmitter {
           `[MCP] Failed to send notification to session ${sessionId}: ${error}`,
         );
       }
-      logger.info(
+      logger.debug(
         `[MCP] Sent notification to session ${sessionId}: ${notification.method}`,
       );
     }

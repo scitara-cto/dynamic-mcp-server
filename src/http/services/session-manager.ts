@@ -73,7 +73,7 @@ export class SessionManager {
    */
   storeTransport(sessionId: string, transport: Transport): void {
     this.transports[sessionId] = transport;
-    logger.info(`[SESSION] Transport stored for session: ${sessionId}`);
+    logger.debug(`[SESSION] Transport stored for session: ${sessionId}`);
   }
 
   /**
@@ -109,7 +109,7 @@ export class SessionManager {
     const key = this.createUserClientKey(userEmail, clientInfo);
     this.latestSessionByUserAndClient.set(key, sessionId);
     const clientId = this.createClientId(clientInfo);
-    logger.info(`[SESSION] Set latest session for user ${userEmail}, client ${clientId}: ${sessionId}`);
+    logger.debug(`[SESSION] Set latest session for user ${userEmail}, client ${clientId}: ${sessionId}`);
   }
 
   /**
@@ -193,7 +193,7 @@ export class SessionManager {
     
     const now = new Date();
     const clientId = this.createClientId(clientInfo);
-    logger.info(`[SESSION] Creating SSE session: ${transport.sessionId} for user: ${userInfo.email}, client: ${clientId}`);
+    logger.debug(`[SESSION] Creating SSE session: ${transport.sessionId} for user: ${userInfo.email}, client: ${clientId}`);
 
     // Create session metadata
     const metadata: SessionMetadata = {
@@ -238,7 +238,7 @@ export class SessionManager {
   createStreamableHTTPSessionInfo(sessionId: string, user: any, clientInfo?: { name: string; version: string }): void {
     const now = new Date();
     const clientId = this.createClientId(clientInfo);
-    logger.info(`[SESSION] Creating StreamableHTTP session: ${sessionId} for user: ${user.email}, client: ${clientId}`);
+    logger.debug(`[SESSION] Creating StreamableHTTP session: ${sessionId} for user: ${user.email}, client: ${clientId}`);
 
     // Create session metadata
     const metadata: SessionMetadata = {
@@ -297,7 +297,7 @@ export class SessionManager {
             params: {},
           });
         }
-        logger.info(`[SESSION] Notified client ${sessionId} of tool changes`);
+        logger.debug(`[SESSION] Notified client ${sessionId} of tool changes`);
         this.updateLastActivity(sessionId);
       } catch (error) {
         logger.warn(

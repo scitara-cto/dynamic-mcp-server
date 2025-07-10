@@ -68,7 +68,7 @@ export function createSSERoutes(
     const sessionId = req.query.sessionId as string;
     const method = req?.body?.method || "no method provided";
     
-    logger.info(`[SESSION] Message for session: ${sessionId}, method: ${method}`);
+    logger.debug(`[SESSION] Message for session: ${sessionId}, method: ${method}`);
 
     const transport = sessionManager.getTransport(sessionId);
     if (transport) {

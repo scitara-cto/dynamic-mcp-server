@@ -15,13 +15,6 @@ export function createSSERoutes(
 
   // SSE endpoint with inline API key authentication
   router.get("/sse", async (req: Request, res: Response) => {
-    // Debug: Log query and headers
-    logger.debug(
-      `/sse called. Query: ${JSON.stringify(
-        req.query,
-      )}, Headers: ${JSON.stringify(req.headers)}`,
-    );
-
     // API key authentication logic
     const authResult = await new TransportHandler({
       mcpServer,
@@ -34,11 +27,6 @@ export function createSSERoutes(
     }
 
     (req as any).user = authResult.user;
-
-    // Debug logging
-    logger.debug(`SSE endpoint called`);
-    logger.debug(`Query parameters: ${JSON.stringify(req.query)}`);
-    logger.debug(`Headers: ${JSON.stringify(req.headers)}`);
 
     // Set headers for SSE
     res.setHeader("Content-Type", "text/event-stream");
@@ -73,30 +61,37 @@ export function createSSERoutes(
 
     // Now notify tool list changed (after connection is ready)
     await dynamicMcpServer.notifyToolListChanged(authResult.user.email);
-
-    // Add debug logging for messages
-    const originalOnMessage = transport.onmessage;
-    transport.onmessage = (message: any) => {
-      logger.debug(`SSE message for ${transport.sessionId}:`, message);
-      originalOnMessage?.(message);
-    };
   });
 
   // Message endpoint for handling MCP messages (no auth middleware)
   router.post("/messages", async (req: Request, res: Response) => {
     const sessionId = req.query.sessionId as string;
-    logger.info(
-      `Message for session: ${sessionId}, ${
-        req?.body?.method || "no method provided"
-      }`,
-    );
+    const method = req?.body?.method || "no method provided";
+    
+    logger.info(`[SESSION] Message for session: ${sessionId}, method: ${method}`);
 
     const transport = sessionManager.getTransport(sessionId);
     if (transport) {
+      // Update session activity
+      sessionManager.updateLastActivity(sessionId);
+      
+      // Check if this is an initialize request and extract client info
+      if (method === "initialize" && req.body?.params?.clientInfo) {
+        const clientInfo = req.body.params.clientInfo;
+        sessionManager.updateSessionClientInfo(sessionId, clientInfo);
+      }
+      
       if (transport instanceof SSEServerTransport) {
-        await transport.handlePostMessage(req, res, req.body);
+        try {
+          await transport.handlePostMessage(req, res, req.body);
+          logger.debug(`[SESSION] Successfully handled message for session: ${sessionId}, method: ${method}`);
+        } catch (error) {
+          logger.error(`[SESSION] Error handling message for session: ${sessionId}, method: ${method}, error: ${error}`);
+          sessionManager.markSessionInactive(sessionId);
+        }
       } else {
         // StreamableHTTPServerTransport doesn't use this endpoint
+        logger.warn(`[SESSION] Wrong transport type for /messages endpoint, session: ${sessionId}`);
         res.status(400).json({
           jsonrpc: '2.0',
           error: {
@@ -107,7 +102,7 @@ export function createSSERoutes(
         });
       }
     } else {
-      logger.error(`No transport found for sessionId: ${sessionId}`);
+      logger.error(`[SESSION] No transport found for sessionId: ${sessionId}, method: ${method}`);
       res.status(400).send("No transport found for sessionId");
     }
   });

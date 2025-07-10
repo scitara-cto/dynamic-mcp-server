@@ -8,6 +8,10 @@ import { SessionManager } from "../services/session-manager.js";
 import { AuthService } from "../services/auth.js";
 import logger from "../../utils/logger.js";
 
+// Session Management: Uses "latest session" approach to handle race conditions
+// Multiple sessions may be created during concurrent initialization, but all requests
+// are routed to the most recent session per user to ensure consistent communication
+
 export function createStreamableHttpRoutes(
   mcpServer: Server,
   sessionManager: SessionManager,
@@ -15,38 +19,113 @@ export function createStreamableHttpRoutes(
 ): Router {
   const router = Router();
 
-  // Handle all MCP Streamable HTTP requests (GET, POST, DELETE) on a single endpoint
-  router.all('/mcp', async (req: Request, res: Response) => {
-    // Enhanced logging similar to SSE transport
-    logger.debug(
-      `[MCP] /mcp ${req.method} called. Query: ${JSON.stringify(
-        req.query,
-      )}, Headers: ${JSON.stringify(req.headers)}`,
-    );
+  // Reusable handler for GET and DELETE requests that need existing sessions
+  const handleSessionRequest = async (req: Request, res: Response) => {
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    logger.debug(`[SESSION] ${req.method} request for session: ${sessionId}`);
     
-    // Log request body for POST requests (but limit size for security)
-    if (req.method === 'POST' && req.body) {
-      const bodyPreview = JSON.stringify(req.body).substring(0, 200);
-      logger.debug(`[MCP] Request body preview: ${bodyPreview}${JSON.stringify(req.body).length > 200 ? '...' : ''}`);
-      logger.debug(`[MCP] Request method: ${req.body.method || 'no method'}`);
+    // Authenticate to get user info
+    const authResult = await AuthService.authenticateRequest(req);
+    if (!authResult.success) {
+      res.status(401).json({ error: authResult.error });
+      return;
     }
+
+    // For backward compatibility, use the legacy method that finds any session for the user
+    // TODO: In the future, we could extract client info from the request to route to the correct client session
+    const latestTransport = sessionManager.getLatestTransportForUser(authResult.user.email);
+    if (!latestTransport || !(latestTransport instanceof StreamableHTTPServerTransport)) {
+      logger.warn(`[SESSION] No valid latest session found for user: ${authResult.user.email} (requested: ${sessionId})`);
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: 'No valid session found for user',
+        },
+        id: null,
+      });
+      return;
+    }
+
+    const latestSessionId = sessionManager.getLatestSessionForUser(authResult.user.email);
+    logger.info(`[SESSION] Using latest session for user ${authResult.user.email}: ${latestSessionId} (requested: ${sessionId})`);
+    const transport = latestTransport;
     
     try {
-      // Check for existing session ID
-      const sessionId = req.headers['mcp-session-id'] as string;
-      let transport: StreamableHTTPServerTransport;
+      // Update session activity
+      sessionManager.updateLastActivity(latestSessionId!);
+      await transport.handleRequest(req, res);
+      logger.debug(`[SESSION] Successfully handled ${req.method} request for session: ${latestSessionId}`);
+    } catch (error) {
+      logger.error(`[SESSION] Error handling ${req.method} request for session: ${latestSessionId}, error: ${error}`);
+      sessionManager.markSessionInactive(latestSessionId!);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error',
+          },
+          id: null,
+        });
+      }
+    }
+  };
 
-      if (sessionId && sessionManager.getTransport(sessionId)) {
-        const existingTransport = sessionManager.getTransport(sessionId);
-        if (existingTransport instanceof StreamableHTTPServerTransport) {
-          transport = existingTransport;
+  // Handle GET requests for server-to-client notifications via SSE
+  router.get('/mcp', handleSessionRequest);
+
+  // Handle DELETE requests for session termination
+  router.delete('/mcp', handleSessionRequest);
+
+  // Handle POST requests for client-to-server communication
+  router.post('/mcp', async (req: Request, res: Response) => {
+    try {
+      // Check for existing session ID
+      const sessionId = req.headers['mcp-session-id'] as string | undefined;
+      let transport: StreamableHTTPServerTransport | undefined;
+
+      if (sessionId) {
+        // For requests with session ID, try to use the latest session for the user
+        const authResult = await AuthService.authenticateRequest(req);
+        if (!authResult.success) {
+          res.status(401).json({ error: authResult.error });
+          return;
+        }
+
+        // Get the session metadata to extract client info
+        const sessionMetadata = sessionManager.getSessionMetadata(sessionId);
+        let latestTransport: StreamableHTTPServerTransport | undefined;
+        
+        if (sessionMetadata && sessionMetadata.clientInfo) {
+          // Use client-aware lookup with the session's client info
+          const clientAwareTransport = sessionManager.getLatestTransportForUserAndClient(authResult.user.email, sessionMetadata.clientInfo);
+          if (clientAwareTransport && clientAwareTransport instanceof StreamableHTTPServerTransport) {
+            latestTransport = clientAwareTransport;
+            const latestSessionId = sessionManager.getLatestSessionForUserAndClient(authResult.user.email, sessionMetadata.clientInfo);
+            sessionManager.updateLastActivity(latestSessionId!);
+            logger.info(`[SESSION] Using latest session for user ${authResult.user.email}, client ${sessionManager.createClientId(sessionMetadata.clientInfo)}: ${latestSessionId} (requested: ${sessionId})`);
+          }
         } else {
-          // Transport exists but is not a StreamableHTTPServerTransport (could be SSEServerTransport)
+          // Fallback to legacy method for sessions without client info
+          const legacyTransport = sessionManager.getLatestTransportForUser(authResult.user.email);
+          if (legacyTransport && legacyTransport instanceof StreamableHTTPServerTransport) {
+            latestTransport = legacyTransport;
+            const latestSessionId = sessionManager.getLatestSessionForUser(authResult.user.email);
+            sessionManager.updateLastActivity(latestSessionId!);
+            logger.info(`[SESSION] Using latest session for user ${authResult.user.email} (legacy lookup): ${latestSessionId} (requested: ${sessionId})`);
+          }
+        }
+        
+        if (latestTransport) {
+          transport = latestTransport;
+        } else {
+          logger.warn(`[SESSION] No valid latest session found for user: ${authResult.user.email}`);
           res.status(400).json({
             jsonrpc: '2.0',
             error: {
               code: -32000,
-              message: 'Bad Request: Session exists but uses a different transport protocol',
+              message: 'No valid session found for user',
             },
             id: null,
           });
@@ -54,25 +133,38 @@ export function createStreamableHttpRoutes(
         }
       } else if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
         // Handle authentication for new sessions
+        logger.info(`[SESSION] Creating new session - initialize request detected`);
         const authResult = await AuthService.authenticateRequest(req);
         if (!authResult.success) {
           res.status(401).json({ error: authResult.error });
           return;
         }
 
-        transport = new StreamableHTTPServerTransport({
+        // Extract client info from initialize request
+        let clientInfo: { name: string; version: string } | undefined;
+        if (req.body && req.body.params && req.body.params.clientInfo) {
+          clientInfo = req.body.params.clientInfo;
+        }
+
+        // Create new session (multiple sessions allowed, latest will be used)
+        const newTransport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (sessionId: string) => {
-            logger.info(`StreamableHTTP session initialized with ID: ${sessionId}`);
-            sessionManager.storeTransport(sessionId, transport);
+            logger.info(`[SESSION] StreamableHTTP session initialized with ID: ${sessionId} for user: ${authResult.user.email}`);
+            logger.info(`[SESSION] Transport created at: ${new Date().toISOString()}`);
+            sessionManager.storeTransport(sessionId, newTransport);
             
-            // Store user info in session manager
-            sessionManager.createStreamableHTTPSessionInfo(sessionId, authResult.user);
+            // Store user info in session manager with client info (this will automatically track as latest session for this client)
+            sessionManager.createStreamableHTTPSessionInfo(sessionId, authResult.user, clientInfo);
           }
         });
 
+        transport = newTransport;
+
+        // Setup cleanup BEFORE connecting
         sessionManager.setupStreamableHTTPCleanup(transport);
 
+        // Connect to MCP server FIRST (critical timing fix)
         await mcpServer.connect(transport);
         
         // Notify tool list changed after connection is ready
@@ -91,9 +183,33 @@ export function createStreamableHttpRoutes(
       }
 
       // Handle the request with the transport
-      await transport.handleRequest(req, res, req.body);
+      if (!transport) {
+        logger.error(`[SESSION] No transport available for request`);
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error: No transport available',
+          },
+          id: null,
+        });
+        return;
+      }
+
+      try {
+        await transport.handleRequest(req, res, req.body);
+        if (sessionId) {
+          logger.debug(`[SESSION] Successfully handled StreamableHTTP request for session: ${sessionId}`);
+        }
+      } catch (requestError) {
+        logger.error(`[SESSION] Error handling request for session: ${sessionId || 'new'}, error: ${requestError}`);
+        if (sessionId) {
+          sessionManager.markSessionInactive(sessionId);
+        }
+        throw requestError;
+      }
     } catch (error) {
-      logger.error('Error handling MCP streamable HTTP request:', error);
+      logger.error('[SESSION] Error handling MCP streamable HTTP request:', error);
       if (!res.headersSent) {
         res.status(500).json({
           jsonrpc: '2.0',

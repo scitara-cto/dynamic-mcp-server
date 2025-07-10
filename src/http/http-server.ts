@@ -57,6 +57,20 @@ export class HttpServer {
       this.dynamicMcpServer
     ));
 
+    // Session monitoring endpoint for debugging
+    this.app.get('/debug/sessions', (req, res) => {
+      try {
+        const stats = this.sessionManager.getSessionStats();
+        res.json({
+          timestamp: new Date().toISOString(),
+          ...stats
+        });
+      } catch (error) {
+        this.logger.error(`Error getting session stats: ${error}`);
+        res.status(500).json({ error: 'Failed to get session stats' });
+      }
+    });
+
     this.logger.info("All HTTP routes configured");
   }
 

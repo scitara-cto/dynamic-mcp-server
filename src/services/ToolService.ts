@@ -95,7 +95,7 @@ export class ToolService {
           logger.info(
             `Tool execution requested: ${name} by user: ${
               userEmail || "unknown"
-            }`,
+            }, session: ${extra.sessionId}`,
           );
           logger.debug(`Tool execution args:`, {
             toolName: name,
@@ -141,7 +141,7 @@ export class ToolService {
 
             const executionTime = Date.now() - startTime;
             logger.info(
-              `Tool execution completed: ${name} in ${executionTime}ms`,
+              `Tool execution completed: ${name} in ${executionTime}ms, session: ${extra.sessionId}`,
             );
             logger.debug(`Tool execution result:`, {
               toolName: name,

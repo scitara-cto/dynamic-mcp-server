@@ -32,7 +32,7 @@ export function createStreamableHttpRoutes(
     }
 
     // For backward compatibility, use the legacy method that finds any session for the user
-    // TODO: In the future, we could extract client info from the request to route to the correct client session
+    // Note: GET/DELETE requests don't contain client info, so we must use the legacy method
     const latestTransport = sessionManager.getLatestTransportForUser(authResult.user.email);
     if (!latestTransport || !(latestTransport instanceof StreamableHTTPServerTransport)) {
       logger.warn(`[SESSION] No valid latest session found for user: ${authResult.user.email} (requested: ${sessionId})`);
@@ -47,6 +47,7 @@ export function createStreamableHttpRoutes(
       return;
     }
 
+    // Note: Using legacy method here because GET/DELETE requests don't provide client info
     const latestSessionId = sessionManager.getLatestSessionForUser(authResult.user.email);
     logger.info(`[SESSION] Using latest session for user ${authResult.user.email}: ${latestSessionId} (requested: ${sessionId})`);
     const transport = latestTransport;

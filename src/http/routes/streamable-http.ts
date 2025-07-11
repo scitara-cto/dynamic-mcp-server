@@ -299,25 +299,10 @@ export function createStreamableHttpRoutes(
 
         // Check if this session is the active one for the user
         if (!isActiveSessionForUser(sessionId, authResult.user.email)) {
-          // Session is not active for this user - return specific error to trigger re-initialization
-          logger.warn(`[SESSION] Session ${sessionId} is not active for user ${authResult.user.email}. Active session: ${userActiveSession[authResult.user.email]}`);
+          // Session is not active for this user - create a new session instead of returning error
+          logger.info(`[SESSION] Session ${sessionId} is not active for user ${authResult.user.email}. Creating new session instead of invalidating.`);
           cleanupSession(sessionId);
-          
-          // Return a specific JSON-RPC error that indicates the client should re-initialize
-          res.status(400).json({
-            jsonrpc: '2.0',
-            error: {
-              code: -32001, // Custom error code for session invalidated
-              message: 'Session invalidated: Another client has connected for this user. Please reconnect to establish a new session.',
-              data: {
-                reason: 'session_invalidated',
-                activeSession: userActiveSession[authResult.user.email],
-                invalidatedSession: sessionId
-              }
-            },
-            id: req.body?.id || null,
-          });
-          return;
+          transport = await createNewSession(sessionId, authResult.user.email, authResult.user.apiKey);
         } else {
           // Use the existing active session
           const sessionData = sessions[sessionId];

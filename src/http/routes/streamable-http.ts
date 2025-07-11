@@ -18,6 +18,9 @@ interface SessionData {
 
 const sessions: { [sessionId: string]: SessionData } = {};
 
+// Track active session per user (single session per user policy)
+const userActiveSession: { [userEmail: string]: string } = {};
+
 // Cleanup timer constants
 const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour in milliseconds
 const SESSION_TIMEOUT = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
@@ -39,6 +42,16 @@ export function createStreamableHttpRoutes(
   const cleanupSession = (sessionId: string) => {
     logger.info(`[SESSION] Cleaning up session: ${sessionId}`);
     
+    // Find and remove from user active session mapping
+    const sessionData = sessions[sessionId];
+    if (sessionData) {
+      const userEmail = sessionData.userEmail;
+      if (userActiveSession[userEmail] === sessionId) {
+        delete userActiveSession[userEmail];
+        logger.debug(`[SESSION] Removed active session mapping for user: ${userEmail}`);
+      }
+    }
+    
     // Remove from sessions
     delete sessions[sessionId];
     
@@ -46,13 +59,37 @@ export function createStreamableHttpRoutes(
     dynamicMcpServer.removeSessionInfo(sessionId);
   };
 
+  // Helper function to invalidate existing sessions for a user
+  const invalidateUserSessions = (userEmail: string, excludeSessionId?: string) => {
+    const existingSessionId = userActiveSession[userEmail];
+    if (existingSessionId && existingSessionId !== excludeSessionId) {
+      logger.info(`[SESSION] Invalidating existing session ${existingSessionId} for user: ${userEmail}`);
+      cleanupSession(existingSessionId);
+    }
+  };
+
+  // Helper function to validate if a session is the active one for the user
+  const isActiveSessionForUser = (sessionId: string, userEmail: string): boolean => {
+    const activeSessionId = userActiveSession[userEmail];
+    const isActive = activeSessionId === sessionId;
+    
+    if (!isActive) {
+      logger.warn(`[SESSION] Session ${sessionId} is not the active session for user ${userEmail}. Active session: ${activeSessionId || 'none'}`);
+    }
+    
+    return isActive;
+  };
+
   // Helper function to create a new session
   const createNewSession = async (sessionId: string, userEmail: string, userApiKey: string, clientName: string = 'unknown-client', clientVersion: string = 'unknown-version') => {
+    
+    // Enforce single session per user - invalidate any existing sessions for this user
+    invalidateUserSessions(userEmail, sessionId);
     
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionId,
       onsessioninitialized: (newSessionId: string) => {
-        logger.info(`[SESSION] New session initialized: ${newSessionId} for user: ${userEmail}`);
+        logger.info(`[SESSION] New session initialized: ${newSessionId} for user: ${userEmail} (single-session-per-user policy)`);
         
         // Store session data with timestamp
         sessions[newSessionId] = {
@@ -62,6 +99,10 @@ export function createStreamableHttpRoutes(
           clientName,
           clientVersion
         };
+        
+        // Track this as the active session for the user
+        userActiveSession[userEmail] = newSessionId;
+        logger.debug(`[SESSION] Set active session for user ${userEmail}: ${newSessionId}`);
         
         // Create session info for DynamicMcpServer
         const sessionInfo = {
@@ -249,22 +290,47 @@ export function createStreamableHttpRoutes(
       // }
 
       if (sessionId) {
-        // Existing session - authenticate and find session
+        // Existing session - authenticate and validate session
         const authResult = await AuthService.authenticateRequest(req);
         if (!authResult.success) {
           res.status(401).json({ error: authResult.error });
           return;
         }
 
-        // Use the session ID directly, create if not found
-        const sessionData = sessions[sessionId];
-        
-        if (!sessionData) {
-          transport = await createNewSession(sessionId, authResult.user.email, authResult.user.apiKey);
+        // Check if this session is the active one for the user
+        if (!isActiveSessionForUser(sessionId, authResult.user.email)) {
+          // Session is not active for this user - return specific error to trigger re-initialization
+          logger.warn(`[SESSION] Session ${sessionId} is not active for user ${authResult.user.email}. Active session: ${userActiveSession[authResult.user.email]}`);
+          cleanupSession(sessionId);
+          
+          // Return a specific JSON-RPC error that indicates the client should re-initialize
+          res.status(400).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32001, // Custom error code for session invalidated
+              message: 'Session invalidated: Another client has connected for this user. Please reconnect to establish a new session.',
+              data: {
+                reason: 'session_invalidated',
+                activeSession: userActiveSession[authResult.user.email],
+                invalidatedSession: sessionId
+              }
+            },
+            id: req.body?.id || null,
+          });
+          return;
         } else {
-          transport = sessionData.transport;
-          // Update last used timestamp
-          updateSessionLastUsed(sessionId);
+          // Use the existing active session
+          const sessionData = sessions[sessionId];
+          
+          if (!sessionData) {
+            // Session data missing but marked as active - recreate
+            logger.warn(`[SESSION] Active session ${sessionId} missing data, recreating for user: ${authResult.user.email}`);
+            transport = await createNewSession(sessionId, authResult.user.email, authResult.user.apiKey);
+          } else {
+            transport = sessionData.transport;
+            // Update last used timestamp
+            updateSessionLastUsed(sessionId);
+          }
         }
       } else if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
         // New initialization request
@@ -279,27 +345,21 @@ export function createStreamableHttpRoutes(
         const clientName = clientInfo?.name || 'unknown-client';
         const clientVersion = clientInfo?.version || 'unknown-version';
         
-        logger.info(`[SESSION] INIT REQUEST for user: ${authResult.user.email}, client: ${clientName} v${clientVersion}`);
+        logger.info(`[SESSION] INIT REQUEST for user: ${authResult.user.email}, client: ${clientName} v${clientVersion} (single-session-per-user policy)`);
 
-        // Check if user already has an active session for this specific client
-        const existingSession = Object.entries(sessions).find(([_, sessionData]) =>
-          sessionData.userEmail === authResult.user.email &&
-          sessionData.clientName === clientName
-        );
-
-        if (existingSession) {
-          const [existingSessionId, sessionData] = existingSession;
-          logger.info(`[SESSION] Client reconnection detected, creating fresh transport for existing session: ${existingSessionId} for user: ${authResult.user.email}, client: ${clientName}`);
-          // Clean up the old transport to avoid conflicts
-          cleanupSession(existingSessionId);
-          // Create fresh transport but reuse the session ID to maintain continuity
-          transport = await createNewSession(existingSessionId, authResult.user.email, authResult.user.apiKey, clientName, clientVersion);
-        } else {
-          // Generate new session ID and create transport
-          const newSessionId = randomUUID();
-          logger.info(`[SESSION] Creating new session: ${newSessionId} for user: ${authResult.user.email}, client: ${clientName}`);
-          transport = await createNewSession(newSessionId, authResult.user.email, authResult.user.apiKey, clientName, clientVersion);
+        // Check if user already has an active session
+        const existingActiveSessionId = userActiveSession[authResult.user.email];
+        
+        if (existingActiveSessionId) {
+          logger.info(`[SESSION] User ${authResult.user.email} already has active session ${existingActiveSessionId}, invalidating and creating new session`);
+          // Invalidate existing session and create new one
+          invalidateUserSessions(authResult.user.email);
         }
+        
+        // Generate new session ID and create transport (single session per user)
+        const newSessionId = randomUUID();
+        logger.info(`[SESSION] Creating new session: ${newSessionId} for user: ${authResult.user.email}, client: ${clientName}`);
+        transport = await createNewSession(newSessionId, authResult.user.email, authResult.user.apiKey, clientName, clientVersion);
       } else {
         // Invalid request - no session ID or not initialization request
         res.status(400).json({
@@ -367,10 +427,26 @@ export function createStreamableHttpRoutes(
     }
     
     if (staleSessionIds.length > 0) {
-      logger.info(`[SESSION] Cleaning up ${staleSessionIds.length} stale sessions older than 12 hours`);
+      logger.info(`[SESSION] Cleaning up ${staleSessionIds.length} stale sessions older than 12 hours (single-session-per-user policy)`);
       staleSessionIds.forEach(sessionId => {
         logger.info(`[SESSION] Removing stale session: ${sessionId} (last used: ${sessions[sessionId].lastUsed.toISOString()})`);
         cleanupSession(sessionId);
+      });
+    }
+    
+    // Also clean up orphaned user session mappings
+    const orphanedUsers: string[] = [];
+    for (const [userEmail, activeSessionId] of Object.entries(userActiveSession)) {
+      if (!sessions[activeSessionId]) {
+        orphanedUsers.push(userEmail);
+      }
+    }
+    
+    if (orphanedUsers.length > 0) {
+      logger.info(`[SESSION] Cleaning up ${orphanedUsers.length} orphaned user session mappings`);
+      orphanedUsers.forEach(userEmail => {
+        logger.debug(`[SESSION] Removing orphaned user session mapping: ${userEmail} -> ${userActiveSession[userEmail]}`);
+        delete userActiveSession[userEmail];
       });
     }
   }, CLEANUP_INTERVAL);

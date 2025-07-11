@@ -93,7 +93,7 @@ export class ToolService {
           const { name, arguments: args } = request.params;
 
           logger.info(
-            `Tool execution requested: ${name} by user: ${
+            `[TOOLSERVICE] Tool execution requested: ${name} by user: ${
               userEmail || "unknown"
             }, session: ${extra.sessionId}`,
           );
@@ -105,7 +105,7 @@ export class ToolService {
 
           if (!userEmail) {
             logger.warn(
-              `Tool execution failed: No user email in session for tool ${name}`,
+              `[TOOLSERVICE] Tool execution failed: No user email in session for tool ${name}`,
             );
             return this.createErrorResponse("No user email in session.");
           }
@@ -113,7 +113,7 @@ export class ToolService {
           const tool = tools.find((t) => t.name === name);
           if (!tool) {
             logger.warn(
-              `Tool execution failed: Tool ${name} not found or not authorized for user ${userEmail}`,
+              `[TOOLSERVICE] Tool execution failed: Tool ${name} not found or not authorized for user ${userEmail}`,
             );
             return this.createErrorResponse(
               `Tool ${name} not found or not authorized for user.`,
@@ -141,7 +141,7 @@ export class ToolService {
 
             const executionTime = Date.now() - startTime;
             logger.info(
-              `Tool execution completed: ${name} in ${executionTime}ms, session: ${extra.sessionId}`,
+              `[TOOLSERVICE] Tool execution completed: ${name} in ${executionTime}ms, session: ${extra.sessionId}`,
             );
             logger.debug(`Tool execution result:`, {
               toolName: name,
@@ -153,7 +153,7 @@ export class ToolService {
           } catch (error) {
             const executionTime = Date.now() - startTime;
             logger.error(
-              `Tool execution failed: ${name} after ${executionTime}ms`,
+              `[TOOLSERVICE] Tool execution failed: ${name} after ${executionTime}ms`,
               {
                 error: error instanceof Error ? error.message : String(error),
                 toolName: name,
@@ -167,9 +167,9 @@ export class ToolService {
       );
 
       this.initialized = true;
-      logger.info("Tool generator initialized");
+      logger.info("[TOOLSERVICE] Tool generator initialized");
     } catch (error) {
-      logger.error(`Failed to initialize tool generator: ${error}`);
+      logger.error(`[TOOLSERVICE] Failed to initialize tool generator: ${error}`);
       throw error;
     }
   }
@@ -319,9 +319,6 @@ export class ToolService {
     const mergedArgs = { ...mappedArguments, ...args };
     logger.debug(`Arguments prepared for tool execution`, { mergedArgs });
 
-    logger.info(
-      `Executing handler for tool: ${actualTool.name} with handler type: ${handlerType}`,
-    );
     // Always pass four arguments: args, context, config, progress
     const result = await handlerInstance(
       mergedArgs,

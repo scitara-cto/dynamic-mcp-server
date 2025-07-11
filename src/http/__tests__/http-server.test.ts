@@ -52,7 +52,7 @@ describe("HttpServer", () => {
         .send({ jsonrpc: "2.0", method: "test", id: 1 });
       
       expect(res.status).toBe(400);
-      expect(res.text).toContain("No transport found for sessionId");
+      expect(res.text).toContain("No valid SSE session found");
     });
   });
 
@@ -71,6 +71,7 @@ describe("HttpServer", () => {
 
       const res = await supertest(app)
         .post("/mcp")
+        .set('MCP-Protocol-Version', '2025-06-18')
         .send(initRequest);
       
       expect(res.status).toBe(401);
@@ -87,22 +88,27 @@ describe("HttpServer", () => {
 
       const res = await supertest(app)
         .post("/mcp?apiKey=test-api-key-123")
+        .set('MCP-Protocol-Version', '2025-06-18')
         .send(nonInitRequest);
       
       expect(res.status).toBe(400);
       expect(res.body.error.message).toContain("No valid session ID provided");
     });
 
-    it("GET /mcp without session ID returns 400", async () => {
-      const res = await supertest(app).get("/mcp");
-      expect(res.status).toBe(400);
-      expect(res.body.error.message).toContain("No valid session ID provided");
+    it("GET /mcp without API key returns 401", async () => {
+      const res = await supertest(app)
+        .get("/mcp")
+        .set('MCP-Protocol-Version', '2025-06-18');
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain("Missing apiKey");
     });
 
-    it("DELETE /mcp without session ID returns 400", async () => {
-      const res = await supertest(app).delete("/mcp");
-      expect(res.status).toBe(400);
-      expect(res.body.error.message).toContain("No valid session ID provided");
+    it("DELETE /mcp without API key returns 401", async () => {
+      const res = await supertest(app)
+        .delete("/mcp")
+        .set('MCP-Protocol-Version', '2025-06-18');
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain("Missing apiKey");
     });
   });
 
@@ -135,7 +141,6 @@ describe("HttpServer", () => {
       
       // Test that the server has the expected methods
       expect(typeof httpServer.notifyToolListChanged).toBe("function");
-      expect(typeof httpServer.getSessionManager).toBe("function");
       expect(typeof httpServer.addHttpRoute).toBe("function");
     });
 

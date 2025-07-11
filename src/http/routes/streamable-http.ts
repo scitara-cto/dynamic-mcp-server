@@ -40,7 +40,7 @@ export function createStreamableHttpRoutes(
 
   // Helper function to clean up a session
   const cleanupSession = (sessionId: string) => {
-    logger.info(`[SESSION] Cleaning up session: ${sessionId}`);
+    logger.debug(`[SESSION] Cleaning up session: ${sessionId}`);
     
     // Find and remove from user active session mapping
     const sessionData = sessions[sessionId];
@@ -63,7 +63,7 @@ export function createStreamableHttpRoutes(
   const invalidateUserSessions = (userEmail: string, excludeSessionId?: string) => {
     const existingSessionId = userActiveSession[userEmail];
     if (existingSessionId && existingSessionId !== excludeSessionId) {
-      logger.info(`[SESSION] Invalidating existing session ${existingSessionId} for user: ${userEmail}`);
+      logger.debug(`[SESSION] Invalidating existing session ${existingSessionId} for user: ${userEmail}`);
       cleanupSession(existingSessionId);
     }
   };
@@ -74,7 +74,7 @@ export function createStreamableHttpRoutes(
     const isActive = activeSessionId === sessionId;
     
     if (!isActive) {
-      logger.warn(`[SESSION] Session ${sessionId} is not the active session for user ${userEmail}. Active session: ${activeSessionId || 'none'}`);
+      logger.debug(`[SESSION] Session ${sessionId} is not the active session for user ${userEmail}. Active session: ${activeSessionId || 'none'}`);
     }
     
     return isActive;
@@ -184,7 +184,7 @@ export function createStreamableHttpRoutes(
     let transport: StreamableHTTPServerTransport;
     
     if (!sessionData || !(sessionData.transport instanceof StreamableHTTPServerTransport)) {
-      logger.info(`[SESSION] Session ${sessionId} not found, creating new session`);
+      logger.debug(`[SESSION] Session ${sessionId} not found, creating new session`);
       transport = await createNewSession(sessionId, authResult.user.email, authResult.user.apiKey);
     } else {
       transport = sessionData.transport;
@@ -300,7 +300,7 @@ export function createStreamableHttpRoutes(
         // Check if this session is the active one for the user
         if (!isActiveSessionForUser(sessionId, authResult.user.email)) {
           // Session is not active for this user - create a new session instead of returning error
-          logger.info(`[SESSION] Session ${sessionId} is not active for user ${authResult.user.email}. Creating new session instead of invalidating.`);
+          logger.debug(`[SESSION] Session ${sessionId} is not active for user ${authResult.user.email}. Creating new session instead of invalidating.`);
           cleanupSession(sessionId);
           transport = await createNewSession(sessionId, authResult.user.email, authResult.user.apiKey);
         } else {
@@ -330,20 +330,20 @@ export function createStreamableHttpRoutes(
         const clientName = clientInfo?.name || 'unknown-client';
         const clientVersion = clientInfo?.version || 'unknown-version';
         
-        logger.info(`[SESSION] INIT REQUEST for user: ${authResult.user.email}, client: ${clientName} v${clientVersion} (single-session-per-user policy)`);
+        logger.debug(`[SESSION] INIT REQUEST for user: ${authResult.user.email}, client: ${clientName} v${clientVersion} (single-session-per-user policy)`);
 
         // Check if user already has an active session
         const existingActiveSessionId = userActiveSession[authResult.user.email];
         
         if (existingActiveSessionId) {
-          logger.info(`[SESSION] User ${authResult.user.email} already has active session ${existingActiveSessionId}, invalidating and creating new session`);
+          logger.debug(`[SESSION] User ${authResult.user.email} already has active session ${existingActiveSessionId}, invalidating and creating new session`);
           // Invalidate existing session and create new one
           invalidateUserSessions(authResult.user.email);
         }
         
         // Generate new session ID and create transport (single session per user)
         const newSessionId = randomUUID();
-        logger.info(`[SESSION] Creating new session: ${newSessionId} for user: ${authResult.user.email}, client: ${clientName}`);
+        logger.debug(`[SESSION] Creating new session: ${newSessionId} for user: ${authResult.user.email}, client: ${clientName}`);
         transport = await createNewSession(newSessionId, authResult.user.email, authResult.user.apiKey, clientName, clientVersion);
       } else {
         // Invalid request - no session ID or not initialization request

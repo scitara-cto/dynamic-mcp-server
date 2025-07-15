@@ -65,8 +65,6 @@ export class PromptService {
               required: arg.required,
             })) || [],
           }));
-
-          logger.info(`Listed ${prompts.length} prompts for user ${userEmail}`);
           return { prompts };
         } catch (error) {
           logger.error("Error listing prompts:", error);

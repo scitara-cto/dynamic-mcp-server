@@ -1,4 +1,3 @@
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { DynamicMcpServer } from "../mcp/server.js";
 
@@ -15,7 +14,7 @@ export interface AuthResult {
   error?: string;
 }
 
-export type Transport = SSEServerTransport | StreamableHTTPServerTransport;
+export type Transport = StreamableHTTPServerTransport;
 
 export interface TransportStorage {
   [sessionId: string]: Transport;

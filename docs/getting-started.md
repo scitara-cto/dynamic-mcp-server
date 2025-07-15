@@ -33,8 +33,7 @@ For more details on server instantiation and configuration options, see the [API
 - To connect, clients must provide the `apiKey` via query parameter OR header:
   - **Query Parameter**: `?apiKey=your-key` or `?apikey=your-key`
   - **Header**: `x-apikey: your-key` or `apikey: your-key`
-- **SSE Transport (Legacy)**: `/sse?apiKey=...` or `/sse` with header
-- **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...` or `/mcp` with header
+- **Streamable HTTP Transport**: `/mcp?apiKey=...` or `/mcp` with header
 - The server authenticates users by looking up the `apiKey` in the database.
 - **Admins can view all user apiKeys in the server logs** when users connect, or at startup for the admin user.
 - No OAuth or external identity provider is required.
@@ -43,19 +42,11 @@ For more details on server instantiation and configuration options, see the [API
 
 The server supports both modern and legacy MCP transport protocols:
 
-### Streamable HTTP Transport (Recommended)
+### Streamable HTTP Transport
 - **Endpoint**: `/mcp`
 - **Protocol Version**: 2025-03-26
 - **Features**: Single endpoint, efficient communication
 - **Best for**: New integrations and modern MCP clients
-
-### SSE Transport (Legacy Support)
-- **Endpoints**: `/sse` (connection) + `/messages` (communication)
-- **Protocol Version**: 2024-11-05
-- **Features**: Server-Sent Events based communication
-- **Best for**: Existing integrations requiring backwards compatibility
-
-Both transports share the same authentication system and provide identical functionality.
 
 ## Registering Tools via Handler Packages
 
@@ -87,7 +78,7 @@ See the [Examples](./examples.md) for more advanced usage and patterns.
 
 ## Connecting from Cursor (or other MCP clients)
 
-To connect Cursor (or any MCP client that supports HTTP/SSE) to this server using an API key:
+To connect Cursor (or any MCP client that supports HTTP) to this server using an API key:
 
 1. **Find your API key:**
 
@@ -100,7 +91,7 @@ To connect Cursor (or any MCP client that supports HTTP/SSE) to this server usin
    {
      "mcpServers": {
        "my-mcp-server": {
-         "url": "http://localhost:4001/sse?apiKey=YOUR_API_KEY"
+         "url": "http://localhost:4001/mcp?apiKey=YOUR_API_KEY"
        }
      }
    }
@@ -108,7 +99,7 @@ To connect Cursor (or any MCP client that supports HTTP/SSE) to this server usin
 
 3. **Restart Cursor** and select your server from the MCP server list.
 
-> **Note:** Cursor does not currently support sending custom headers for SSE connections, so the apiKey must be included as a query parameter in the URL.
+> **Note:** If your MCP client does not support sending custom headers, the apiKey must be included as a query parameter in the URL.
 
 ## Omitting Handlers at Startup
 

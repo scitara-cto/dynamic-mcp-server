@@ -279,7 +279,7 @@ export class UserRepository {
     const clientConfig = `{
   "mcpServers": {
     "${mcpName}": {
-      "url": "${serverUrl.replace(/\/?$/, "/sse")}?apiKey=${apiKey}"
+      "url": "${serverUrl.replace(/\/?$/, "/mcp")}?apiKey=${apiKey}"
     }
   }
 }`;

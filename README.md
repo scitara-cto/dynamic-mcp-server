@@ -33,7 +33,6 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 - To authenticate, clients must provide the `apiKey` via query parameter OR header:
   - **Query Parameter**: `?apiKey=your-key` or `?apikey=your-key`
   - **Header**: `x-apikey: your-key` or `apikey: your-key`
-- **SSE Transport (Legacy)**: `/sse?apiKey=...` or `/sse` with header
 - **Streamable HTTP Transport (Modern)**: `/mcp?apiKey=...` or `/mcp` with header
 - The server authenticates the user by looking up the `apiKey` in the database.
 
@@ -43,21 +42,12 @@ Dynamic MCP Server enables secure, user-aware, and extensible AI tool servers. I
 
 Dynamic MCP Server supports both legacy and modern MCP transport protocols:
 
-### Streamable HTTP Transport (Recommended)
+### Streamable HTTP Transport
 - **Protocol Version**: 2025-03-26
 - **Endpoint**: `/mcp`
 - **Features**: Modern, efficient, single-endpoint design
 - **Authentication**: Query parameter `?apiKey=your-key` OR header `x-apikey: your-key`
 - **Usage**: Recommended for new integrations
-
-### SSE Transport (Legacy)
-- **Protocol Version**: 2024-11-05
-- **Endpoints**: `/sse` (connection) + `/messages` (communication)
-- **Features**: Server-Sent Events based, backwards compatible
-- **Authentication**: Query parameter `?apiKey=your-key` OR header `x-apikey: your-key`
-- **Usage**: Maintained for existing integrations
-
-Both transports work simultaneously and share the same authentication, user management, and tool execution systems.
 
 ---
 

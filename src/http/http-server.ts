@@ -4,7 +4,6 @@ import realLogger from "../utils/logger.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { DynamicMcpServer } from "../mcp/server.js";
 import { createHealthRoutes } from "./routes/health.js";
-import { createSSERoutes, getActiveSSETransports, getSSETransport } from "./routes/sse.js";
 import { createStreamableHttpRoutes, getActiveTransports, getTransport } from "./routes/streamable-http.js";
 
 export class HttpServer {
@@ -40,13 +39,7 @@ export class HttpServer {
     this.app.use(createHealthRoutes());
 
 
-    // Legacy SSE routes
-    this.app.use(createSSERoutes(
-      this.mcpServer,
-      this.dynamicMcpServer
-    ));
-
-    // Modern Streamable HTTP routes
+    // Streamable HTTP routes
     this.app.use(createStreamableHttpRoutes(
       this.mcpServer,
       this.dynamicMcpServer
@@ -61,7 +54,6 @@ export class HttpServer {
         );
         this.logger.info("Available endpoints:");
         this.logger.info("  - Health: GET /status, GET /health");
-        this.logger.info("  - Legacy SSE: GET /sse, POST /messages");
         this.logger.info("  - Streamable HTTP: ALL /mcp");
       });
     } catch (error) {
@@ -104,21 +96,6 @@ export class HttpServer {
         this.logger.warn(`[SESSION] Failed to notify streamable HTTP client ${transport.sessionId} of tool changes: ${error}`);
       }
     }
-    
-    // Notify all active SSE transports
-    const sseTransports = getActiveSSETransports();
-    for (const transport of sseTransports) {
-      try {
-        await transport.send({
-          jsonrpc: "2.0",
-          method: "notifications/tools/list_changed",
-          params: {},
-        });
-        this.logger.debug(`[SESSION] Notified SSE client ${transport.sessionId} of tool changes`);
-      } catch (error) {
-        this.logger.warn(`[SESSION] Failed to notify SSE client ${transport.sessionId} of tool changes: ${error}`);
-      }
-    }
   }
 
   public getApp(): express.Application {
@@ -126,43 +103,34 @@ export class HttpServer {
   }
 
   /**
-   * Get transports for DynamicMcpServer - only supports /mcp and /sse endpoints
+   * Get transports for DynamicMcpServer - only supports /mcp endpoint
    */
   public get transports(): { [sessionId: string]: any } {
-    // Create a proxy object that provides access to both streamable HTTP and SSE transports
+    // Create a proxy object that provides access to streamable HTTP transports
     return new Proxy({} as { [sessionId: string]: any }, {
       get: (target, prop) => {
         if (typeof prop === 'string') {
-          // First try streamable HTTP transport
+          // Try streamable HTTP transport
           const streamableTransport = getTransport(prop);
           if (streamableTransport) {
             return streamableTransport;
-          }
-          // Then try SSE transport
-          const sseTransport = getSSETransport(prop);
-          if (sseTransport) {
-            return sseTransport;
           }
         }
         return undefined;
       },
       has: (target, prop) => {
         if (typeof prop === 'string') {
-          // Check streamable HTTP and SSE transports only
-          return getTransport(prop) !== undefined ||
-                 getSSETransport(prop) !== undefined;
+          // Check streamable HTTP transports only
+          return getTransport(prop) !== undefined;
         }
         return false;
       },
       ownKeys: (target) => {
-        // Combine session IDs from streamable HTTP and SSE transports
+        // Get session IDs from streamable HTTP transports
         const streamableTransports = getActiveTransports();
         const streamableSessionIds = streamableTransports.map(t => t.sessionId).filter((id): id is string => Boolean(id));
         
-        const sseTransports = getActiveSSETransports();
-        const sseSessionIds = sseTransports.map(t => t.sessionId).filter((id): id is string => Boolean(id));
-        
-        return [...new Set([...streamableSessionIds, ...sseSessionIds])];
+        return streamableSessionIds;
       }
     });
   }

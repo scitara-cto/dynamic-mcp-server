@@ -1,16 +1,15 @@
 # Transport Protocols
 
-Dynamic MCP Server supports both modern and legacy MCP transport protocols, allowing for seamless migration and backwards compatibility.
+Dynamic MCP Server supports the modern MCP transport protocol for efficient client-server communication.
 
 ## Overview
 
-The server implements a dual-transport architecture that supports:
-- **Streamable HTTP Transport** (Protocol 2025-03-26) - Modern, recommended
-- **SSE Transport** (Protocol 2024-11-05) - Legacy, backwards compatible
+The server implements a streamable HTTP transport architecture:
+- **Streamable HTTP Transport** (Protocol 2025-03-26) - Modern, efficient
 
-Both transports share the same authentication, user management, tool execution, and session management systems.
+The transport provides comprehensive authentication, user management, tool execution, and session management systems.
 
-## Streamable HTTP Transport (Recommended)
+## Streamable HTTP Transport
 
 ### Protocol Details
 - **Version**: 2025-03-26
@@ -55,46 +54,6 @@ curl -X POST "http://localhost:4001/mcp" \
   -d '{"method": "tools/call", "params": {"name": "weather", "arguments": {"location": "Boston"}}}'
 ```
 
-## SSE Transport (Legacy)
-
-### Protocol Details
-- **Version**: 2024-11-05
-- **Endpoints**:
-  - `/sse` - Server-Sent Events connection
-  - `/messages` - Message posting
-- **Authentication**: Query parameter `?apiKey=your-key` OR header `x-apikey: your-key`
-
-### Features
-- Server-Sent Events for real-time communication
-- Separate endpoints for connection and messaging
-- Established protocol with wide client support
-- Maintained for backwards compatibility
-
-### Example Usage
-
-**Using Query Parameter:**
-```bash
-# Connect to SSE stream
-curl "http://localhost:4001/sse?apiKey=your-api-key"
-
-# Send messages via separate endpoint
-curl -X POST "http://localhost:4001/messages?apiKey=your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"method": "tools/call", "params": {"name": "weather", "arguments": {"location": "Boston"}}}'
-```
-
-**Using Header:**
-```bash
-# Connect to SSE stream
-curl "http://localhost:4001/sse" \
-  -H "x-apikey: your-api-key"
-
-# Send messages via separate endpoint
-curl -X POST "http://localhost:4001/messages" \
-  -H "Content-Type: application/json" \
-  -H "x-apikey: your-api-key" \
-  -d '{"method": "tools/call", "params": {"name": "weather", "arguments": {"location": "Boston"}}}'
-```
 
 ## Architecture
 
@@ -110,7 +69,6 @@ src/http/
 │   └── session-manager.ts # Unified session management
 └── routes/
     ├── health.ts         # Health check endpoints
-    ├── sse.ts           # SSE transport routes
     └── streamable-http.ts # Streamable HTTP routes
 ```
 
@@ -139,27 +97,20 @@ Both transports use identical API key authentication with flexible options:
 - Query parameters are simpler for testing and debugging
 - Both methods provide identical security when used over HTTPS
 
-## Migration Guide
+## Integration Guide
 
-### For New Integrations
-Use the **Streamable HTTP Transport** for all new integrations:
-- More efficient and modern
-- Better error handling
-- Simpler client implementation
+### For All Integrations
+Use the **Streamable HTTP Transport** for all integrations:
+- Efficient and modern protocol
+- Excellent error handling
+- Simple client implementation
 - Future-proof design
 
-### For Existing Integrations
-Existing SSE-based integrations continue to work without changes:
-- No breaking changes to SSE protocol
-- Same authentication mechanism
-- Identical tool execution behavior
-- Can migrate at your own pace
-
 ### Client Libraries
-Both transports work with standard MCP client libraries:
-- Configure endpoint URL based on transport choice
-- Same authentication and tool calling patterns
-- Transport selection is transparent to application logic
+The streamable HTTP transport works with standard MCP client libraries:
+- Configure endpoint URL to use `/mcp`
+- Standard authentication and tool calling patterns
+- Transparent integration with application logic
 
 ## Performance Considerations
 
@@ -169,8 +120,6 @@ Both transports work with standard MCP client libraries:
 - Better connection pooling support
 - Simplified debugging and monitoring
 
-### SSE Transport
-- Persistent connection overhead
 - Real-time streaming capabilities
 - More complex connection management
 - Legacy client compatibility
@@ -178,12 +127,12 @@ Both transports work with standard MCP client libraries:
 ## Debugging and Monitoring
 
 ### Health Endpoints
-Both transports support health monitoring:
+The transport supports comprehensive health monitoring:
 - `GET /health` - Basic health check
 - `GET /status` - Detailed status information
 
 ### Logging
-Comprehensive logging for both transports:
+Comprehensive logging for the transport:
 - Connection establishment
 - Authentication events
 - Tool execution
@@ -192,15 +141,15 @@ Comprehensive logging for both transports:
 
 ## Best Practices
 
-1. **Use Streamable HTTP** for new projects
-2. **Maintain SSE** for existing integrations during transition
-3. **Monitor both transports** during migration periods
-4. **Test thoroughly** when switching transport protocols
-5. **Use health endpoints** for monitoring and debugging
+1. **Use Streamable HTTP** for all projects
+2. **Monitor transport performance** for optimal operation
+3. **Test thoroughly** during development and deployment
+4. **Use health endpoints** for monitoring and debugging
+5. **Implement proper error handling** in client applications
 
 ## Future Roadmap
 
-- Streamable HTTP is the recommended and actively developed transport
-- SSE transport will be maintained for backwards compatibility
-- New features may be prioritized for Streamable HTTP
-- Migration tools and guides will be provided as needed
+- Streamable HTTP is the actively developed transport protocol
+- Continued improvements to performance and reliability
+- Enhanced debugging and monitoring capabilities
+- Additional client library support and tooling

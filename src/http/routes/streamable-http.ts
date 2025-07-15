@@ -159,7 +159,7 @@ export function createStreamableHttpRoutes(
     await transport.handleRequest(req, res);
   };
 
-  // Handle GET requests for server-to-client notifications via SSE
+  // Handle GET requests for server-to-client notifications via streamable HTTP
   router.get('/mcp', handleSessionRequest);
 
   // Handle DELETE requests for session termination

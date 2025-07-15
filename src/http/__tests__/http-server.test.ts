@@ -39,22 +39,6 @@ describe("HttpServer", () => {
   });
 
 
-  describe("SSE Transport", () => {
-    it("GET /sse without API key returns 401", async () => {
-      const res = await supertest(app).get("/sse");
-      expect(res.status).toBe(401);
-      expect(res.body).toHaveProperty("error", "Missing apiKey");
-    });
-
-    it("POST /messages without session returns 400", async () => {
-      const res = await supertest(app)
-        .post("/messages")
-        .send({ jsonrpc: "2.0", method: "test", id: 1 });
-      
-      expect(res.status).toBe(400);
-      expect(res.text).toContain("No valid SSE session found");
-    });
-  });
 
   describe("Streamable HTTP Transport", () => {
     it("POST /mcp without API key returns 401", async () => {
@@ -95,20 +79,20 @@ describe("HttpServer", () => {
       expect(res.body.error.message).toContain("No valid session ID provided");
     });
 
-    it("GET /mcp without API key returns 401", async () => {
+    it("GET /mcp without session ID returns 400", async () => {
       const res = await supertest(app)
         .get("/mcp")
         .set('MCP-Protocol-Version', '2025-06-18');
-      expect(res.status).toBe(401);
-      expect(res.body.error).toContain("Missing apiKey");
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toContain("Missing MCP-Session-ID header");
     });
 
-    it("DELETE /mcp without API key returns 401", async () => {
+    it("DELETE /mcp without session ID returns 400", async () => {
       const res = await supertest(app)
         .delete("/mcp")
         .set('MCP-Protocol-Version', '2025-06-18');
-      expect(res.status).toBe(401);
-      expect(res.body.error).toContain("Missing apiKey");
+      expect(res.status).toBe(400);
+      expect(res.body.error.message).toContain("Missing MCP-Session-ID header");
     });
   });
 
@@ -135,8 +119,8 @@ describe("HttpServer", () => {
   });
 
   describe("Transport Support", () => {
-    it("supports both SSE and Streamable HTTP transports", () => {
-      // Verify that both transport endpoints are available
+    it("supports Streamable HTTP transport", () => {
+      // Verify that the transport endpoint is available
       expect(httpServer.getApp()).toBeDefined();
       
       // Test that the server has the expected methods

@@ -74,7 +74,9 @@ export function createStreamableHttpRoutes(
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => sessionId,
       onsessioninitialized: (newSessionId: string) => {
-        logger.info(`[SESSION] New session initialized: ${newSessionId} for user: ${userEmail} (single-session-per-user policy)`);
+        logger.info(
+          `[SESSION] New session initialized: ${newSessionId} for user: ${userEmail} using ${clientName} ${clientVersion}`,
+        );
         
         // Store session data with timestamp
         sessions[newSessionId] = {
